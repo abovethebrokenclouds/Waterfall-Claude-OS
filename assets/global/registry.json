@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "updated_at": "2026-06-19T22:15:00Z",
+  "updated_at": "2026-06-19T22:40:00Z",
   "description": "Waterfall Claude OS \u2014 canonical catalog of every skill across the Waterfall Technologies platform. Source of truth lives in the Waterfall-Claude-OS repo (assets/global/registry.json), which also holds a full mirror of every skill (.claude/skills + .agents/skills) and the portable waterfall-skills bundle. `installed_in` is where a skill physically ships (loaded by Claude Code from that repo's .claude/skills or .agents/skills); `applies_to` is where it is relevant. OS-core skills ship in every repo. Any app-repo catalog (e.g. cairo-ai-pro/app-assets/global) is a superseded mirror.",
   "agents": [],
   "skills": [
@@ -230,6 +230,32 @@
       ],
       "integration_notes": "Generalized: shared RLS migration (new-migration.sh is git-root-relative) plus two server-accessor variants \u2014 TanStack server fn (cairo-ai-pro) and Deno Edge Function (Lovable-Cloud apps like waterfall-nexus).",
       "recommended_usage": "Adding a new table or any server code that reads/writes user data on a Supabase app.",
+      "status": "active"
+    },
+    {
+      "name": "superagent-conformance",
+      "type": "skill",
+      "path": ".claude/skills/superagent-conformance",
+      "description": "Enforce THE ONE RULE \u2014 every AI call routes through the Super Agent. Static sweep for raw provider-API fetches, direct provider SDK use, hardcoded model strings, and manual token caps in app code; refactor to the approved superAgent/useAgent/shim patterns. Exits non-zero on HIGH.",
+      "source": "waterfall-claude-os",
+      "applies_to": [
+        "cairo-ai-pro",
+        "waterfall-claude-os",
+        "waterfall-nexus",
+        "waterfall-tech-command",
+        "waterfall-technologies"
+      ],
+      "installed_in": [
+        "cairo-ai-pro",
+        "waterfall-claude-os",
+        "waterfall-tech-command",
+        "waterfall-technologies"
+      ],
+      "dependencies": [
+        "helper:scan.sh"
+      ],
+      "integration_notes": "scan.sh is git-root-relative and no-ops cleanly (exit 0) when there's no src/. The model-access engine is allowlisted by default (src/agent, any superAgent file, src/lib/ai, *.gen.*); a repo extends it via .claude/skills/superagent-conformance/allowlist.txt \u2014 cairo-ai-pro ships one scoping its model-router/billing/BYOK/model-studio domain so only true consumer-app violations flag. Usable as a CI gate. Follow-up: install in waterfall-nexus (out of session scope).",
+      "recommended_usage": "Reviewing AI/LLM code, before a release, after adding an AI feature or connector, or when asked to check conformance / the one rule / model strings / token caps.",
       "status": "active"
     },
     {
