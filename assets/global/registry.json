@@ -1,0 +1,315 @@
+{
+  "version": 3,
+  "updated_at": "2026-06-19T22:15:00Z",
+  "description": "Waterfall Claude OS \u2014 canonical catalog of every skill across the Waterfall Technologies platform. Source of truth lives in the Waterfall-Claude-OS repo (assets/global/registry.json), which also holds a full mirror of every skill (.claude/skills + .agents/skills) and the portable waterfall-skills bundle. `installed_in` is where a skill physically ships (loaded by Claude Code from that repo's .claude/skills or .agents/skills); `applies_to` is where it is relevant. OS-core skills ship in every repo. Any app-repo catalog (e.g. cairo-ai-pro/app-assets/global) is a superseded mirror.",
+  "agents": [],
+  "skills": [
+    {
+      "name": "add-route",
+      "type": "skill",
+      "path": ".claude/skills/add-route",
+      "description": "Add a TanStack Router route the safe way \u2014 scaffold under src/routes/ and regenerate routeTree.gen.ts with the generator, never by hand.",
+      "source": "cairo-ai-pro",
+      "applies_to": [
+        "cairo-ai-pro"
+      ],
+      "installed_in": [
+        "cairo-ai-pro",
+        "waterfall-claude-os"
+      ],
+      "dependencies": [
+        "tool:gen:routes"
+      ],
+      "integration_notes": "Stack-specific to TanStack Start file-based routing; not portable to react-router apps (waterfall-nexus).",
+      "recommended_usage": "Adding a page, nested/layout route, or API/server route in cairo-ai-pro.",
+      "status": "active"
+    },
+    {
+      "name": "cairo-global-asset-manager",
+      "type": "skill",
+      "path": ".agents/skills/cairo-global-asset-manager",
+      "description": "Ingest, classify, integrate, and maintain global assets (agents, skills, tools, workflows, templates) under app-assets/global/ and this registry.",
+      "source": "cairo-ai-pro",
+      "applies_to": [
+        "cairo-ai-pro",
+        "waterfall-claude-os"
+      ],
+      "installed_in": [
+        "cairo-ai-pro",
+        "waterfall-claude-os"
+      ],
+      "dependencies": [
+        "registry.json"
+      ],
+      "integration_notes": "Admin-only. Manages the canonical OS catalog, which now lives in Waterfall-Claude-OS/assets/global/ (the cairo-ai-pro/app-assets/global copy is a superseded mirror). The waterfall-os skill is the platform-facing entry point that references it.",
+      "recommended_usage": "When an admin adds an external asset to the platform or audits the global asset library.",
+      "status": "active"
+    },
+    {
+      "name": "ci-cd-conventions",
+      "type": "skill",
+      "path": ".agents/skills/ci-cd-conventions",
+      "description": "Add or modify GitHub Actions workflows compatible with the Bun + Cloudflare Workers edge build.",
+      "source": "cairo-ai-pro",
+      "applies_to": [
+        "cairo-ai-pro"
+      ],
+      "installed_in": [
+        "cairo-ai-pro",
+        "waterfall-claude-os"
+      ],
+      "dependencies": [],
+      "integration_notes": "Cairo CI specifics (Bun, Cloudflare). Generalize before reuse in npm/vitest repos like waterfall-tech-command.",
+      "recommended_usage": "Editing .github/workflows or adding lint/typecheck/build/preview jobs in cairo-ai-pro.",
+      "status": "active"
+    },
+    {
+      "name": "github-integration-authoring",
+      "type": "skill",
+      "path": ".agents/skills/github-integration-authoring",
+      "description": "Add or modify a GitHub action/trigger in Cairo's GitHub integration (src/lib/integrations/github) \u2014 REST actions, event triggers, schemas, manifest.",
+      "source": "cairo-ai-pro",
+      "applies_to": [
+        "cairo-ai-pro"
+      ],
+      "installed_in": [
+        "cairo-ai-pro",
+        "waterfall-claude-os"
+      ],
+      "dependencies": [],
+      "integration_notes": "Tied to cairo-ai-pro's integration layout.",
+      "recommended_usage": "Implementing new REST-backed GitHub actions or event triggers in cairo-ai-pro.",
+      "status": "active"
+    },
+    {
+      "name": "github-webhook-security",
+      "type": "skill",
+      "path": ".agents/skills/github-webhook-security",
+      "description": "Implement or review inbound webhook handlers \u2014 verify X-Hub-Signature-256, process repository events safely.",
+      "source": "cairo-ai-pro",
+      "applies_to": [
+        "cairo-ai-pro"
+      ],
+      "installed_in": [
+        "cairo-ai-pro",
+        "waterfall-claude-os"
+      ],
+      "dependencies": [],
+      "integration_notes": "Mechanics (HMAC verify, constant-time compare) are portable; paths reference cairo /api/public/* routes.",
+      "recommended_usage": "Adding webhook receivers or verifying signatures in cairo-ai-pro.",
+      "status": "active"
+    },
+    {
+      "name": "performance-optimizer",
+      "type": "skill",
+      "path": ".claude/skills/performance-optimizer",
+      "description": "Static performance profiling \u2014 Supabase over-fetch/N+1, missing limits, TanStack Query caching, bundle/latency smells \u2014 with a before/after report and score.",
+      "source": "cairo-ai-pro",
+      "applies_to": [
+        "cairo-ai-pro",
+        "waterfall-nexus"
+      ],
+      "installed_in": [
+        "cairo-ai-pro",
+        "waterfall-claude-os",
+        "waterfall-nexus"
+      ],
+      "dependencies": [
+        "helper:perf-scan.sh"
+      ],
+      "integration_notes": "perf-scan.sh is git-root-relative and grep-based; React + Supabase oriented. Installed on the React-heavy apps.",
+      "recommended_usage": "When something feels slow, before a release, or when asked to profile/optimize.",
+      "status": "active"
+    },
+    {
+      "name": "preview-doctor",
+      "type": "skill",
+      "path": ".claude/skills/preview-doctor",
+      "description": "Diagnose and fix Lovable preview failures for a TanStack Start app \u2014 Node built-ins in the client graph, stale routeTree.gen.ts, asset/import hazards.",
+      "source": "cairo-ai-pro",
+      "applies_to": [
+        "cairo-ai-pro"
+      ],
+      "installed_in": [
+        "cairo-ai-pro",
+        "waterfall-claude-os"
+      ],
+      "dependencies": [
+        "helper:diagnose.sh",
+        "tool:gen:routes"
+      ],
+      "integration_notes": "Specific to TanStack Start + Lovable dev preview.",
+      "recommended_usage": "When the Lovable preview misbehaves or before handing a build to preview.",
+      "status": "active"
+    },
+    {
+      "name": "release-and-deploy",
+      "type": "skill",
+      "path": ".agents/skills/release-and-deploy",
+      "description": "Understand the deploy target and secret promotion \u2014 Cloudflare Workers (wrangler.jsonc), env/secret promotion, published vs preview URLs.",
+      "source": "cairo-ai-pro",
+      "applies_to": [
+        "cairo-ai-pro"
+      ],
+      "installed_in": [
+        "cairo-ai-pro",
+        "waterfall-claude-os"
+      ],
+      "dependencies": [],
+      "integration_notes": "Cloudflare Workers specific.",
+      "recommended_usage": "Configuring deploys or promoting secrets between dev and prod in cairo-ai-pro.",
+      "status": "active"
+    },
+    {
+      "name": "repo-hygiene",
+      "type": "skill",
+      "path": ".claude/skills/repo-hygiene",
+      "description": "OS-core. Maintain GitHub repo governance \u2014 CODEOWNERS, PR templates, branch protection, conventional PRs, and (for Lovable-synced repos) the two-way sync caveats.",
+      "source": "cairo-ai-pro",
+      "applies_to": [
+        "cairo-ai-pro",
+        "waterfall-claude-os",
+        "waterfall-nexus",
+        "waterfall-tech-command",
+        "waterfall-technologies"
+      ],
+      "installed_in": [
+        "cairo-ai-pro",
+        "waterfall-claude-os",
+        "waterfall-nexus",
+        "waterfall-tech-command",
+        "waterfall-technologies"
+      ],
+      "dependencies": [],
+      "integration_notes": "OS-core: installed in every Waterfall repo. Generalized from cairo-only (moved from .agents/skills to .claude/skills); Lovable-sync section is marked as applying only to Lovable-synced repos.",
+      "recommended_usage": "Setting up repository governance or advising on PR/branch workflow.",
+      "status": "active"
+    },
+    {
+      "name": "security-monitor",
+      "type": "skill",
+      "path": ".claude/skills/security-monitor",
+      "description": "Static security sweep \u2014 RLS coverage, SSRF guards, secret leakage, permissive policies, webhook signature checks, browser-hostile imports. Exits non-zero on HIGH/CRITICAL.",
+      "source": "cairo-ai-pro",
+      "applies_to": [
+        "cairo-ai-pro",
+        "waterfall-nexus",
+        "waterfall-tech-command"
+      ],
+      "installed_in": [
+        "cairo-ai-pro",
+        "waterfall-claude-os",
+        "waterfall-nexus",
+        "waterfall-tech-command"
+      ],
+      "dependencies": [
+        "helper:scan.sh"
+      ],
+      "integration_notes": "scan.sh is git-root-relative and no-ops on absent dirs (supabase/migrations, src/routes), so it ships safely to any repo with app source. Usable as a CI gate.",
+      "recommended_usage": "Before a release, after adding a connector/migration, or when asked to scan/check security.",
+      "status": "active"
+    },
+    {
+      "name": "supabase-feature",
+      "type": "skill",
+      "path": ".claude/skills/supabase-feature",
+      "description": "Add a Supabase-backed feature securely \u2014 scaffold a migration with RLS enabled + owner-scoped policies, plus a matching authenticated server accessor (TanStack server function or Deno Edge Function).",
+      "source": "cairo-ai-pro",
+      "applies_to": [
+        "cairo-ai-pro",
+        "waterfall-nexus"
+      ],
+      "installed_in": [
+        "cairo-ai-pro",
+        "waterfall-claude-os",
+        "waterfall-nexus"
+      ],
+      "dependencies": [
+        "helper:new-migration.sh",
+        "skill:security-monitor"
+      ],
+      "integration_notes": "Generalized: shared RLS migration (new-migration.sh is git-root-relative) plus two server-accessor variants \u2014 TanStack server fn (cairo-ai-pro) and Deno Edge Function (Lovable-Cloud apps like waterfall-nexus).",
+      "recommended_usage": "Adding a new table or any server code that reads/writes user data on a Supabase app.",
+      "status": "active"
+    },
+    {
+      "name": "task-planner",
+      "type": "skill",
+      "path": ".claude/skills/task-planner",
+      "description": "OS-core. Decompose any goal into a dependency-aware plan and route each subtask to a skill that actually exists. The orchestration layer of the Waterfall Claude OS.",
+      "source": "cairo-ai-pro",
+      "applies_to": [
+        "cairo-ai-pro",
+        "waterfall-claude-os",
+        "waterfall-nexus",
+        "waterfall-tech-command",
+        "waterfall-technologies"
+      ],
+      "installed_in": [
+        "cairo-ai-pro",
+        "waterfall-claude-os",
+        "waterfall-nexus",
+        "waterfall-tech-command",
+        "waterfall-technologies"
+      ],
+      "dependencies": [
+        "helper:list-skills.sh",
+        "skill:waterfall-os"
+      ],
+      "integration_notes": "OS-core: installed in every Waterfall repo. Routing reflects each repo's installed set via list-skills.sh.",
+      "recommended_usage": "Multi-step or multi-domain requests, or whenever a request spans more than one skill.",
+      "status": "active"
+    },
+    {
+      "name": "tool-authoring",
+      "type": "skill",
+      "path": ".agents/skills/tool-authoring",
+      "description": "Author, register, and wire a new Cairo AI tool (AITool interface) in src/lib/ai/tools/registry.ts.",
+      "source": "cairo-ai-pro",
+      "applies_to": [
+        "cairo-ai-pro"
+      ],
+      "installed_in": [
+        "cairo-ai-pro",
+        "waterfall-claude-os"
+      ],
+      "dependencies": [],
+      "integration_notes": "Tied to cairo-ai-pro's AI tool registry. Tools must route AI through the Super Agent, never call models directly.",
+      "recommended_usage": "Adding or modifying a tool exposed to Cairo agents.",
+      "status": "active"
+    },
+    {
+      "name": "waterfall-os",
+      "type": "skill",
+      "path": ".claude/skills/waterfall-os",
+      "description": "OS-core. The Waterfall Claude OS entry point \u2014 platform contract (route every AI call through the Super Agent), where this registry lives, installed skill set, and the add/unify-a-skill workflow.",
+      "source": "cairo-ai-pro",
+      "applies_to": [
+        "cairo-ai-pro",
+        "waterfall-claude-os",
+        "waterfall-nexus",
+        "waterfall-tech-command",
+        "waterfall-technologies"
+      ],
+      "installed_in": [
+        "cairo-ai-pro",
+        "waterfall-claude-os",
+        "waterfall-nexus",
+        "waterfall-tech-command",
+        "waterfall-technologies"
+      ],
+      "dependencies": [
+        "helper:os-status.sh",
+        "registry.json"
+      ],
+      "integration_notes": "OS-core: installed in every Waterfall repo. Source of truth for the platform contract and the catalog pointer.",
+      "recommended_usage": "First skill to consult when landing in any Waterfall repo.",
+      "status": "active"
+    }
+  ],
+  "tools": [],
+  "workflows": [],
+  "templates": [],
+  "home": "waterfall-claude-os",
+  "canonical_location": "Waterfall-Claude-OS/assets/global/registry.json"
+}
