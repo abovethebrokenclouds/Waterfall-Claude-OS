@@ -29,6 +29,7 @@ script.
 |-------|--------|-------------|
 | **waterfall-os** | `os-status.sh` | ✅ OS-core. Platform contract + pointer to the canonical skill registry + add/unify workflow. Install everywhere. |
 | **task-planner** | `list-skills.sh` | ✅ OS-core. Fully portable. Decomposes goals and routes subtasks to whatever skills are installed in that repo. |
+| **superagent-conformance** | `scan.sh` | ✅ Enforces THE ONE RULE — flags raw provider calls, direct SDK use, hardcoded models, and manual token caps in app code. Engine layer is allowlisted (extend per repo via `allowlist.txt`); no-ops without `src/`. Exits non-zero on HIGH — usable as a CI gate. |
 | **repo-hygiene** | — | ✅ OS-core. Repo governance (CODEOWNERS, PR template, branch protection); Lovable-sync notes self-mark as Lovable-only. |
 | **security-monitor** | `scan.sh` | ✅ Stack-agnostic for Supabase + TS apps (RLS coverage, secret leakage, SSRF guards, webhook verification, permissive policies). Exits non-zero on HIGH/CRITICAL — usable as a CI gate. |
 | **performance-optimizer** | `perf-scan.sh` | ✅ Mostly portable (Supabase over-fetch/N+1, React/TanStack Query caching, bundle, latency). |
