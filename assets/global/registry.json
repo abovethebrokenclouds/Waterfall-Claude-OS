@@ -1,9 +1,31 @@
 {
   "version": 3,
-  "updated_at": "2026-06-19T22:40:00Z",
+  "updated_at": "2026-06-20T18:09:40Z",
   "description": "Waterfall Claude OS \u2014 canonical catalog of every skill across the Waterfall Technologies platform. Source of truth lives in the Waterfall-Claude-OS repo (assets/global/registry.json), which also holds a full mirror of every skill (.claude/skills + .agents/skills) and the portable waterfall-skills bundle. `installed_in` is where a skill physically ships (loaded by Claude Code from that repo's .claude/skills or .agents/skills); `applies_to` is where it is relevant. OS-core skills ship in every repo. Any app-repo catalog (e.g. cairo-ai-pro/app-assets/global) is a superseded mirror.",
   "agents": [],
   "skills": [
+    {
+      "name": "active-risk-monitoring",
+      "type": "skill",
+      "path": ".claude/skills/active-risk-monitoring",
+      "description": "Build the \u201cactive insurance\u201d moat \u2014 continuous signal ingestion (IoT, telematics, scans, weather) \u2192 a live risk score \u2192 proactive prevention alerts that lower loss frequency, plus telematics onboarding and transparent dynamic pricing.",
+      "source": "sentry-insurance",
+      "applies_to": [
+        "sentry-insurance"
+      ],
+      "installed_in": [
+        "sentry-insurance",
+        "waterfall-claude-os"
+      ],
+      "dependencies": [
+        "helper:risk-monitor-scaffold.sh",
+        "skill:insurance-unit-economics",
+        "skill:superagent-conformance"
+      ],
+      "integration_notes": "The loss-frequency moat (Coalition/Hippo/Root patterns). Monitoring agent routes through the Super Agent (HAIKU for signal classification, SONNET/OPUS for narrative); risk math is deterministic. Feeds insurance-unit-economics (loss ratio) and dynamic pricing. Sequence Phase 3 after claims-automation + insurance-unit-economics. Diff 5.",
+      "recommended_usage": "When building IoT/sensor integration, telematics onboarding, a risk dashboard, prevention alerts, or usage-based/dynamic pricing.",
+      "status": "active"
+    },
     {
       "name": "add-route",
       "type": "skill",
@@ -64,6 +86,29 @@
       "status": "active"
     },
     {
+      "name": "claims-automation",
+      "type": "skill",
+      "path": ".claude/skills/claims-automation",
+      "description": "Agentic claims pipeline \u2014 conversational FNOL \u2192 ML triage \u2192 AI damage estimate \u2192 instant payout \u2014 Super-Agent-routed, with the invariant that the fraud/deepfake gate runs BEFORE any auto-payout. Audit exits non-zero on HIGH (CI gate).",
+      "source": "sentry-insurance",
+      "applies_to": [
+        "sentry-insurance"
+      ],
+      "installed_in": [
+        "sentry-insurance",
+        "waterfall-claude-os"
+      ],
+      "dependencies": [
+        "helper:claims-automation-audit.sh",
+        "skill:fraud-deepfake-guard",
+        "skill:insurance-claims-ux",
+        "skill:superagent-conformance"
+      ],
+      "integration_notes": "Orchestrates (does not replace) insurance-claims-ux (UX) and fraud-deepfake-guard (media gate). Load-bearing invariant: no auto-payout path without a preceding fraud gate \u2014 the audit fails CI on violation. The margin lever measured by insurance-unit-economics automation rate. Diff 4.",
+      "recommended_usage": "When building a file-a-claim flow, claims console, FNOL bot, auto-adjudication, or instant-payout path.",
+      "status": "active"
+    },
+    {
       "name": "github-integration-authoring",
       "type": "skill",
       "path": ".agents/skills/github-integration-authoring",
@@ -97,6 +142,27 @@
       "dependencies": [],
       "integration_notes": "Mechanics (HMAC verify, constant-time compare) are portable; paths reference cairo /api/public/* routes.",
       "recommended_usage": "Adding webhook receivers or verifying signatures in cairo-ai-pro.",
+      "status": "active"
+    },
+    {
+      "name": "insurance-unit-economics",
+      "type": "skill",
+      "path": ".claude/skills/insurance-unit-economics",
+      "description": "Instrument the six embedded-MGA unit-economics metrics \u2014 loss ratio, combined ratio, take/ceding commission, CAC & LTV/CAC, attach rate, automation rate \u2014 as live, A/B-testable dashboards. Scaffolds a typed metrics module + dashboard; audits whether each KPI is computed.",
+      "source": "sentry-insurance",
+      "applies_to": [
+        "sentry-insurance"
+      ],
+      "installed_in": [
+        "sentry-insurance",
+        "waterfall-claude-os"
+      ],
+      "dependencies": [
+        "helper:econ-scaffold.sh",
+        "skill:superagent-conformance"
+      ],
+      "integration_notes": "Instrument-first: ships before the agentic features so claims-automation and active-risk-monitoring have a scoreboard. KPI math is deterministic; any narrative/anomaly/projection routes through the Super Agent. Derives from the policy/claim event log emitted by embedded-insurance-sdk. Diff 2.",
+      "recommended_usage": "When building partner/admin dashboards, before a board/capacity-partner review, or whenever asked about loss ratio, combined ratio, attach rate, take rate, LTV/CAC, or automation rate.",
       "status": "active"
     },
     {
