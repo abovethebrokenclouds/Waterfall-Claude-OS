@@ -116,7 +116,22 @@ variant that matches the repo).
    **Both variants:** reserve the service-role client (bypasses RLS) for trusted
    server-only jobs (webhooks, aggregation) and authorize those yourself.
 
-3. Validate: typecheck (`bun run typecheck` where applicable), then run the
+3. **Prove the policies actually scope rows** with the scaffolded pgTAP test
+   (`supabase/tests/<table>_rls_test.sql`, written by `new-migration.sh`):
+
+   ```bash
+   supabase test db   # bundles pgTAP + a TAP harness; runs against local Supabase
+   ```
+
+   The test authenticates as user A, inserts a row, then authenticates as user B
+   and asserts B sees **zero** of A's rows (and cannot forge one). RLS only fires
+   under a real authenticated role/JWT, so a static check can't substitute for
+   this. It uses the basejump `supabase-test-helpers` (`create_supabase_user`,
+   `authenticate_as`, `rls_enabled`, `get_supabase_uid`) — **pin them to a commit
+   SHA** in CI given their light maintenance, or use the inline `set local role`
+   fallback noted in the test header (zero third-party dependency).
+
+4. Validate: typecheck (`bun run typecheck` where applicable), then run the
    `security-monitor` skill — it confirms the new table has RLS and flags any
    `using (true)` policy.
 

@@ -16,6 +16,31 @@ finding() { # SEV  SOURCE  DETAIL
 
 echo "── Security Monitor ─────────────────────────────────────────────"
 
+# 0) Optional OSS scanners — run ONLY if installed. App repos are never forced
+#    to install them; the grep heuristics below always run as a portable
+#    fallback. gitleaks (secrets) actually runs and gates; osv-scanner/trivy are
+#    advised rather than auto-run because their CLI flags vary across major
+#    versions and we don't want a wrong invocation to flake CI.
+have() { command -v "$1" >/dev/null 2>&1; }
+ran_external=0
+if have gitleaks; then
+  ran_external=1
+  if gitleaks detect --no-banner --redact -q >/dev/null 2>&1; then
+    finding INFO "gitleaks" "gitleaks: no committed secrets found"
+  else
+    finding CRITICAL "gitleaks" "gitleaks detected committed secret(s) — run 'gitleaks detect --redact' for detail"
+  fi
+fi
+if have osv-scanner; then
+  ran_external=1
+  finding INFO "osv-scanner" "present — run 'osv-scanner scan source -r .' for dependency CVEs (advisory)"
+fi
+if have trivy; then
+  ran_external=1
+  finding INFO "trivy" "present — run 'trivy fs --scanners vuln,secret,misconfig .' for a deep scan (advisory)"
+fi
+[ "$ran_external" -eq 0 ] && finding INFO "scanners" "gitleaks/osv-scanner/trivy not installed — using built-in grep heuristics only (install any for deeper coverage)"
+
 # 1) RLS coverage: every public table must have RLS enabled (explicit ALTER or
 #    listed in an `enable row level security` loop array).
 if [ -d "$MIG_DIR" ]; then

@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "updated_at": "2026-06-20T00:00:00Z",
+  "updated_at": "2026-06-20T01:00:00Z",
   "description": "Waterfall Claude OS \u2014 canonical catalog of every skill across the Waterfall Technologies platform. Source of truth lives in the Waterfall-Claude-OS repo (assets/global/registry.json), which also holds a full mirror of every skill (.claude/skills + .agents/skills) and the portable waterfall-skills bundle. `installed_in` is where a skill physically ships (loaded by Claude Code from that repo's .claude/skills or .agents/skills); `applies_to` is where it is relevant. OS-core skills ship in every repo. Any app-repo catalog (e.g. cairo-ai-pro/app-assets/global) is a superseded mirror.",
   "agents": [],
   "skills": [
@@ -64,6 +64,31 @@
       "status": "active"
     },
     {
+      "name": "dependency-audit",
+      "type": "skill",
+      "path": ".claude/skills/dependency-audit",
+      "description": "Find dead code, unused exports, and unused/undeclared dependencies in one knip pass to cut bundle size and attack surface. Portable: no-ops when knip isn't installed and points at setup.",
+      "source": "waterfall-claude-os",
+      "applies_to": [
+        "cairo-ai-pro",
+        "physiq",
+        "resumai",
+        "shopera",
+        "verseful",
+        "waterfall-nexus",
+        "waterfall-tech-command"
+      ],
+      "installed_in": [
+        "waterfall-claude-os"
+      ],
+      "dependencies": [
+        "helper:audit-deps.sh"
+      ],
+      "integration_notes": "Auto-detects knip (ISC); supersedes the archived ts-prune/depcheck (both now recommend knip). Ships knip.example.json. Module-boundary / Node-builtin-in-client-graph checks live in preview-doctor (dependency-cruiser). Distribution to app repos is a scoped follow-up.",
+      "recommended_usage": "Before a release, after a refactor/large delete, or when asked to find dead code or prune dependencies.",
+      "status": "active"
+    },
+    {
       "name": "github-integration-authoring",
       "type": "skill",
       "path": ".agents/skills/github-integration-authoring",
@@ -100,6 +125,31 @@
       "status": "active"
     },
     {
+      "name": "llm-eval",
+      "type": "skill",
+      "path": ".claude/skills/llm-eval",
+      "description": "LLM regression gate (promptfoo + optional Vitest) that runs in CI so a prompt, model-tier, or Super Agent change can't silently degrade output. Evals call the app's Super Agent endpoint, never a provider API.",
+      "source": "waterfall-claude-os",
+      "applies_to": [
+        "cairo-ai-pro",
+        "physiq",
+        "resumai",
+        "shopera",
+        "verseful",
+        "waterfall-nexus",
+        "waterfall-tech-command"
+      ],
+      "installed_in": [
+        "waterfall-claude-os"
+      ],
+      "dependencies": [
+        "helper:eval-scan.sh"
+      ],
+      "integration_notes": "Built on promptfoo (MIT). Ships promptfooconfig.example.yaml whose https provider targets the Super Agent endpoint, preserving THE ONE RULE (no provider key in the eval). eval-scan.sh is advisory and warns if a config points at a provider API. Distribution to app repos is a scoped follow-up.",
+      "recommended_usage": "When adding/changing an AI feature or prompt, before a release, or when asked to evaluate/grade/benchmark model output.",
+      "status": "active"
+    },
+    {
       "name": "performance-optimizer",
       "type": "skill",
       "path": ".claude/skills/performance-optimizer",
@@ -117,7 +167,7 @@
       "dependencies": [
         "helper:perf-scan.sh"
       ],
-      "integration_notes": "perf-scan.sh is git-root-relative and grep-based; React + Supabase oriented. Installed on the React-heavy apps.",
+      "integration_notes": "perf-scan.sh is git-root-relative and grep-based; React + Supabase oriented. Installed on the React-heavy apps. Ships size-limit.example.json (bundle-budget CI gate) and auto-detects size-limit/knip; references eslint-plugin-react-hooks (React Compiler rules) for the static render gate.",
       "recommended_usage": "When something feels slow, before a release, or when asked to profile/optimize.",
       "status": "active"
     },
@@ -138,7 +188,7 @@
         "helper:diagnose.sh",
         "tool:gen:routes"
       ],
-      "integration_notes": "Specific to TanStack Start + Lovable dev preview.",
+      "integration_notes": "Specific to TanStack Start + Lovable dev preview. Auto-detects dependency-cruiser (MIT) via depcruise.preview.cjs for graph-accurate Node-builtin-in-client detection (follows re-exports, unlike grep/madge); grep fallback always runs.",
       "recommended_usage": "When the Lovable preview misbehaves or before handing a build to preview.",
       "status": "active"
     },
@@ -205,7 +255,7 @@
       "dependencies": [
         "helper:scan.sh"
       ],
-      "integration_notes": "scan.sh is git-root-relative and no-ops on absent dirs (supabase/migrations, src/routes), so it ships safely to any repo with app source. Usable as a CI gate.",
+      "integration_notes": "scan.sh is git-root-relative and no-ops on absent dirs (supabase/migrations, src/routes), so it ships safely to any repo with app source. Usable as a CI gate. Auto-detects an optional OSS tool-belt (gitleaks gates on committed secrets; osv-scanner/trivy advised) and falls back to grep heuristics when none are installed.",
       "recommended_usage": "Before a release, after adding a connector/migration, or when asked to scan/check security.",
       "status": "active"
     },
@@ -256,7 +306,7 @@
         "helper:new-migration.sh",
         "skill:security-monitor"
       ],
-      "integration_notes": "Generalized: shared RLS migration (new-migration.sh is git-root-relative) plus two server-accessor variants \u2014 TanStack server fn (cairo-ai-pro) and Deno Edge Function (Lovable-Cloud apps like waterfall-nexus).",
+      "integration_notes": "Generalized: shared RLS migration (new-migration.sh is git-root-relative) plus two server-accessor variants \u2014 TanStack server fn (cairo-ai-pro) and Deno Edge Function (Lovable-Cloud apps like waterfall-nexus). new-migration.sh also scaffolds a pgTAP RLS-scoping test under supabase/tests/, run via 'supabase test db', proving a non-owner sees zero rows.",
       "recommended_usage": "Adding a new table or any server code that reads/writes user data on a Supabase app.",
       "status": "active"
     },
@@ -282,7 +332,7 @@
       "dependencies": [
         "helper:scan.sh"
       ],
-      "integration_notes": "scan.sh is git-root-relative and no-ops cleanly (exit 0) when there's no src/. The model-access engine is allowlisted by default (src/agent, any superAgent file, src/lib/ai, *.gen.*); a repo extends it via .claude/skills/superagent-conformance/allowlist.txt \u2014 cairo-ai-pro ships one scoping its model-router/billing/BYOK/model-studio domain so only true consumer-app violations flag. Usable as a CI gate. Follow-up: install in waterfall-nexus (out of session scope).",
+      "integration_notes": "scan.sh is git-root-relative and no-ops cleanly (exit 0) when there's no src/. The model-access engine is allowlisted by default (src/agent, any superAgent file, src/lib/ai, *.gen.*); a repo extends it via .claude/skills/superagent-conformance/allowlist.txt \u2014 cairo-ai-pro ships one scoping its model-router/billing/BYOK/model-studio domain so only true consumer-app violations flag. Usable as a CI gate. Also ships eslint.superagent.mjs (flat-config AST gate) as the precise, low-false-positive counterpart to the grep scanner. Follow-up: install in waterfall-nexus (out of session scope).",
       "recommended_usage": "Reviewing AI/LLM code, before a release, after adding an AI feature or connector, or when asked to check conformance / the one rule / model strings / token caps.",
       "status": "active"
     },

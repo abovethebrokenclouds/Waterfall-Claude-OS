@@ -1,0 +1,42 @@
+# promptfooconfig.example.yaml — LLM regression gate for a Waterfall app.
+#
+# Evals call the app's SUPER AGENT endpoint (THE ONE RULE) — NOT a provider API —
+# so the suite exercises the same routing, model tier, and token caps as prod,
+# and no provider key lives in the repo. Copy to promptfooconfig.yaml and adapt
+# the request/response shape to your app's agent route.
+description: "Super Agent regression suite"
+
+providers:
+  - id: https
+    config:
+      url: "{{env.SUPER_AGENT_URL}}" # e.g. https://<app>.lovable.app/api/agent
+      method: POST
+      headers:
+        Content-Type: application/json
+        Authorization: "Bearer {{env.SUPER_AGENT_TOKEN}}"
+      body:
+        app: "verseful" # pin to the app so routing matches production
+        prompt: "{{prompt}}"
+      transformResponse: "json.text" # adapt to the Super Agent response shape
+
+prompts:
+  - "Summarize this in one sentence: {{input}}"
+
+defaultTest:
+  assert:
+    - type: not-contains
+      value: "as an AI language model"
+
+tests:
+  - vars:
+      input: "Waterfall routes every AI call through one shared Super Agent."
+    assert:
+      - type: contains
+        value: "Super Agent"
+      - type: llm-rubric # configure the grader to the platform grader, not a raw key
+        value: "Is a faithful one-sentence summary of the input"
+  - vars:
+      input: "The quick brown fox jumps over the lazy dog."
+    assert:
+      - type: latency
+        threshold: 8000

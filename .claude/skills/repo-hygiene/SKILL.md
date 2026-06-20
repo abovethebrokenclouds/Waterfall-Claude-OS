@@ -65,6 +65,26 @@ Recommend for the default branch:
 - Never commit secrets or real `.env` values — runtime secrets live in the host
   (Lovable Cloud / Cloudflare / CI), never in git.
 
+## Automated governance (OSS, optional)
+
+Conventions hold better when a tool enforces them. All permissive-licensed,
+CI-friendly:
+
+- **commitlint** (MIT) — enforce Conventional Commits at the PR gate; the
+  upstream signal that makes automated versioning reliable.
+- **release-please** (Apache-2.0) — review-gated releases: opens a "release PR"
+  with the changelog/version bump for a human to approve (fits a
+  governance-first platform better than fully-automatic `semantic-release`,
+  which is also MIT if you want hands-off).
+- **Danger JS** (MIT) — codify review conventions as rules that auto-comment on
+  PRs (e.g. "touched RLS without a test", "no changelog entry").
+- **actionlint** + **zizmor** (both MIT) — lint and security-scan the workflow
+  files themselves (see the `ci-cd-conventions` skill for the snippet).
+
+Avoid AGPL/GPL governance bots (`mergeable`, `octoscan`) in product code; running
+them as standalone CI tools is fine, vendoring them is not. `codeowners-validator`
+and similar low-maintenance helpers should be pinned to a commit SHA.
+
 ## Don't
 
 - Don't bypass CI by merging red PRs.

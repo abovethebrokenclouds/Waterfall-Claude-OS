@@ -54,6 +54,31 @@ Add the script to `package.json` first, then reference it in CI.
 - A passing `build:dev` prerender requires that public routes don't call
   auth-protected server functions in loaders (no session at build time).
 
+## Workflow linting & security (OSS, optional)
+
+Workflows themselves should be linted — a typo or an over-scoped token ships
+silently otherwise. Both tools are MIT, single-binary, and run in a CI job with
+no server:
+
+- **actionlint** (MIT) — static correctness: workflow syntax, `${{ }}` expression
+  errors, shellcheck on `run:` steps, bad `uses:` refs.
+- **zizmor** (MIT) — security posture: template-injection sinks, credential
+  leakage, excessive `permissions`, impostor/unpinned actions.
+
+```yaml
+  workflow-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          bash <(curl -s https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash)
+          ./actionlint -color
+      - run: pipx run zizmor .   # or: uvx zizmor .
+```
+
+Avoid `octoscan` (GPL-3.0) and `mergeable` (AGPL-3.0) — fine to run as
+separate-process CI tools, but never vendor or embed their code.
+
 ## Secrets in CI
 
 - CI needs no app runtime secrets for typecheck/build. If a future job needs one,

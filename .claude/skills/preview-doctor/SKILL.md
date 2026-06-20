@@ -58,6 +58,23 @@ Then open each flagged file, confirm, and fix. Re-run until clean.
    (e.g. a promise with no `.catch`) hangs on "Loading…". Ensure async auth
    settles to a definite state.
 
+## Graph-accurate detection (optional, auto-detected)
+
+The grep check (mode 1) only sees a literal `import … from 'crypto'` line — it
+misses a built-in reached **transitively** (route → util → `crypto`). If
+**dependency-cruiser** (MIT) is installed, `diagnose.sh` runs it automatically
+with the shipped config `depcruise.preview.cjs`, which resolves the real import
+graph and fails on any Node `core` module reachable from the client graph
+(excluding `*.server.ts` and the Worker entry). Install it per-repo to upgrade
+the check; if it's absent, the grep fallback still runs.
+
+```bash
+npx depcruise --config .claude/skills/preview-doctor/depcruise.preview.cjs src
+```
+
+(Don't use `madge` for this — it excludes Node built-ins from its graph by
+design, so it can't see the leak.)
+
 ## After fixing
 - `bun run gen:routes && bun run typecheck` must be clean.
 - The full `vite build` only runs in CI (needs the private Lovable config), so

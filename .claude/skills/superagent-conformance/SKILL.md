@@ -104,6 +104,27 @@ the approved patterns above.
   with the maintainer before rewriting; a wrong tier can change output quality
   or cost.
 
+## AST gate (precise enforcement, optional)
+
+`scan.sh` is the portable, dependency-free gate (grep — runs anywhere). For
+AST-accurate enforcement with fewer false positives (won't match a model string
+in a comment, catches aliased imports, gives editor squiggles), this skill ships
+an ESLint flat-config fragment, `eslint.superagent.mjs`. It bans provider SDK
+imports and in-app provider-client construction (`error`), hardcoded model
+strings (`error`), and flags manual token caps (`warn`) — exempting the engine
+paths. Merge it into a repo that already runs ESLint:
+
+```js
+// eslint.config.js
+import superagent from "./.claude/skills/superagent-conformance/eslint.superagent.mjs";
+export default [ ...superagent, /* the rest of your config */ ];
+```
+
+Keep its `enginePaths` in sync with `allowlist.txt`. Use `ts-morph` (MIT) for a
+one-shot codemod to clean existing violations before flipping the rules to
+`error`. This is the lint form of the same contract `scan.sh` enforces — run
+either or both; both are CI-safe.
+
 ## CI gate (optional)
 
 ```yaml

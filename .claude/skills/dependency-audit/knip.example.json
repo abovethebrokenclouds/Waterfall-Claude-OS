@@ -1,0 +1,12 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "entry": [
+    "src/main.tsx",
+    "src/server.ts",
+    "src/routes/**/*.{ts,tsx}"
+  ],
+  "project": ["src/**/*.{ts,tsx}"],
+  "ignore": ["src/routeTree.gen.ts"],
+  "ignoreDependencies": [],
+  "comment": "Tune entry/project to the repo's real entry points. routeTree.gen.ts is generated and statically imports every route, so it's ignored. Add dynamic-only modules to 'ignore' rather than deleting genuine entry points."
+}

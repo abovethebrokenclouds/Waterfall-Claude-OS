@@ -64,6 +64,11 @@ if [ -z "$(git ls-files 2>/dev/null | grep -iE 'agent/superagent|src/lib/ai/(rou
   finding INFO "engine" "no Super Agent engine detected (src/agent/superAgent.*) — confirm this repo is wired to the platform engine"
 fi
 
+# 6) AST gate availability — the precise, low-false-positive enforcement path.
+if [ -f ".claude/skills/superagent-conformance/eslint.superagent.mjs" ]; then
+  finding INFO "ast-gate" "for AST-accurate enforcement, merge eslint.superagent.mjs into the repo's eslint.config (see SKILL.md)"
+fi
+
 echo "─────────────────────────────────────────────────────────────────"
 if [ "$fail" -ne 0 ]; then
   echo "RESULT: HIGH conformance violations present — refactor to route through the Super Agent."

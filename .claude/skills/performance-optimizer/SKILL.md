@@ -63,6 +63,23 @@ them into the analysis.
 - **SSR:** avoid blocking the shell on slow client-only data; render optimistic
   UI and hydrate.
 
+## Optional analyzers (auto-detected, permissive-licensed)
+
+The grep scan is portable and dependency-free. Where deeper analysis is worth
+it, wire these in per-repo (`perf-scan.sh` notes which are present):
+
+- **size-limit** (MIT) — the actual CI **gate**: fails the build when the initial
+  bundle regresses past a budget and posts a PR size-diff. Start from
+  `size-limit.example.json` shipped here.
+- **eslint-plugin-react-hooks** (MIT, incl. React Compiler rules) — static
+  re-render gate (`exhaustive-deps` + code the React 19 compiler can't memoize);
+  runs in CI, no browser.
+- **react-scan** (MIT) — runtime overlay of unnecessary re-renders for local
+  profiling (dev only, not a CI gate).
+
+Dead-code / unused-dependency analysis lives in the `dependency-audit` skill
+(knip).
+
 ## Inputs
 - `codebase` (required) — this repo.
 - `db_queries` (optional) — slow-query log / `explain analyze` output.

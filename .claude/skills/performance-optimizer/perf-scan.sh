@@ -40,6 +40,18 @@ grep -rnE "^import .* from ['\"](recharts|@xyflow/react|embla-carousel|react-day
 echo "· Images without loading=lazy and/or dimensions:"
 grep -rnE "<img " "$SRC" --include=*.tsx 2>/dev/null | grep -vE "loading=" | sed 's/^/    /' | head -20 || true
 
+echo "· Optional analyzers (deeper, run if installed — none are required):"
+have() { command -v "$1" >/dev/null 2>&1; }
+if have size-limit; then
+  echo "    size-limit present — enforce a bundle budget (see size-limit.example.json)"
+else
+  echo "    size-limit not installed — bundle-budget CI gate: 'npm i -D size-limit @size-limit/preset-app'"
+fi
+if have knip; then
+  echo "    knip present — run the dependency-audit skill for dead code / unused deps"
+fi
+echo "    static render gate: add eslint-plugin-react-hooks (React Compiler rules) to the lint config"
+
 echo "─────────────────────────────────────────────────────────────────"
 echo "Advisory scan complete. Triage hits, then write the optimization report"
 echo "(before/after + performance_score) per the skill's Outputs section."

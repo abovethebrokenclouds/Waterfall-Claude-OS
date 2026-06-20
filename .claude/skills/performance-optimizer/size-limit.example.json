@@ -1,0 +1,15 @@
+[
+  {
+    "name": "client entry (initial JS)",
+    "path": "dist/**/entry*.js",
+    "limit": "300 kB",
+    "comment": "Adjust path to the repo's built client entry; fail CI when the initial bundle regresses past the budget."
+  },
+  {
+    "name": "route-local heavy libs should be lazy (not in entry)",
+    "path": "dist/**/entry*.js",
+    "import": "{ default as recharts }",
+    "limit": "0 kB",
+    "comment": "Asserts heavy libs like recharts/@xyflow/react are code-split out of the initial entry."
+  }
+]

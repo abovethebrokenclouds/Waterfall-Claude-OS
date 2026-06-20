@@ -9,6 +9,22 @@ ok()    { printf '[OK] %s\n' "$1"; }
 
 echo "── Preview Doctor ───────────────────────────────────────────────"
 
+# 0) Graph-accurate Node-builtin check (optional). If dependency-cruiser is
+#    installed, trace the real import graph (follows re-exports — catches
+#    built-ins reached transitively, which the grep check below cannot). No-op
+#    when the tool isn't installed; the grep fallback always runs.
+have() { command -v "$1" >/dev/null 2>&1; }
+DC_CFG=".claude/skills/preview-doctor/depcruise.preview.cjs"
+if (have depcruise || have dependency-cruise) && [ -f "$DC_CFG" ]; then
+  DC_BIN=$(command -v depcruise || command -v dependency-cruise)
+  if "$DC_BIN" --config "$DC_CFG" --no-progress src >/tmp/dc.$$ 2>&1; then
+    ok "dependency-cruiser: no Node built-ins reach the client graph"
+  else
+    while IFS= read -r l; do [ -n "$l" ] && issue "dep-cruiser" "$l"; done < /tmp/dc.$$
+  fi
+  rm -f /tmp/dc.$$
+fi
+
 # 1) Node built-in top-level imports anywhere in src (client graph in vite dev).
 nb=$(grep -rnE "^import .* from ['\"](node:|crypto|fs|path|os|buffer|stream|http2?|https|net|child_process|tls|zlib|dns)['\"]" "$SRC" 2>/dev/null || true)
 if [ -n "$nb" ]; then while IFS= read -r l; do issue "node-import" "$l (use Web APIs or lazy import inside a server handler)"; done <<< "$nb"

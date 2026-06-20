@@ -41,6 +41,24 @@ session — and complements the platform's own Supabase/Lovable security advisor
      policy change can break a feature or widen exposure.
    - **Intentional / false positive** → note it and move on.
 
+## Optional OSS tool-belt (auto-detected)
+
+The scanner is portable by default (pure grep, no dependencies). If any of these
+permissive-licensed tools are on `PATH`, `scan.sh` uses them automatically; if
+not, it falls back to the heuristics below — **no repo is forced to install
+them**.
+
+| Tool | License | Adds | In scan.sh |
+|------|---------|------|-----------|
+| **gitleaks** | MIT | git-history secret scanning (beyond tracked `.env`) | runs + **gates** (CRITICAL on a hit) |
+| **osv-scanner** | Apache-2.0 | npm dependency CVEs from the OSV database | detected → advises `osv-scanner scan source -r .` |
+| **trivy** | Apache-2.0 | CVEs + IaC/Dockerfile misconfig + secrets in one binary | detected → advises `trivy fs --scanners vuln,secret,misconfig .` |
+
+osv-scanner/trivy are *advised* rather than auto-run because their CLI flags
+shift across major versions; run them explicitly (or wire them into a repo's CI)
+when you want gating. Avoid `trufflehog` (AGPL-3.0) / `semgrep` Pro (proprietary)
+inside product code — fine as standalone CI CLIs, never linked in.
+
 ## What it checks (and why)
 
 | Check | Severity if hit | Rationale |
