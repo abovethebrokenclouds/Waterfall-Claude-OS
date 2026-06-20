@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "updated_at": "2026-06-20T18:09:40Z",
+  "updated_at": "2026-06-20T18:20:10Z",
   "description": "Waterfall Claude OS \u2014 canonical catalog of every skill across the Waterfall Technologies platform. Source of truth lives in the Waterfall-Claude-OS repo (assets/global/registry.json), which also holds a full mirror of every skill (.claude/skills + .agents/skills) and the portable waterfall-skills bundle. `installed_in` is where a skill physically ships (loaded by Claude Code from that repo's .claude/skills or .agents/skills); `applies_to` is where it is relevant. OS-core skills ship in every repo. Any app-repo catalog (e.g. cairo-ai-pro/app-assets/global) is a superseded mirror.",
   "agents": [],
   "skills": [
@@ -109,6 +109,69 @@
       "status": "active"
     },
     {
+      "name": "coi-live-certificate",
+      "type": "skill",
+      "path": ".claude/skills/coi-live-certificate",
+      "description": "Generate real-time Certificates of Insurance from live policy data + a tamper-evident public verification endpoint so a holder can confirm coverage is active and unrevoked. Eliminates the COI request bottleneck (Next Insurance Live Certificate pattern).",
+      "source": "sentry-insurance",
+      "applies_to": [
+        "sentry-insurance"
+      ],
+      "installed_in": [
+        "sentry-insurance",
+        "waterfall-claude-os"
+      ],
+      "dependencies": [
+        "helper:coi-scaffold.sh",
+        "skill:idp-intake-agent",
+        "skill:insurance-accessibility"
+      ],
+      "integration_notes": "Generation is deterministic templating; parsing an uploaded sample cert routes through idp-intake-agent (Super Agent). Emits certificate.issued on the embedded-insurance-sdk event bus. Diff 3.",
+      "recommended_usage": "Building COI generation, proof-of-coverage, real-time certificate issuance, or holder verification.",
+      "status": "active"
+    },
+    {
+      "name": "embedded-insurance-sdk",
+      "type": "skill",
+      "path": ".claude/skills/embedded-insurance-sdk",
+      "description": "Partner-facing embedded insurance SDK \u2014 quote->bind widget + headless REST/GraphQL API. Upgraded with an MCP server, multi-carrier appetite routing, vertical point-of-sale templates, episodic/parametric coverage, and instant multi-rail payout.",
+      "source": "sentry-insurance",
+      "applies_to": [
+        "sentry-insurance"
+      ],
+      "installed_in": [
+        "sentry-insurance",
+        "waterfall-claude-os"
+      ],
+      "dependencies": [
+        "helper:sdk-scaffold.sh"
+      ],
+      "integration_notes": "Primary distribution lever for the embedded-MGA model. Emits the policy/claim/payment event bus that insurance-unit-economics and active-risk-monitoring consume.",
+      "recommended_usage": "Building or integrating the partner embedded SDK, co-brand widget, or headless insurance API.",
+      "status": "active"
+    },
+    {
+      "name": "fraud-deepfake-guard",
+      "type": "skill",
+      "path": ".claude/skills/fraud-deepfake-guard",
+      "description": "Detect AI-generated/synthetic-media fraud in claim uploads and wire forensic detection into the upload pipeline. Upgraded to a holistic 0-100 claim fraud score (media + narrative-deception + behavioral/identity). Exits non-zero on HIGH (CI gate).",
+      "source": "sentry-insurance",
+      "applies_to": [
+        "sentry-insurance"
+      ],
+      "installed_in": [
+        "sentry-insurance",
+        "waterfall-claude-os"
+      ],
+      "dependencies": [
+        "helper:deepfake-audit.sh",
+        "skill:claims-automation"
+      ],
+      "integration_notes": "The fraud gate consumed by claims-automation (fraud-gate-before-payout invariant). CI gate retained; holistic score extends, never relaxes it.",
+      "recommended_usage": "Reviewing claim-upload security, before a release, or after adding a claims-media path.",
+      "status": "active"
+    },
+    {
       "name": "github-integration-authoring",
       "type": "skill",
       "path": ".agents/skills/github-integration-authoring",
@@ -145,6 +208,140 @@
       "status": "active"
     },
     {
+      "name": "gui-animation",
+      "type": "skill",
+      "path": ".claude/skills/gui-animation",
+      "description": "Choose and implement GUI animation for fintech/insurance web apps \u2014 Motion (Framer Motion) for UI transitions, GSAP for complex timelines/scroll, Lottie for micro-interactions \u2014 with trust-building motion principles and prefers-reduced-motion accessibility.",
+      "source": "sentry-insurance",
+      "applies_to": [
+        "cairo-ai-pro",
+        "sentry-insurance",
+        "waterfall-nexus",
+        "waterfall-tech-command",
+        "waterfall-technologies"
+      ],
+      "installed_in": [
+        "sentry-insurance",
+        "waterfall-claude-os"
+      ],
+      "dependencies": [
+        "helper:motion-audit.sh"
+      ],
+      "integration_notes": "Shared OS skill. The motion engine all insurance UI patterns defer to (timeline, risk gauge, payout confirmation). Always paired with insurance-accessibility.",
+      "recommended_usage": "Adding animation/micro-interactions/loading states, or picking an animation library.",
+      "status": "active"
+    },
+    {
+      "name": "idp-intake-agent",
+      "type": "skill",
+      "path": ".claude/skills/idp-intake-agent",
+      "description": "Intelligent document processing \u2014 OCR + LLM classification + field extraction with per-field confidence + human-in-the-loop correction \u2014 for COIs, ACORD forms, applications, policy docs. Reuses the fraud-deepfake-guard guarded upload pipeline (forensics first, then extraction).",
+      "source": "sentry-insurance",
+      "applies_to": [
+        "sentry-insurance"
+      ],
+      "installed_in": [
+        "sentry-insurance",
+        "waterfall-claude-os"
+      ],
+      "dependencies": [
+        "helper:idp-scaffold.sh",
+        "skill:fraud-deepfake-guard",
+        "skill:superagent-conformance"
+      ],
+      "integration_notes": "One pipeline, two passes (forensics then extraction). Writes structured records to coi-live-certificate and underwriting-agent. All extraction routes through the Super Agent. Diff 3.",
+      "recommended_usage": "Building a COI upload/analyzer, ACORD parser, document classifier, or OCR extraction pipeline.",
+      "status": "active"
+    },
+    {
+      "name": "insurance-accessibility",
+      "type": "skill",
+      "path": ".claude/skills/insurance-accessibility",
+      "description": "Make insurance web/app flows WCAG 2.1 AA conformant \u2014 form labels, focus order, color contrast, alt text, language declaration, keyboard operability, prefers-reduced-motion \u2014 with a static scanner.",
+      "source": "sentry-insurance",
+      "applies_to": [
+        "cairo-ai-pro",
+        "sentry-insurance",
+        "waterfall-nexus"
+      ],
+      "installed_in": [
+        "sentry-insurance",
+        "waterfall-claude-os"
+      ],
+      "dependencies": [
+        "helper:a11y-scan.sh"
+      ],
+      "integration_notes": "Shared OS skill. Regulatory bar for insurance (HHS rule). Gates every brand-facing widget; wire into CI.",
+      "recommended_usage": "Building or reviewing any quote/claims/policy flow, before a release, or any a11y/WCAG/ADA check.",
+      "status": "active"
+    },
+    {
+      "name": "insurance-claims-ux",
+      "type": "skill",
+      "path": ".claude/skills/insurance-claims-ux",
+      "description": "Design and audit the claims experience \u2014 FNOL intake, consolidated single-screen status, error-resistant adjuster tooling, document/photo upload. Upgraded with timeline UI, AI damage photo capture, instant-payout confirmation, resumable upload.",
+      "source": "sentry-insurance",
+      "applies_to": [
+        "sentry-insurance"
+      ],
+      "installed_in": [
+        "sentry-insurance",
+        "waterfall-claude-os"
+      ],
+      "dependencies": [
+        "helper:claims-audit.sh",
+        "skill:claims-automation",
+        "skill:gui-animation",
+        "skill:insurance-accessibility"
+      ],
+      "integration_notes": "Insurance UX; the claimant/adjuster surfaces for the claims-automation pipeline. Photo capture feeds claims-automation after the fraud-deepfake-guard gate.",
+      "recommended_usage": "Building or reviewing a file-a-claim, claim-tracking, or claims console flow.",
+      "status": "active"
+    },
+    {
+      "name": "insurance-compliance",
+      "type": "skill",
+      "path": ".claude/skills/insurance-compliance",
+      "description": "Pre-integration compliance checklist + scanner for an embedded-MGA \u2014 SOC 2 Type II, NAIC Insurance Data Security Model Law, state rate/form filings, NAIC FACTS AI governance, WCAG 2.1 AA, and capacity-concentration risk.",
+      "source": "sentry-insurance",
+      "applies_to": [
+        "sentry-insurance"
+      ],
+      "installed_in": [
+        "sentry-insurance",
+        "waterfall-claude-os"
+      ],
+      "dependencies": [
+        "helper:compliance-scan.sh",
+        "skill:insurance-accessibility",
+        "skill:underwriting-agent",
+        "skill:claims-automation"
+      ],
+      "integration_notes": "Gating for the roadmap (brands won't integrate without SOC 2 + infosec program). AI-decision explainability enforced via underwriting-agent + claims-automation audit trail; accessibility via insurance-accessibility. Diff 3.",
+      "recommended_usage": "Preparing for brand integration, before a capacity-partner review, or any SOC2/NAIC/AI-governance check.",
+      "status": "active"
+    },
+    {
+      "name": "insurance-quote-flow",
+      "type": "skill",
+      "path": ".claude/skills/insurance-quote-flow",
+      "description": "Design and audit insurance quote/quoting flows for conversion \u2014 progressive disclosure, preliminary quote after minimal input, save-and-continue, under-5-minute completion. Upgraded with an agentic conversational quote layer + data-prefill-first.",
+      "source": "sentry-insurance",
+      "applies_to": [
+        "sentry-insurance"
+      ],
+      "installed_in": [
+        "sentry-insurance",
+        "waterfall-claude-os"
+      ],
+      "dependencies": [
+        "helper:quote-audit.sh"
+      ],
+      "integration_notes": "Insurance UX. Upgrade adds a Super-Agent-routed conversational quote and data-prefill-first (Branch pattern) over the deterministic wizard; feeds insurance-unit-economics attach rate.",
+      "recommended_usage": "Building or reviewing a quote wizard, get-a-quote funnel, or onboarding-to-bind flow.",
+      "status": "active"
+    },
+    {
       "name": "insurance-unit-economics",
       "type": "skill",
       "path": ".claude/skills/insurance-unit-economics",
@@ -163,6 +360,29 @@
       ],
       "integration_notes": "Instrument-first: ships before the agentic features so claims-automation and active-risk-monitoring have a scoreboard. KPI math is deterministic; any narrative/anomaly/projection routes through the Super Agent. Derives from the policy/claim event log emitted by embedded-insurance-sdk. Diff 2.",
       "recommended_usage": "When building partner/admin dashboards, before a board/capacity-partner review, or whenever asked about loss ratio, combined ratio, attach rate, take rate, LTV/CAC, or automation rate.",
+      "status": "active"
+    },
+    {
+      "name": "partner-service-copilot",
+      "type": "skill",
+      "path": ".claude/skills/partner-service-copilot",
+      "description": "RAG copilot serving the brand's support team AND the end customer \u2014 retrieves over policy + benefit docs + live claim state, answers in plain language, and hands off to a human with full pre-summarized context (never a cold transfer).",
+      "source": "sentry-insurance",
+      "applies_to": [
+        "sentry-insurance"
+      ],
+      "installed_in": [
+        "sentry-insurance",
+        "waterfall-claude-os"
+      ],
+      "dependencies": [
+        "helper:copilot-scaffold.sh",
+        "skill:policy-semantic-search",
+        "skill:gui-animation",
+        "skill:insurance-accessibility"
+      ],
+      "integration_notes": "Calls policy-semantic-search for cited clause lookups; the multi-source, multi-turn assistant (Oscar Oswell pattern). Streaming chat UI gated by gui-animation + insurance-accessibility. Diff 4.",
+      "recommended_usage": "Building a support copilot, coverage-explanation engine, agent-assist, or claims self-service.",
       "status": "active"
     },
     {
@@ -185,6 +405,27 @@
       ],
       "integration_notes": "perf-scan.sh is git-root-relative and grep-based; React + Supabase oriented. Installed on the React-heavy apps.",
       "recommended_usage": "When something feels slow, before a release, or when asked to profile/optimize.",
+      "status": "active"
+    },
+    {
+      "name": "policy-semantic-search",
+      "type": "skill",
+      "path": ".claude/skills/policy-semantic-search",
+      "description": "NL search over a policyholder's own policy docs \u2014 embed clauses/endorsements -> retrieve -> grounded answer WITH clause citation + confidence + human fallback; never answers uncited. Also semantic policy comparison across carriers.",
+      "source": "sentry-insurance",
+      "applies_to": [
+        "sentry-insurance"
+      ],
+      "installed_in": [
+        "sentry-insurance",
+        "waterfall-claude-os"
+      ],
+      "dependencies": [
+        "helper:semantic-search-scaffold.sh",
+        "skill:superagent-conformance"
+      ],
+      "integration_notes": "Shares its retrieval layer with partner-service-copilot. Strict citation enforcement; escalates below a confidence threshold. Super-Agent-routed. Diff 3.",
+      "recommended_usage": "Building NL policy search, a cited coverage Q&A surface, clause retrieval, or policy comparison.",
       "status": "active"
     },
     {
@@ -368,6 +609,52 @@
       "dependencies": [],
       "integration_notes": "Tied to cairo-ai-pro's AI tool registry. Tools must route AI through the Super Agent, never call models directly.",
       "recommended_usage": "Adding or modifying a tool exposed to Cairo agents.",
+      "status": "active"
+    },
+    {
+      "name": "underwriting-agent",
+      "type": "skill",
+      "path": ".claude/skills/underwriting-agent",
+      "description": "STP underwriting agent \u2014 risk inputs + enrichment -> appetite/rules eval -> ML risk score -> decision (bind|refer|decline) + a plain-language, auditable explanation. Super-Agent-routed; escalates ambiguous risk to a human with rationale.",
+      "source": "sentry-insurance",
+      "applies_to": [
+        "sentry-insurance"
+      ],
+      "installed_in": [
+        "sentry-insurance",
+        "waterfall-claude-os"
+      ],
+      "dependencies": [
+        "helper:underwriting-audit.sh",
+        "skill:active-risk-monitoring",
+        "skill:superagent-conformance"
+      ],
+      "integration_notes": "Consumes the active-risk-monitoring risk score; feeds insurance-unit-economics. Explanations satisfy NAIC FACTS / insurance-compliance. Diff 4.",
+      "recommended_usage": "Building AI-guided underwriting, an STP bind engine, an appetite rules evaluator, or refer/decline flow.",
+      "status": "active"
+    },
+    {
+      "name": "video-production",
+      "type": "skill",
+      "path": ".claude/skills/video-production",
+      "description": "Plan and produce video for insurance onboarding, education, and claims \u2014 explainer/animated video, transcript-based editing, and AI-personalized policyholder video for onboarding & claim-status.",
+      "source": "sentry-insurance",
+      "applies_to": [
+        "cairo-ai-pro",
+        "sentry-insurance",
+        "waterfall-nexus",
+        "waterfall-tech-command",
+        "waterfall-technologies"
+      ],
+      "installed_in": [
+        "sentry-insurance",
+        "waterfall-claude-os"
+      ],
+      "dependencies": [
+        "helper:video-brief.sh"
+      ],
+      "integration_notes": "Shared OS skill. Personalized claim-status video pairs with insurance-claims-ux to remove where's-my-claim calls.",
+      "recommended_usage": "Scripting, producing, or planning explainer/onboarding/claims video, or generating a video brief.",
       "status": "active"
     },
     {
