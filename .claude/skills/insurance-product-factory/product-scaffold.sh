@@ -19,7 +19,7 @@ if [ "${1:-}" = "--audit" ]; then
 
   # 1. Config consumed without schema validation
   if grep -rqiE "(loadProduct|getProduct|readProduct|parseProduct)" "$SRC_DIR" \
-       --include="*.ts" --include="*.tsx" 2>/dev/null || true; then
+       --include="*.ts" --include="*.tsx" 2>/dev/null; then
     if ! grep -rqiE "validateProductConfig|ajv|zod\.parse|schema\.parse" "$SRC_DIR" \
          --include="*.ts" --include="*.tsx" 2>/dev/null; then
       finding REVIEW "validation" \
@@ -29,7 +29,7 @@ if [ "${1:-}" = "--audit" ]; then
 
   # 2. Rating logic hardcoded in app code instead of driven by config
   if grep -rqiE "base_rate|baseRate|annualPremium|monthlyPremium" "$SRC_DIR" \
-       --include="*.ts" --include="*.tsx" 2>/dev/null || true; then
+       --include="*.ts" --include="*.tsx" 2>/dev/null; then
     if ! grep -rqiE "expression_hook|rating\.hook|ratingHook|base_rate_table" "$SRC_DIR" \
          --include="*.ts" --include="*.tsx" 2>/dev/null; then
       finding REVIEW "rating" \
@@ -39,7 +39,7 @@ if [ "${1:-}" = "--audit" ]; then
 
   # 3. Form/disclosure IDs hardcoded instead of read from config
   if grep -rqiE "(policy_form|declarations_form|disclosure|formId|form_id)" "$SRC_DIR" \
-       --include="*.ts" --include="*.tsx" 2>/dev/null || true; then
+       --include="*.ts" --include="*.tsx" 2>/dev/null; then
     if ! grep -rqiE "cfg\.(forms|config\.forms)|productConfig\.forms|config\[.forms.\]" \
          "$SRC_DIR" --include="*.ts" --include="*.tsx" 2>/dev/null; then
       finding REVIEW "forms" \
@@ -50,7 +50,7 @@ if [ "${1:-}" = "--audit" ]; then
   # 4. ProductConfig objects missing version or effective_date
   if grep -rqiE "product_id|productId|ProductConfig" "$SRC_DIR" \
        --include="*.ts" --include="*.tsx" --include="*.yaml" --include="*.yml" \
-       --include="*.json" 2>/dev/null || true; then
+       --include="*.json" 2>/dev/null; then
     if ! grep -rqiE "effective_date|effectiveDate" "$SRC_DIR" \
          --include="*.ts" --include="*.tsx" --include="*.yaml" --include="*.yml" \
          --include="*.json" 2>/dev/null; then
