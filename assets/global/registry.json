@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "updated_at": "2026-06-19T22:40:00Z",
+  "updated_at": "2026-06-20T00:00:00Z",
   "description": "Waterfall Claude OS \u2014 canonical catalog of every skill across the Waterfall Technologies platform. Source of truth lives in the Waterfall-Claude-OS repo (assets/global/registry.json), which also holds a full mirror of every skill (.claude/skills + .agents/skills) and the portable waterfall-skills bundle. `installed_in` is where a skill physically ships (loaded by Claude Code from that repo's .claude/skills or .agents/skills); `applies_to` is where it is relevant. OS-core skills ship in every repo. Any app-repo catalog (e.g. cairo-ai-pro/app-assets/global) is a superseded mirror.",
   "agents": [],
   "skills": [
@@ -97,6 +97,91 @@
       "dependencies": [],
       "integration_notes": "Mechanics (HMAC verify, constant-time compare) are portable; paths reference cairo /api/public/* routes.",
       "recommended_usage": "Adding webhook receivers or verifying signatures in cairo-ai-pro.",
+      "status": "active"
+    },
+    {
+      "name": "gui-animation",
+      "type": "skill",
+      "path": ".claude/skills/gui-animation",
+      "description": "Choose and implement GUI animation for fintech/insurance web apps — Motion (Framer Motion) for React UI transitions, GSAP for complex/scroll timelines, Lottie for micro-interactions/loaders — with trust-building motion principles and a prefers-reduced-motion accessibility gate.",
+      "source": "sentry-insurance",
+      "applies_to": [
+        "cairo-ai-pro",
+        "sentry-insurance",
+        "waterfall-nexus",
+        "waterfall-technologies"
+      ],
+      "installed_in": [
+        "sentry-insurance",
+        "waterfall-claude-os"
+      ],
+      "dependencies": [
+        "helper:motion-audit.sh"
+      ],
+      "integration_notes": "motion-audit.sh is git-root-relative and no-ops cleanly (exit 0) when there's no src/package.json; reports installed animation libs and gates on a missing prefers-reduced-motion guard (pairs with insurance-accessibility WCAG 2.3.3). Broadly applicable to React apps; follow-up to install in cairo-ai-pro / waterfall-nexus / waterfall-technologies (out of session scope).",
+      "recommended_usage": "Adding animation/micro-interactions/loading states/transitions, or picking an animation library for a dashboard, quote wizard, or claims flow.",
+      "status": "active"
+    },
+    {
+      "name": "insurance-accessibility",
+      "type": "skill",
+      "path": ".claude/skills/insurance-accessibility",
+      "description": "Make insurance flows WCAG 2.1 AA conformant (the regulatory bar — HHS rule, 2026–2027 deadlines) — form labels, focus order, contrast, alt text, lang, keyboard operability, prefers-reduced-motion — with a static scanner that gates on machine-detectable failures.",
+      "source": "sentry-insurance",
+      "applies_to": [
+        "sentry-insurance"
+      ],
+      "installed_in": [
+        "sentry-insurance",
+        "waterfall-claude-os"
+      ],
+      "dependencies": [
+        "helper:a11y-scan.sh"
+      ],
+      "integration_notes": "a11y-scan.sh is git-root-relative and no-ops cleanly without src/; exits non-zero on HIGH WCAG failures (CI gate). Machine-detectable checks only — contrast/focus order/screen-reader passes are manual. The accessibility gate referenced by insurance-quote-flow and insurance-claims-ux.",
+      "recommended_usage": "Building/reviewing any quote/claims/policy flow, before a release, or when asked to check accessibility / a11y / WCAG / ADA.",
+      "status": "active"
+    },
+    {
+      "name": "insurance-claims-ux",
+      "type": "skill",
+      "path": ".claude/skills/insurance-claims-ux",
+      "description": "Design and audit the insurance claims experience — guided FNOL, consolidated single-screen claim status, resumable document/photo upload, proactive next-step communication, and error-resistant adjuster tooling — to speed resolution and cut \"where's my claim?\" calls.",
+      "source": "sentry-insurance",
+      "applies_to": [
+        "sentry-insurance"
+      ],
+      "installed_in": [
+        "sentry-insurance",
+        "waterfall-claude-os"
+      ],
+      "dependencies": [
+        "helper:claims-audit.sh",
+        "skill:insurance-accessibility"
+      ],
+      "integration_notes": "claims-audit.sh is git-root-relative and advisory (always exit 0); flags uploads without progress/error handling, settlement actions without a confirmation guard, and non-consolidated status views. Claims AI (triage, fraud, summarization) must route through the Super Agent; pair with security-monitor for the upload pipeline and watch AI-media fraud.",
+      "recommended_usage": "Building/reviewing a file-a-claim, claim-tracking, or claims-console flow.",
+      "status": "active"
+    },
+    {
+      "name": "insurance-quote-flow",
+      "type": "skill",
+      "path": ".claude/skills/insurance-quote-flow",
+      "description": "Design and audit insurance quote funnels for conversion — lead with the insured object (not PII), progressive disclosure, a preliminary quote early, under-5-minute completion, and inline coverage customization. Backed by UX testing of 70+ online insurers.",
+      "source": "sentry-insurance",
+      "applies_to": [
+        "sentry-insurance"
+      ],
+      "installed_in": [
+        "sentry-insurance",
+        "waterfall-claude-os"
+      ],
+      "dependencies": [
+        "helper:quote-audit.sh",
+        "skill:insurance-accessibility"
+      ],
+      "integration_notes": "quote-audit.sh is git-root-relative and advisory (always exit 0); flags PII-before-price ordering, multi-step forms without a progress indicator, and forms without inline validation. Any pricing/eligibility AI must route through the Super Agent.",
+      "recommended_usage": "Building/reviewing a quote wizard, get-a-quote funnel, or onboarding-to-bind flow.",
       "status": "active"
     },
     {
@@ -302,6 +387,27 @@
       "dependencies": [],
       "integration_notes": "Tied to cairo-ai-pro's AI tool registry. Tools must route AI through the Super Agent, never call models directly.",
       "recommended_usage": "Adding or modifying a tool exposed to Cairo agents.",
+      "status": "active"
+    },
+    {
+      "name": "video-production",
+      "type": "skill",
+      "path": ".claude/skills/video-production",
+      "description": "Plan and produce insurance onboarding/education/claims video — explainer/animated (Vyond, After Effects, Powtoon), transcript-based editing (Descript), and AI-personalized policyholder video (SundaySky/D-ID/Wideo) — with the <2-minute rule, plain-language scripting, distribution, and a brief generator.",
+      "source": "sentry-insurance",
+      "applies_to": [
+        "sentry-insurance",
+        "waterfall-technologies"
+      ],
+      "installed_in": [
+        "sentry-insurance",
+        "waterfall-claude-os"
+      ],
+      "dependencies": [
+        "helper:video-brief.sh"
+      ],
+      "integration_notes": "video-brief.sh is a static template (no AI calls by design) and prints a brief scaffold to stdout. Any AI-generated script/voiceover/personalization must route through the Super Agent (no hardcoded models); plan disclosure + likeness consent for AI avatars. Follow-up to install in waterfall-technologies (out of session scope).",
+      "recommended_usage": "Scripting, producing, or planning explainer/onboarding/claims video, or generating a video brief.",
       "status": "active"
     },
     {
