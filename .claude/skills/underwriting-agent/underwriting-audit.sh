@@ -92,7 +92,9 @@ if [ ! -d "$SRC_DIR" ]; then
   exit 0
 fi
 
-uw_files=$(grep -rilE "underwr|bind|decline|refer|appetite|riskScore|uwDecision" "$SRC_DIR" \
+# Scope to actual underwriting code (decisioning), not any file with a bare
+# "bind" token (quote→bind widgets, MCP tools, etc.).
+uw_files=$(grep -rilE "underwrit|appetite|uwDecision|UnderwritingDecision" "$SRC_DIR" \
            --include=*.ts --include=*.tsx --include=*.js --include=*.jsx 2>/dev/null || true)
 if [ -z "$uw_files" ]; then
   finding INFO "scope" "no underwriting/appetite/decision files detected — skipping"

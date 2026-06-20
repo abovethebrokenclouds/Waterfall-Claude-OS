@@ -18,7 +18,10 @@ if [ "${1:-}" = "--audit" ]; then
        --include=*.ts --include=*.tsx 2>/dev/null || true)
   [ -z "$rf" ] && finding INFO "scope" "no risk-monitoring files detected — skipping"
   for f in $rf; do
-    if grep -qiE "risk[_-]?score" "$f" 2>/dev/null && ! grep -qiE "alert|prevent|notify|action" "$f" 2>/dev/null; then
+    # Only flag files that PRODUCE a risk score (compute/emit), not consumers
+    # that merely read a riskScore field (e.g. underwriting).
+    if grep -qiE "(function|const)[[:space:]]+riskScore|riskScore[[:space:]]*\(|computeRisk|scoreEntity" "$f" 2>/dev/null \
+       && ! grep -qiE "alert|prevent|notify|action" "$f" 2>/dev/null; then
       finding REVIEW "prevention" "risk score computed but no prevention alert/action nearby: $f"
     fi
     if grep -qiE "premium|price|rate" "$f" 2>/dev/null && grep -qiE "risk[_-]?score" "$f" 2>/dev/null \
