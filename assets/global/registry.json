@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "updated_at": "2026-06-20T00:00:00Z",
+  "updated_at": "2026-06-20T01:00:00Z",
   "description": "Waterfall Claude OS \u2014 canonical catalog of every skill across the Waterfall Technologies platform. Source of truth lives in the Waterfall-Claude-OS repo (assets/global/registry.json), which also holds a full mirror of every skill (.claude/skills + .agents/skills) and the portable waterfall-skills bundle. `installed_in` is where a skill physically ships (loaded by Claude Code from that repo's .claude/skills or .agents/skills); `applies_to` is where it is relevant. OS-core skills ship in every repo. Any app-repo catalog (e.g. cairo-ai-pro/app-assets/global) is a superseded mirror.",
   "agents": [],
   "skills": [
@@ -61,6 +61,50 @@
       "dependencies": [],
       "integration_notes": "Cairo CI specifics (Bun, Cloudflare). Generalize before reuse in npm/vitest repos like waterfall-tech-command.",
       "recommended_usage": "Editing .github/workflows or adding lint/typecheck/build/preview jobs in cairo-ai-pro.",
+      "status": "active"
+    },
+    {
+      "name": "embedded-insurance-sdk",
+      "type": "skill",
+      "path": ".claude/skills/embedded-insurance-sdk",
+      "description": "Build and integrate the partner-facing embedded insurance SDK — a quote→bind widget + headless REST/GraphQL API that lets any brand (fintech, auto dealer, travel platform, e-commerce) sell and service insurance at point of sale without touching policy-admin internals. Covers SDK scaffold, API contract, co-brand widget, webhook events, and partner onboarding UX. The primary distribution lever for the MGA embedded-IaaS model.",
+      "source": "sentry-insurance",
+      "applies_to": [
+        "sentry-insurance"
+      ],
+      "installed_in": [
+        "sentry-insurance",
+        "waterfall-claude-os"
+      ],
+      "dependencies": [
+        "helper:sdk-scaffold.sh",
+        "skill:fraud-deepfake-guard",
+        "skill:security-monitor"
+      ],
+      "integration_notes": "sdk-scaffold.sh is a static template (no AI calls) that prints a partner integration stub to stdout. All pricing/eligibility/fraud detection calls in the SDK must route through the Super Agent (HAIKU for quotes, SONNET for bind). Partner webhooks require HMAC-SHA256 signature verification (see github-webhook-security skill). Follow-up: add partner-portal metrics dashboard once SDK is live.",
+      "recommended_usage": "Building the B2B2C embedded insurance distribution layer, onboarding a new partner vertical (auto/renters/travel/pet), or designing the quote→bind widget.",
+      "status": "active"
+    },
+    {
+      "name": "fraud-deepfake-guard",
+      "type": "skill",
+      "path": ".claude/skills/fraud-deepfake-guard",
+      "description": "Detect AI-generated / synthetic-media fraud in insurance claim uploads — deepfake damage photos, AI-altered video, voice-cloned FNOL calls — and wire forensic detection into the upload pipeline. Backed by Verisk/Guidewire data: AI-media cases grew 20k→80k (2022→2025); 40–50 % reduction with active detection. Exits non-zero on HIGH (unguarded upload endpoints or missing detection layer).",
+      "source": "sentry-insurance",
+      "applies_to": [
+        "sentry-insurance"
+      ],
+      "installed_in": [
+        "sentry-insurance",
+        "waterfall-claude-os"
+      ],
+      "dependencies": [
+        "helper:deepfake-audit.sh",
+        "skill:insurance-claims-ux",
+        "skill:security-monitor"
+      ],
+      "integration_notes": "deepfake-audit.sh is git-root-relative and exits non-zero on HIGH findings (CI gate). Checks for: unguarded upload endpoints, missing detection-score persistence, raw API fetches bypassing Super Agent, and absent human-review queue. Detection calls must route through Super Agent (SONNET for standard claims, OPUS for high-value). Pairs with C2PA/Content Credentials for capture-time provenance. 7-year retention requirement on fraud-detection audit trail.",
+      "recommended_usage": "Wiring up claim photo/video upload, adding SIU review queue, auditing claim upload pipeline for synthetic-media fraud controls, or before any claims-related release.",
       "status": "active"
     },
     {
