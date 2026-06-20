@@ -41,7 +41,8 @@ if [[ "${1:-}" == "--audit" ]]; then
   # Flag files that contain rating/pricing logic (premium calc, loss-ratio math)
   # directly inside an MCP handler rather than delegating to the headless API client.
   REIMPL_PATTERNS=("calculatePremium\|computeRate\|lossRatio\|underwritingScore\|rateEngine")
-  MCP_HANDLER_FILES=$(grep -rl "server\.tool\|tool\.register\|addTool\|defineTool" "$SRC" 2>/dev/null || true)
+  # An MCP handler file declares tools (SDK call OR a typed tool registry).
+  MCP_HANDLER_FILES=$(grep -rlE "server\.tool|tool\.register|addTool|defineTool|registerTools|:[[:space:]]*Tool\[\]" "$SRC" 2>/dev/null || true)
 
   if [[ -n "$MCP_HANDLER_FILES" ]]; then
     while IFS= read -r file; do
@@ -53,21 +54,19 @@ if [[ "${1:-}" == "--audit" ]]; then
     done <<< "$MCP_HANDLER_FILES"
   fi
 
-  # --- Check 2: bind/payout tools without an idempotency key ---
-  # Mutating tools (bind, payout, endorse, cancel) must enforce an idempotency_key param.
-  MUTATING_TOOLS=("bind_policy\|bindPolicy\|payout\|disburs\|endorse_policy\|endorsePolicy\|cancel_policy\|cancelPolicy")
-  ALL_TS_FILES=$(find "$SRC" -name "*.ts" -o -name "*.tsx" 2>/dev/null || true)
-
-  if [[ -n "$ALL_TS_FILES" ]]; then
+  # --- Check 2: mutating MCP tools without an idempotency key ---
+  # Mutating tools (bind, payout, endorse, cancel) must enforce an idempotency key.
+  # Scoped to MCP handler files — non-MCP business modules are out of scope here.
+  if [[ -n "$MCP_HANDLER_FILES" ]]; then
     while IFS= read -r file; do
       [[ -z "$file" ]] && continue
       if grep -qE "bind_policy|bindPolicy|payout|disburs|endorse_policy|endorsePolicy|cancel_policy|cancelPolicy" "$file" 2>/dev/null; then
         if ! grep -qE "idempotency_key|idempotencyKey|idempotency-key" "$file" 2>/dev/null; then
-          finding "REVIEW" "$file — mutating tool (bind/payout/endorse/cancel) with no idempotency key enforcement"
+          finding "REVIEW" "$file — mutating MCP tool (bind/payout/endorse/cancel) with no idempotency key enforcement"
           FINDINGS=$((FINDINGS + 1))
         fi
       fi
-    done <<< "$ALL_TS_FILES"
+    done <<< "$MCP_HANDLER_FILES"
   fi
 
   # --- Check 3: MCP tool handlers lacking partner-scoped auth ---

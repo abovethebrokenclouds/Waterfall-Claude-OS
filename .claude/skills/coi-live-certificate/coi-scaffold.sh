@@ -43,8 +43,9 @@ if [ "${1:-}" = "--audit" ]; then
     done
   fi
 
-  # Flag COI generation paths missing expiry handling.
-  gen_files=$(grep -rlE "generateCoi|CertificateData|buildCertificate" "$SRC_DIR" \
+  # Flag COI generation paths missing expiry handling. Match the file that
+  # DEFINES generation (declaration / certificate builder), not mere call sites.
+  gen_files=$(grep -rlE "(function|const)[[:space:]]+generateCoi|generateCoi[[:space:]]*=|CertificateData|buildCertificate" "$SRC_DIR" \
     --include="*.ts" --include="*.tsx" 2>/dev/null || true)
 
   if [ -n "$gen_files" ]; then
