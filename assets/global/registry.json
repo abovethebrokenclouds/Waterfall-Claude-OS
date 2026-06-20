@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "updated_at": "2026-06-19T22:40:00Z",
+  "updated_at": "2026-06-20T00:00:00Z",
   "description": "Waterfall Claude OS \u2014 canonical catalog of every skill across the Waterfall Technologies platform. Source of truth lives in the Waterfall-Claude-OS repo (assets/global/registry.json), which also holds a full mirror of every skill (.claude/skills + .agents/skills) and the portable waterfall-skills bundle. `installed_in` is where a skill physically ships (loaded by Claude Code from that repo's .claude/skills or .agents/skills); `applies_to` is where it is relevant. OS-core skills ship in every repo. Any app-repo catalog (e.g. cairo-ai-pro/app-assets/global) is a superseded mirror.",
   "agents": [],
   "skills": [
@@ -207,6 +207,34 @@
       ],
       "integration_notes": "scan.sh is git-root-relative and no-ops on absent dirs (supabase/migrations, src/routes), so it ships safely to any repo with app source. Usable as a CI gate.",
       "recommended_usage": "Before a release, after adding a connector/migration, or when asked to scan/check security.",
+      "status": "active"
+    },
+    {
+      "name": "skill-scout",
+      "type": "skill",
+      "path": ".claude/skills/skill-scout",
+      "description": "Sourcing/intake layer of the OS — evaluate a candidate skill, tool, or asset against the Skill Quality Framework (relevance, technical quality, performance, security & licensing, integration difficulty, replaceability), then drive a governed add/replace/deprecate workflow that keeps the registry and skill mirror drift-free. Verifies all research; never fabricates data.",
+      "source": "waterfall-claude-os",
+      "applies_to": [
+        "cairo-ai-pro",
+        "halo",
+        "physiq",
+        "resumai",
+        "shopera",
+        "verseful",
+        "waterfall-claude-os",
+        "waterfall-nexus",
+        "waterfall-tech-command",
+        "waterfall-technologies"
+      ],
+      "installed_in": [
+        "waterfall-claude-os"
+      ],
+      "dependencies": [
+        "helper:audit-registry.sh"
+      ],
+      "integration_notes": "Lives in the OS home because it operates on the canonical registry, which only lives here. audit-registry.sh is git-root-relative and no-ops outside the OS home; it checks JSON validity, required fields, sort order, duplicate names, and registry↔mirror drift in both directions. Enforces THE ONE RULE on candidates and the single-repo-scope rule on integrations.",
+      "recommended_usage": "When sourcing a new capability for an app, deciding whether to adopt an external skill/library, or replacing/deprecating an incumbent.",
       "status": "active"
     },
     {
