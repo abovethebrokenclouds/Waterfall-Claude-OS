@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "updated_at": "2026-06-20T18:20:10Z",
+  "updated_at": "2026-06-20T18:28:09Z",
   "description": "Waterfall Claude OS \u2014 canonical catalog of every skill across the Waterfall Technologies platform. Source of truth lives in the Waterfall-Claude-OS repo (assets/global/registry.json), which also holds a full mirror of every skill (.claude/skills + .agents/skills) and the portable waterfall-skills bundle. `installed_in` is where a skill physically ships (loaded by Claude Code from that repo's .claude/skills or .agents/skills); `applies_to` is where it is relevant. OS-core skills ship in every repo. Any app-repo catalog (e.g. cairo-ai-pro/app-assets/global) is a superseded mirror.",
   "agents": [],
   "skills": [
@@ -322,6 +322,55 @@
       "status": "active"
     },
     {
+      "name": "insurance-mcp-server",
+      "type": "skill",
+      "path": ".claude/skills/insurance-mcp-server",
+      "description": "Expose the insurance platform (quote, bind, endorse, cancel, FNOL, COI issue/verify, status) as a Model Context Protocol (MCP) server so AI agents and brand copilots transact insurance directly \u2014 the Phase-3 agentic distribution surface (Sure pattern).",
+      "source": "sentry-insurance",
+      "applies_to": [
+        "sentry-insurance"
+      ],
+      "installed_in": [
+        "sentry-insurance",
+        "waterfall-claude-os"
+      ],
+      "dependencies": [
+        "helper:mcp-scaffold.sh",
+        "skill:embedded-insurance-sdk",
+        "skill:claims-automation",
+        "skill:coi-live-certificate",
+        "skill:superagent-conformance"
+      ],
+      "integration_notes": "Sits IN FRONT of embedded-insurance-sdk's headless API (delegates, never reimplements). Partner-scoped auth + idempotency on bind/payout. The MCP server makes no AI calls itself; any AI it triggers routes through the Super Agent. Phase 3. Diff 4.",
+      "recommended_usage": "Building an MCP server / Model Context Protocol integration, AI-agent insurance distribution, or quote/bind/claim MCP tools.",
+      "status": "active"
+    },
+    {
+      "name": "insurance-product-factory",
+      "type": "skill",
+      "path": ".claude/skills/insurance-product-factory",
+      "description": "Define a new insurance line/product by declarative, schema-validated config (coverage, rating, eligibility, forms, lifecycle, carrier) \u2014 not bespoke code \u2014 so the platform ships dozens of micro-products without an engineering cycle per line (ZhongAn config-driven scale).",
+      "source": "sentry-insurance",
+      "applies_to": [
+        "sentry-insurance"
+      ],
+      "installed_in": [
+        "sentry-insurance",
+        "waterfall-claude-os"
+      ],
+      "dependencies": [
+        "helper:product-scaffold.sh",
+        "skill:embedded-insurance-sdk",
+        "skill:multi-carrier-routing",
+        "skill:parametric-coverage",
+        "skill:insurance-compliance",
+        "skill:superagent-conformance"
+      ],
+      "integration_notes": "Config drives quote-flow, embedded-insurance-sdk, underwriting-agent, multi-carrier-routing, and parametric-coverage at runtime; rating/decisions stay explainable and filings stay versioned/effective-dated (ties to insurance-compliance). AI may draft a config but the runtime interpreting it is deterministic. Phase 3. Diff 4.",
+      "recommended_usage": "Launching a new product/line, authoring product configuration, a rating config, product templates, or no-code line definitions.",
+      "status": "active"
+    },
+    {
       "name": "insurance-quote-flow",
       "type": "skill",
       "path": ".claude/skills/insurance-quote-flow",
@@ -360,6 +409,53 @@
       ],
       "integration_notes": "Instrument-first: ships before the agentic features so claims-automation and active-risk-monitoring have a scoreboard. KPI math is deterministic; any narrative/anomaly/projection routes through the Super Agent. Derives from the policy/claim event log emitted by embedded-insurance-sdk. Diff 2.",
       "recommended_usage": "When building partner/admin dashboards, before a board/capacity-partner review, or whenever asked about loss ratio, combined ratio, attach rate, take rate, LTV/CAC, or automation rate.",
+      "status": "active"
+    },
+    {
+      "name": "multi-carrier-routing",
+      "type": "skill",
+      "path": ".claude/skills/multi-carrier-routing",
+      "description": "Route each risk across a panel of capacity partners by appetite \u2014 widens bindable risk and de-risks capacity concentration. Per-carrier appetite rules + caps, deterministic ranking (eligibility, price, profit-share, remaining capacity), concentration-cap enforcement, and a why-this-carrier audit trail.",
+      "source": "sentry-insurance",
+      "applies_to": [
+        "sentry-insurance"
+      ],
+      "installed_in": [
+        "sentry-insurance",
+        "waterfall-claude-os"
+      ],
+      "dependencies": [
+        "helper:routing-audit.sh",
+        "skill:underwriting-agent",
+        "skill:embedded-insurance-sdk",
+        "skill:superagent-conformance"
+      ],
+      "integration_notes": "Consumes underwriting-agent appetite eval; emits the selected carrier into the bind path. Enforces max % GWP per carrier (the \u00a76 capacity-concentration risk). Routing is deterministic; appetite-text interpretation routes through the Super Agent. Phase 3 (NEXT Connect). Diff 4.",
+      "recommended_usage": "Building a carrier-panel bind engine, appetite matching across capacity partners, or capacity-concentration limits.",
+      "status": "active"
+    },
+    {
+      "name": "parametric-coverage",
+      "type": "skill",
+      "path": ".claude/skills/parametric-coverage",
+      "description": "Build parametric and episodic on/off coverage as first-class lifecycle objects \u2014 index-triggered instant payout, pay-per-use micro-duration, threshold/oracle-driven claims with no loss-adjustment step. Trigger definition + deterministic evaluator + oracle-data validity gate + automatic payout on trigger.fired.",
+      "source": "sentry-insurance",
+      "applies_to": [
+        "sentry-insurance"
+      ],
+      "installed_in": [
+        "sentry-insurance",
+        "waterfall-claude-os"
+      ],
+      "dependencies": [
+        "helper:parametric-scaffold.sh",
+        "skill:claims-automation",
+        "skill:active-risk-monitoring",
+        "skill:embedded-insurance-sdk",
+        "skill:superagent-conformance"
+      ],
+      "integration_notes": "Disburses via the claims-automation instant-payout rail; consumes active-risk-monitoring signals/oracles; lifecycle/events on the embedded-insurance-sdk bus. Oracle data is validity-checked before payout (no naked auto-disbursement); triggers disclosed at bind. Phase 3 (Goose / Cover Genius XClaim). Diff 4.",
+      "recommended_usage": "Building parametric insurance, index-triggered payout, episodic/on-off coverage, pay-per-use, or instant payout without loss adjustment.",
       "status": "active"
     },
     {
