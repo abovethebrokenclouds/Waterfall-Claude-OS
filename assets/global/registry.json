@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "updated_at": "2026-06-20T01:00:00Z",
+  "updated_at": "2026-06-20T02:00:00Z",
   "description": "Waterfall Claude OS \u2014 canonical catalog of every skill across the Waterfall Technologies platform. Source of truth lives in the Waterfall-Claude-OS repo (assets/global/registry.json), which also holds a full mirror of every skill (.claude/skills + .agents/skills) and the portable waterfall-skills bundle. `installed_in` is where a skill physically ships (loaded by Claude Code from that repo's .claude/skills or .agents/skills); `applies_to` is where it is relevant. OS-core skills ship in every repo. Any app-repo catalog (e.g. cairo-ai-pro/app-assets/global) is a superseded mirror.",
   "agents": [],
   "skills": [
@@ -22,6 +22,31 @@
       ],
       "integration_notes": "Stack-specific to TanStack Start file-based routing; not portable to react-router apps (waterfall-nexus).",
       "recommended_usage": "Adding a page, nested/layout route, or API/server route in cairo-ai-pro.",
+      "status": "active"
+    },
+    {
+      "name": "ai-observability",
+      "type": "skill",
+      "path": ".claude/skills/ai-observability",
+      "description": "Trace every AI call through the Super Agent with vendor-neutral OpenTelemetry GenAI semantic conventions (gen_ai.* attributes) so cost, latency, tokens, tier, and errors are observable platform-wide and the backend stays swappable.",
+      "source": "waterfall-claude-os",
+      "applies_to": [
+        "cairo-ai-pro",
+        "physiq",
+        "resumai",
+        "shopera",
+        "verseful",
+        "waterfall-nexus",
+        "waterfall-tech-command"
+      ],
+      "installed_in": [
+        "waterfall-claude-os"
+      ],
+      "dependencies": [
+        "helper:trace-scan.sh"
+      ],
+      "integration_notes": "Instrumentation lives in the engine, not app code (keeps app code provider-free). Ships gen-ai-span.example.ts (OTel gen_ai.* span wrapper). trace-scan.sh flags Node-only tracing SDKs (OpenLLMetry-JS / @traceloop/node-server-sdk) in edge/Worker paths and spans carrying raw prompt/response content. Backends: OTLP collector / Langfuse (MIT core+SDK, avoid /ee) / Helicone. Distribution to app repos is a scoped follow-up.",
+      "recommended_usage": "When adding AI observability/tracing, debugging latency or cost, or before a release.",
       "status": "active"
     },
     {
@@ -89,6 +114,31 @@
       "status": "active"
     },
     {
+      "name": "edge-ratelimit",
+      "type": "skill",
+      "path": ".claude/skills/edge-ratelimit",
+      "description": "Per-user/per-app rate and cost caps at the edge on the Super Agent and public API routes using Upstash ratelimit-js (MIT, HTTP-based — native to Cloudflare Workers). Stops abuse/runaway spend before a request reaches a model; complements the engine's central budget.",
+      "source": "waterfall-claude-os",
+      "applies_to": [
+        "cairo-ai-pro",
+        "physiq",
+        "resumai",
+        "shopera",
+        "verseful",
+        "waterfall-nexus",
+        "waterfall-tech-command"
+      ],
+      "installed_in": [
+        "waterfall-claude-os"
+      ],
+      "dependencies": [
+        "helper:ratelimit-scan.sh"
+      ],
+      "integration_notes": "Upstash ratelimit-js is HTTP-based so it runs on Workers (a TCP Redis client like ioredis does not — ratelimit-scan.sh flags those). Ships ratelimit.example.ts. Augments, never replaces, the engine's token caps/budget. Key on verified user id, fall back to IP for public routes. Distribution to app repos is a scoped follow-up.",
+      "recommended_usage": "When adding a public API route, an AI endpoint, or a webhook receiver, or when asked to throttle/rate-limit/cap cost.",
+      "status": "active"
+    },
+    {
       "name": "github-integration-authoring",
       "type": "skill",
       "path": ".agents/skills/github-integration-authoring",
@@ -122,6 +172,31 @@
       "dependencies": [],
       "integration_notes": "Mechanics (HMAC verify, constant-time compare) are portable; paths reference cairo /api/public/* routes.",
       "recommended_usage": "Adding webhook receivers or verifying signatures in cairo-ai-pro.",
+      "status": "active"
+    },
+    {
+      "name": "io-validation",
+      "type": "skill",
+      "path": ".claude/skills/io-validation",
+      "description": "Validate every server input and every model/tool output with Zod (MIT, pure-TS, edge-safe) so malformed requests, unvalidated tool args, and blindly-trusted LLM JSON can't reach app logic. Flags AJV (eval-based — breaks on Cloudflare Workers).",
+      "source": "waterfall-claude-os",
+      "applies_to": [
+        "cairo-ai-pro",
+        "physiq",
+        "resumai",
+        "shopera",
+        "verseful",
+        "waterfall-nexus",
+        "waterfall-tech-command"
+      ],
+      "installed_in": [
+        "waterfall-claude-os"
+      ],
+      "dependencies": [
+        "helper:io-scan.sh"
+      ],
+      "integration_notes": "Zod is the platform default (edge-safe). Ships zod-pattern.example.ts (input + model-output validation around a superAgent call). io-scan.sh flags request/JSON parsing without a Zod parse, createServerFn without .inputValidator, and ajv imports (edge hazard). Pairs with supabase-feature (data layer) and superagent-conformance (routing). Distribution to app repos is a scoped follow-up.",
+      "recommended_usage": "When adding a server function/API route/webhook, parsing an LLM's JSON, or when asked to validate/sanitize/harden inputs.",
       "status": "active"
     },
     {
