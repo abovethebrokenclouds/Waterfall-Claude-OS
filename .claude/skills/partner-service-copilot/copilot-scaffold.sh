@@ -154,26 +154,26 @@ fi
 
 for f in $copilot_files; do
   # ADVISORY 1: answer function with no citation return / no citation field
-  if grep -qiE "\banswer\b|\bcoverageExplain\b|\bcopilotAnswer\b" "$f" 2>/dev/null || true; then
-    if ! grep -qiE "citation|footnote|sourceRef|clause|cited|grounded" "$f" 2>/dev/null || true; then
+  if grep -qiE "\banswer\b|\bcoverageExplain\b|\bcopilotAnswer\b" "$f" 2>/dev/null; then
+    if ! grep -qiE "citation|footnote|sourceRef|clause|cited|grounded" "$f" 2>/dev/null; then
       finding REVIEW "citations" "copilot answer code with no citations field or grounded-source reference: $f"
     fi
   fi
 
   # ADVISORY 2: answer function with no escalation / handoff path
-  if grep -qiE "\banswer\b|\bcoverageExplain\b|\bcopilotAnswer\b" "$f" 2>/dev/null || true; then
-    if ! grep -qiE "escalat|handoff|handoffToHuman|transfer|human.?agent|connectAgent" "$f" 2>/dev/null || true; then
+  if grep -qiE "\banswer\b|\bcoverageExplain\b|\bcopilotAnswer\b" "$f" 2>/dev/null; then
+    if ! grep -qiE "escalat|handoff|handoffToHuman|transfer|human.?agent|connectAgent" "$f" 2>/dev/null; then
       finding REVIEW "escalation" "copilot answer path with no escalation or handoff route: $f"
     fi
   fi
 
   # ADVISORY 3: raw provider call in the copilot path (One Rule violation — advisory)
   if grep -qiE "api\.(anthropic|openai)\.com|generativelanguage|new (Anthropic|OpenAI)\(|fetch\([^)]*(anthropic|openai|claude|gpt)" \
-       "$f" 2>/dev/null || true; then
+       "$f" 2>/dev/null; then
     finding REVIEW "one-rule" "raw model-provider call in copilot path — route through Super Agent: $f"
   fi
-  if grep -qiE "model:\s*['\"]?(claude|gpt|gemini)-|max_tokens\s*[:=]" "$f" 2>/dev/null || true; then
-    if ! grep -qiE "superAgent|useAgent" "$f" 2>/dev/null || true; then
+  if grep -qiE "model:\s*['\"]?(claude|gpt|gemini)-|max_tokens\s*[:=]" "$f" 2>/dev/null; then
+    if ! grep -qiE "superAgent|useAgent" "$f" 2>/dev/null; then
       finding REVIEW "one-rule" "hardcoded model string or manual max_tokens outside Super Agent: $f"
     fi
   fi
