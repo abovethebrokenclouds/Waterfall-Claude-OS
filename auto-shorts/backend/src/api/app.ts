@@ -4,7 +4,12 @@
  */
 import express, { type Express, type NextFunction, type Request, type Response } from "express";
 import cors from "cors";
-import { urlIngestionAgent, variationAgent } from "../agents";
+import {
+  hookVariationsAgent,
+  urlIngestionAgent,
+  variationAgent,
+  viralityScorer,
+} from "../agents";
 import { generateShorts, type OrchestratorDeps } from "../services/orchestrator";
 import type { RenderQueue } from "../services/queue";
 import type { ShortsRepository } from "../services/storage";
@@ -50,9 +55,11 @@ export function createApp(deps: ApiDeps): Express {
       health: "/health",
       endpoints: [
         "POST /api/generate-shorts",
+        "POST /api/variation",
+        "POST /api/hook-variations",
+        "POST /api/score",
         "POST /api/render-short",
         "GET /api/jobs/:id",
-        "POST /api/variation",
         "POST /api/ingest-url",
       ],
     });
@@ -102,6 +109,34 @@ export function createApp(deps: ApiDeps): Express {
       }
       const updated = await variationAgent({ plan, instruction }, deps.agent);
       res.json(updated);
+    }),
+  );
+
+  // A/B hook variations for one plan.
+  app.post(
+    "/api/hook-variations",
+    asyncHandler(async (req, res) => {
+      const { plan, count } = req.body ?? {};
+      if (!plan) {
+        res.status(400).json({ error: "plan is required" });
+        return;
+      }
+      const hooks = await hookVariationsAgent({ plan, count }, deps.agent);
+      res.json({ hooks });
+    }),
+  );
+
+  // Virality score for one plan.
+  app.post(
+    "/api/score",
+    asyncHandler(async (req, res) => {
+      const { plan, transcriptExcerpt } = req.body ?? {};
+      if (!plan) {
+        res.status(400).json({ error: "plan is required" });
+        return;
+      }
+      const score = await viralityScorer({ plan, transcriptExcerpt }, deps.agent);
+      res.json(score);
     }),
   );
 
