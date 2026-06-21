@@ -149,6 +149,17 @@ describe("API", () => {
     expect(res.status).toBe(400);
   });
 
+  it("POST /api/broll returns suggestions", async () => {
+    const gen = await request(app)
+      .post("/api/generate-shorts")
+      .send({ url: "https://youtu.be/abc" });
+    const plan = gen.body.shorts[0];
+    const res = await request(app).post("/api/broll").send({ plan });
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body.suggestions)).toBe(true);
+    expect(res.body.suggestions.length).toBeGreaterThan(0);
+  });
+
   it("POST /api/hashtag-strategy returns tiered tags", async () => {
     const gen = await request(app)
       .post("/api/generate-shorts")

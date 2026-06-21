@@ -40,3 +40,9 @@ export type {
   HashtagStrategy,
   HashtagStrategyInput,
 } from "./hashtagStrategy";
+
+export { brollSuggestionAgent } from "./brollSuggestions";
+export type {
+  BRollSuggestion,
+  BRollSuggestionsInput,
+} from "./brollSuggestions";
