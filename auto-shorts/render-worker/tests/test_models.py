@@ -18,6 +18,16 @@ SPEC_DICT = {
             "timing": {"startSec": 0, "endSec": 3},
         }
     ],
+    "captions": {
+        "enabled": True,
+        "style": {
+            "font": "Inter",
+            "size": 64,
+            "color": "#FFFFFF",
+            "highlightColor": "#FACC15",
+            "position": "bottom",
+        },
+    },
 }
 
 

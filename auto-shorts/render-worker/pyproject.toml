@@ -17,7 +17,7 @@ whisper = ["faster-whisper>=1.0"]
 ingest = ["yt-dlp>=2024.0"]
 redis = ["redis>=5.0"]
 server = ["uvicorn>=0.30"]
-dev = ["pytest>=8.0", "ruff>=0.6", "httpx>=0.27"]
+dev = ["pytest>=8.0", "ruff>=0.6", "httpx>=0.27", "jsonschema>=4.0"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
