@@ -3,10 +3,25 @@
  * the codebase, so configuration is documented in one place.
  */
 
+/**
+ * Allowed CORS origins. Comma-separated list in CORS_ORIGINS (e.g. the Lovable
+ * app URL). Empty/unset => reflect any origin (convenient for dev/demo; lock
+ * this down in production by setting the env var).
+ */
+function parseCorsOrigins(): string[] | null {
+  const raw = process.env.CORS_ORIGINS?.trim();
+  if (!raw) return null;
+  return raw
+    .split(",")
+    .map((o) => o.trim())
+    .filter(Boolean);
+}
+
 export const env = {
   port: Number(process.env.PORT ?? 4000),
   nodeEnv: process.env.NODE_ENV ?? "development",
   anthropicApiKey: process.env.ANTHROPIC_API_KEY ?? "",
+  corsOrigins: parseCorsOrigins(),
   databaseUrl: process.env.DATABASE_URL ?? "",
   redisUrl: process.env.REDIS_URL ?? "",
   whisperModel: process.env.WHISPER_MODEL ?? "base",

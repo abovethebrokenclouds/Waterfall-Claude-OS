@@ -3,6 +3,7 @@
  * exercised in tests with fakes and wired with real adapters in `index.ts`.
  */
 import express, { type Express, type NextFunction, type Request, type Response } from "express";
+import cors from "cors";
 import { urlIngestionAgent, variationAgent } from "../agents";
 import { generateShorts, type OrchestratorDeps } from "../services/orchestrator";
 import type { RenderQueue } from "../services/queue";
@@ -13,6 +14,11 @@ import { videoTemplateBuilder } from "../agents";
 export interface ApiDeps extends OrchestratorDeps {
   queue: RenderQueue;
   repository: ShortsRepository;
+  /**
+   * Allowed CORS origins. A list locks the API to those origins (e.g. the
+   * Lovable app URL); `null`/omitted reflects any origin (dev/demo).
+   */
+  corsOrigins?: string[] | null;
 }
 
 /** Wrap an async handler so rejections reach the error middleware. */
@@ -26,6 +32,13 @@ function asyncHandler(
 
 export function createApp(deps: ApiDeps): Express {
   const app = express();
+
+  // CORS: allow the (separately hosted) frontend to call the API. A configured
+  // allowlist locks it down; otherwise any origin is reflected for dev/demo.
+  const origin =
+    deps.corsOrigins && deps.corsOrigins.length > 0 ? deps.corsOrigins : true;
+  app.use(cors({ origin, methods: ["GET", "POST", "OPTIONS"] }));
+
   app.use(express.json({ limit: "1mb" }));
 
   app.get("/health", (_req, res) => {

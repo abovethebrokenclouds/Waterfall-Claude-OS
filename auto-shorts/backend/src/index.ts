@@ -60,6 +60,7 @@ async function main(): Promise<void> {
     transcription: new WorkerTranscriptionService(workerEndpoint),
     queue: await buildQueue(),
     repository: buildRepository(),
+    corsOrigins: env.corsOrigins,
   });
 
   app.listen(env.port, () => {
