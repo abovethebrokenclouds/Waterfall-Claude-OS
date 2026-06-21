@@ -1,0 +1,36 @@
+# Fly.io config for the Auto-Shorts backend.
+# Deploy from the auto-shorts/ directory:
+#   cd auto-shorts
+#   fly launch          # uses this file; pick a unique app name when prompted
+#   fly deploy
+#
+# Standalone by default (no worker/DB/Redis). Add real AI with:
+#   fly secrets set ANTHROPIC_API_KEY=sk-... CORS_ORIGINS=https://pixelperfectaipro.lovable.app
+app = "auto-shorts-backend"   # globally unique — `fly launch` will offer to rename
+primary_region = "iad"
+
+[build]
+  dockerfile = "infra/docker/backend.Dockerfile"
+
+[env]
+  NODE_ENV = "production"
+  PORT = "4000"
+
+[http_service]
+  internal_port = 4000
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+  processes = ["app"]
+
+[[http_service.checks]]
+  method = "GET"
+  path = "/health"
+  interval = "30s"
+  timeout = "5s"
+  grace_period = "10s"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"
