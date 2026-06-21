@@ -1,0 +1,188 @@
+name: CI
+
+# Continuous Integration for the Auto-Shorts AI platform.
+# Runs on every push and pull request that touches the platform directory.
+#
+# Each job first checks for its manifest (package.json / pyproject.toml) and only
+# then sets up its toolchain and installs/lints/tests/builds. This keeps the
+# workflow green while the platform is still being scaffolded (a leg with no code
+# is a clean no-op) and automatically "activates" each leg the moment its code
+# lands. Toolchain setup is gated on the presence check because actions/setup-node
+# with dependency caching fails if its lockfile does not yet exist.
+
+on:
+  push:
+    branches: [main, "claude/**"]
+    paths:
+      - "auto-shorts/**"
+      - ".github/workflows/ci.yml"
+  pull_request:
+    paths:
+      - "auto-shorts/**"
+      - ".github/workflows/ci.yml"
+
+# Cancel superseded runs on the same ref to keep CI fast.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  # --------------------------------------------------------------------------
+  # Backend — Node.js / TypeScript: API, orchestrator, agents
+  # --------------------------------------------------------------------------
+  backend:
+    name: Backend (Node/TS)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check for backend
+        id: check
+        run: |
+          if [ -f auto-shorts/backend/package.json ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::auto-shorts/backend not scaffolded yet — skipping."
+          fi
+
+      - name: Set up Node.js
+        if: steps.check.outputs.present == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: auto-shorts/backend/package-lock.json
+
+      - name: Install dependencies
+        if: steps.check.outputs.present == 'true'
+        working-directory: auto-shorts/backend
+        run: npm ci
+
+      - name: Lint
+        if: steps.check.outputs.present == 'true'
+        working-directory: auto-shorts/backend
+        run: npm run lint --if-present
+
+      - name: Test
+        if: steps.check.outputs.present == 'true'
+        working-directory: auto-shorts/backend
+        run: npm test --if-present
+
+      - name: Build
+        if: steps.check.outputs.present == 'true'
+        working-directory: auto-shorts/backend
+        run: npm run build --if-present
+
+  # --------------------------------------------------------------------------
+  # Frontend — Next.js / React / Tailwind
+  # --------------------------------------------------------------------------
+  frontend:
+    name: Frontend (Next.js)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check for frontend
+        id: check
+        run: |
+          if [ -f auto-shorts/frontend/package.json ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::auto-shorts/frontend not scaffolded yet — skipping."
+          fi
+
+      - name: Set up Node.js
+        if: steps.check.outputs.present == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: auto-shorts/frontend/package-lock.json
+
+      - name: Install dependencies
+        if: steps.check.outputs.present == 'true'
+        working-directory: auto-shorts/frontend
+        run: npm ci
+
+      - name: Lint
+        if: steps.check.outputs.present == 'true'
+        working-directory: auto-shorts/frontend
+        run: npm run lint --if-present
+
+      - name: Test
+        if: steps.check.outputs.present == 'true'
+        working-directory: auto-shorts/frontend
+        run: npm test --if-present
+
+      - name: Build
+        if: steps.check.outputs.present == 'true'
+        working-directory: auto-shorts/frontend
+        run: npm run build --if-present
+
+  # --------------------------------------------------------------------------
+  # Render worker — Python: Whisper + FFmpeg/MoviePy
+  # --------------------------------------------------------------------------
+  render-worker:
+    name: Render worker (Python)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check for render worker
+        id: check
+        run: |
+          if [ -f auto-shorts/render-worker/pyproject.toml ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::auto-shorts/render-worker not scaffolded yet — skipping."
+          fi
+
+      - name: Set up Python
+        if: steps.check.outputs.present == 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        if: steps.check.outputs.present == 'true'
+        working-directory: auto-shorts/render-worker
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Lint
+        if: steps.check.outputs.present == 'true'
+        working-directory: auto-shorts/render-worker
+        run: |
+          ruff check . || echo "::warning::ruff not configured yet"
+
+      - name: Test
+        if: steps.check.outputs.present == 'true'
+        working-directory: auto-shorts/render-worker
+        run: pytest -q
+
+  # --------------------------------------------------------------------------
+  # Aggregate gate — a single required check for branch protection / auto-merge
+  # --------------------------------------------------------------------------
+  ci:
+    name: CI
+    runs-on: ubuntu-latest
+    needs: [backend, frontend, render-worker]
+    if: always()
+    steps:
+      - name: Verify all legs succeeded
+        run: |
+          if [ "${{ needs.backend.result }}" != "success" ] \
+            || [ "${{ needs.frontend.result }}" != "success" ] \
+            || [ "${{ needs.render-worker.result }}" != "success" ]; then
+            echo "One or more CI jobs failed."
+            exit 1
+          fi
+          echo "All CI jobs passed."

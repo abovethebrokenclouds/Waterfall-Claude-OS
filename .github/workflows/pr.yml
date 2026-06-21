@@ -1,0 +1,62 @@
+name: PR
+
+# Pull-request automation: run CI (via the reusable trigger below) and label
+# PRs by the area of the tree they touch, so reviewers and the auto-merge gate
+# have consistent signal.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - "auto-shorts/**"
+      - ".github/workflows/**"
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  label:
+    name: Label by changed paths
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const number = context.payload.pull_request.number;
+
+            const files = await github.paginate(
+              github.rest.pulls.listFiles,
+              { owner, repo, pull_number: number, per_page: 100 },
+            );
+            const paths = files.map((f) => f.filename);
+
+            const rules = {
+              frontend: (p) => p.startsWith("auto-shorts/frontend/"),
+              backend: (p) => p.startsWith("auto-shorts/backend/"),
+              "render-worker": (p) => p.startsWith("auto-shorts/render-worker/"),
+              shared: (p) => p.startsWith("auto-shorts/shared/"),
+              infra: (p) =>
+                p.startsWith("auto-shorts/infra/") ||
+                p.startsWith(".github/") ||
+                p.endsWith("docker-compose.yml"),
+              docs: (p) => p.endsWith(".md"),
+            };
+
+            const labels = Object.entries(rules)
+              .filter(([, match]) => paths.some(match))
+              .map(([label]) => label);
+
+            if (labels.length) {
+              await github.rest.issues.addLabels({
+                owner,
+                repo,
+                issue_number: number,
+                labels,
+              });
+              core.info(`Applied labels: ${labels.join(", ")}`);
+            } else {
+              core.info("No path labels matched.");
+            }

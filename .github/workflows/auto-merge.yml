@@ -1,0 +1,88 @@
+name: Auto-merge
+
+# Label-gated, check-aware auto-merge.
+#
+# How it works
+# ------------
+# A PR is enrolled for auto-merge ONLY when it carries the `auto-merge` label.
+# This workflow then turns on GitHub's *native* auto-merge for that PR, which
+# merges it automatically once every required status check passes — never before.
+# If checks fail, GitHub holds the PR open; nothing is force-merged.
+#
+# Enable for a PR:   add the `auto-merge` label.
+# Disable for a PR:  remove the `auto-merge` label (this workflow disables it).
+#
+# Safety
+# ------
+# * Only the base branch `main` is eligible.
+# * Draft PRs are ignored.
+# * Native auto-merge respects branch protection + required checks, so a red CI
+#   blocks the merge. To require green CI, mark the `CI` check Required in
+#   branch protection for `main`.
+# * Merge method is squash (linear history).
+
+on:
+  pull_request_target:
+    types: [labeled, unlabeled, opened, reopened, ready_for_review, synchronize]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  auto-merge:
+    name: Manage native auto-merge
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const pr = context.payload.pull_request;
+            const hasLabel = pr.labels.some((l) => l.name === "auto-merge");
+            const eligible = pr.base.ref === "main" && !pr.draft;
+
+            // Fetch the node id needed for the GraphQL mutations.
+            const { repository } = await github.graphql(
+              `query($owner:String!,$repo:String!,$number:Int!){
+                 repository(owner:$owner,name:$repo){
+                   pullRequest(number:$number){ id state }
+                 }
+               }`,
+              { owner, repo, number: pr.number },
+            );
+            const prId = repository.pullRequest.id;
+
+            if (hasLabel && eligible) {
+              try {
+                await github.graphql(
+                  `mutation($id:ID!){
+                     enablePullRequestAutoMerge(input:{
+                       pullRequestId:$id, mergeMethod:SQUASH
+                     }){ clientMutationId }
+                   }`,
+                  { id: prId },
+                );
+                core.info("Native auto-merge enabled (will merge once checks pass).");
+              } catch (err) {
+                core.warning(`Could not enable auto-merge: ${err.message}`);
+                core.warning(
+                  "Ensure auto-merge is allowed on the repo and 'CI' is a required check.",
+                );
+              }
+            } else {
+              // Label removed / not eligible: turn auto-merge off if it was on.
+              try {
+                await github.graphql(
+                  `mutation($id:ID!){
+                     disablePullRequestAutoMerge(input:{ pullRequestId:$id }){
+                       clientMutationId
+                     }
+                   }`,
+                  { id: prId },
+                );
+                core.info("Auto-merge disabled (label absent or PR ineligible).");
+              } catch {
+                core.info("Auto-merge was not enabled; nothing to disable.");
+              }
+            }
