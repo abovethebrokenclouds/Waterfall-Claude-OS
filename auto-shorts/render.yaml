@@ -1,0 +1,68 @@
+# Auto-Shorts — Render Blueprint (one managed deploy of backend + worker + data).
+#
+# NOTE: Render reads Blueprints from `render.yaml` at the REPOSITORY ROOT. Since
+# this app lives under auto-shorts/, copy this file to the repo root (or create a
+# root render.yaml that includes it) before running "New > Blueprint" in Render.
+# Paths below are written relative to the repo root.
+#
+# Secrets (sync: false) are entered in the Render dashboard, not committed.
+services:
+  - type: web
+    name: auto-shorts-backend
+    runtime: docker
+    dockerfilePath: auto-shorts/infra/docker/backend.Dockerfile
+    dockerContext: auto-shorts
+    healthCheckPath: /health
+    plan: starter
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: CORS_ORIGINS          # set to your Lovable app origin(s)
+        sync: false
+      - key: WORKER_URL
+        value: http://auto-shorts-worker:5001
+      - key: DATABASE_URL
+        fromDatabase:
+          name: auto-shorts-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: auto-shorts-redis
+          property: connectionString
+
+  - type: pserv                    # private service: only the backend reaches it
+    name: auto-shorts-worker
+    runtime: docker
+    dockerfilePath: auto-shorts/infra/docker/worker.Dockerfile
+    dockerContext: auto-shorts
+    plan: standard                 # Whisper + ffmpeg want more memory
+    envVars:
+      - key: RENDER_DRY_RUN
+        value: "0"
+      - key: PORT
+        value: "5001"
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: auto-shorts-redis
+          property: connectionString
+      - key: S3_ENDPOINT
+        sync: false
+      - key: S3_BUCKET
+        sync: false
+      - key: S3_ACCESS_KEY
+        sync: false
+      - key: S3_SECRET_KEY
+        sync: false
+
+  - type: keyvalue
+    name: auto-shorts-redis
+    plan: starter
+    ipAllowList: []                # internal only
+
+databases:
+  - name: auto-shorts-db
+    plan: basic-256mb
