@@ -26,6 +26,13 @@ describe("API", () => {
     app = buildApp();
   });
 
+  it("GET / -> friendly running banner", async () => {
+    const res = await request(app).get("/");
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe("running");
+    expect(res.body.health).toBe("/health");
+  });
+
   it("GET /health -> ok", async () => {
     const res = await request(app).get("/health");
     expect(res.status).toBe(200);
