@@ -37,6 +37,31 @@ The browser only ever talks to **backend**. `WORKER_URL` is an internal address.
 
 ---
 
+## Easiest — one click, one service, zero secrets (recommended first)
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/abovethebrokenclouds/Waterfall-Claude-OS)
+
+The root `render.yaml` deploys a **single** Node service in **standalone mode** — a
+built-in sample transcript + in-memory storage, so **no worker, Postgres, or
+Redis** and **no secrets** are needed to deploy.
+
+1. Click the button (or Render → **New → Blueprint** → pick this repo). Approve.
+2. Wait for the build. You get a URL like `https://auto-shorts-backend.onrender.com`.
+3. Open `…/health` → `{"status":"ok"}`. In the app: **Settings → Test connection** → green.
+
+Then, in **Render → the backend service → Environment**, add:
+- `ANTHROPIC_API_KEY` → generates **real AI shorts** (without it, generation is off)
+- `CORS_ORIGINS` → e.g. `https://pixelperfectaipro.lovable.app` (defaults to any origin)
+
+> Standalone mode generates real plans + per-platform copy from a sample
+> transcript. To transcribe/render **actual** media (Whisper + FFmpeg), deploy the
+> full stack below.
+
+## Full stack — worker + Postgres + Redis
+
+Use the full blueprint `auto-shorts/infra/render.full.yaml` (copy it to the repo
+root as `render.yaml` first), or the single-host compose below.
+
 ## Option A — single Docker host / VPS (fastest)
 
 ```bash
@@ -51,19 +76,7 @@ e.g. `https://api.yourdomain.com`.
 
 Verify: `curl https://api.yourdomain.com/health` → `{"status":"ok"}`.
 
-## Option B — Render (managed, one click)
-
-[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/abovethebrokenclouds/Waterfall-Claude-OS)
-
-The Blueprint (`render.yaml`) lives at the **repository root** and provisions the
-backend (web), worker (private), Postgres, and a Redis/Key-Value store.
-
-1. Click the button above (or Render → **New → Blueprint** → pick this repo).
-2. Fill the `sync: false` secrets: `ANTHROPIC_API_KEY`, `CORS_ORIGINS` (your
-   Lovable origin), and the `S3_*` vars (or leave S3 unset to skip uploads).
-3. Deploy. The backend gets a public `https://auto-shorts-backend.onrender.com`.
-
-(Equivalent setups work on Railway, Fly.io, or Cloud Run — build the two
+(Equivalent managed setups work on Railway, Fly.io, or Cloud Run — build the two
 Dockerfiles with build context `auto-shorts/`.)
 
 ---

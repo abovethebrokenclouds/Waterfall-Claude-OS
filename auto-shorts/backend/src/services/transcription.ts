@@ -30,3 +30,25 @@ export class WorkerTranscriptionService implements TranscriptionService {
     return data.segments;
   }
 }
+
+/**
+ * A built-in sample transcript. Used in "standalone" mode (no worker configured)
+ * so the planning half of the pipeline — highlights, short plans, platform copy —
+ * works end to end without Whisper. Real transcription needs the worker.
+ */
+const SAMPLE_SEGMENTS: WhisperSegment[] = [
+  { start: 0, end: 4, text: "Most people think you need a huge budget to grow on social, but that's wrong." },
+  { start: 4, end: 9, text: "The single biggest lever is your first three seconds — the hook decides everything." },
+  { start: 9, end: 14, text: "We tested hundreds of openings and the pattern was clear: lead with the tension." },
+  { start: 14, end: 19, text: "Don't explain the topic. Show the stakes, then promise the payoff." },
+  { start: 19, end: 24, text: "Here's the framework we use: hook, context, insight, and a clear call to action." },
+  { start: 24, end: 30, text: "If you remember one thing, make the viewer feel the cost of scrolling away." },
+  { start: 30, end: 36, text: "That's how a thirty second clip turns into thousands of new followers." },
+];
+
+/** Standalone transcription: returns the built-in sample transcript. */
+export class SampleTranscriptionService implements TranscriptionService {
+  async transcribe(_audioRef: string): Promise<WhisperSegment[]> {
+    return SAMPLE_SEGMENTS;
+  }
+}

@@ -10,8 +10,16 @@ import { createApp } from "./api/app";
 import { env } from "./config/env";
 import { logger } from "./config/logger";
 import { superAgent } from "./config/superAgent";
-import { WorkerIngestionService } from "./services/ingestion";
-import { WorkerTranscriptionService } from "./services/transcription";
+import {
+  StandaloneIngestionService,
+  WorkerIngestionService,
+  type MediaIngestionService,
+} from "./services/ingestion";
+import {
+  SampleTranscriptionService,
+  WorkerTranscriptionService,
+  type TranscriptionService,
+} from "./services/transcription";
 import {
   InMemoryRenderQueue,
   RedisRenderQueue,
@@ -23,7 +31,31 @@ import {
   type ShortsRepository,
 } from "./services/storage";
 
-const workerEndpoint = process.env.WORKER_URL ?? "http://localhost:5001";
+/**
+ * Media + transcription wiring. With a WORKER_URL we call the Python worker;
+ * without one we run "standalone" on a built-in sample transcript so the planning
+ * pipeline (highlights, plans, copy) works from a single service — no worker,
+ * DB, or Redis required.
+ */
+function buildMedia(): {
+  ingestion: MediaIngestionService;
+  transcription: TranscriptionService;
+} {
+  if (!env.workerUrl) {
+    logger.warn("worker.standalone", {
+      note: "WORKER_URL unset — using the built-in sample transcript; real transcription/rendering disabled",
+    });
+    return {
+      ingestion: new StandaloneIngestionService(),
+      transcription: new SampleTranscriptionService(),
+    };
+  }
+  logger.info("worker.configured", { workerUrl: env.workerUrl });
+  return {
+    ingestion: new WorkerIngestionService(env.workerUrl),
+    transcription: new WorkerTranscriptionService(env.workerUrl),
+  };
+}
 
 function buildRepository(): ShortsRepository {
   if (!env.databaseUrl) {
@@ -54,10 +86,11 @@ async function buildQueue(): Promise<RenderQueue> {
 }
 
 async function main(): Promise<void> {
+  const media = buildMedia();
   const app = createApp({
     agent: superAgent,
-    ingestion: new WorkerIngestionService(workerEndpoint),
-    transcription: new WorkerTranscriptionService(workerEndpoint),
+    ingestion: media.ingestion,
+    transcription: media.transcription,
     queue: await buildQueue(),
     repository: buildRepository(),
     corsOrigins: env.corsOrigins,
