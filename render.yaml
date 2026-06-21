@@ -1,11 +1,9 @@
 # Auto-Shorts — Render Blueprint (one managed deploy of backend + worker + data).
 #
-# NOTE: Render reads Blueprints from `render.yaml` at the REPOSITORY ROOT. Since
-# this app lives under auto-shorts/, copy this file to the repo root (or create a
-# root render.yaml that includes it) before running "New > Blueprint" in Render.
-# Paths below are written relative to the repo root.
-#
-# Secrets (sync: false) are entered in the Render dashboard, not committed.
+# This lives at the repository root so Render's "New > Blueprint" (and the
+# Deploy-to-Render button in auto-shorts/infra/DEPLOY.md) work one-click. It
+# deploys ONLY the auto-shorts app under auto-shorts/. Paths are repo-root
+# relative. Secrets (sync: false) are entered in the Render dashboard.
 services:
   - type: web
     name: auto-shorts-backend

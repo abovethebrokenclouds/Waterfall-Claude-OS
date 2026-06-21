@@ -51,14 +51,17 @@ e.g. `https://api.yourdomain.com`.
 
 Verify: `curl https://api.yourdomain.com/health` → `{"status":"ok"}`.
 
-## Option B — Render (managed, one blueprint)
+## Option B — Render (managed, one click)
 
-1. Copy `auto-shorts/render.yaml` to the **repository root** (Render reads
-   Blueprints from the root).
-2. Render → **New → Blueprint** → pick this repo.
-3. Fill the `sync: false` secrets: `ANTHROPIC_API_KEY`, `CORS_ORIGINS`, and the
-   `S3_*` vars (or leave S3 unset to skip uploads).
-4. Deploy. The backend gets a public `https://auto-shorts-backend.onrender.com`.
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/abovethebrokenclouds/Waterfall-Claude-OS)
+
+The Blueprint (`render.yaml`) lives at the **repository root** and provisions the
+backend (web), worker (private), Postgres, and a Redis/Key-Value store.
+
+1. Click the button above (or Render → **New → Blueprint** → pick this repo).
+2. Fill the `sync: false` secrets: `ANTHROPIC_API_KEY`, `CORS_ORIGINS` (your
+   Lovable origin), and the `S3_*` vars (or leave S3 unset to skip uploads).
+3. Deploy. The backend gets a public `https://auto-shorts-backend.onrender.com`.
 
 (Equivalent setups work on Railway, Fly.io, or Cloud Run — build the two
 Dockerfiles with build context `auto-shorts/`.)
