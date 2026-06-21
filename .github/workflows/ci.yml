@@ -3,10 +3,12 @@ name: CI
 # Continuous Integration for the Auto-Shorts AI platform.
 # Runs on every push and pull request that touches the platform directory.
 #
-# Each job guards on the existence of its manifest (package.json / pyproject.toml)
-# so the workflow stays green while the platform is still being scaffolded, and
-# automatically "activates" each leg the moment its code lands. Once a manifest
-# exists, that leg installs, lints, tests, and builds for real.
+# Each job first checks for its manifest (package.json / pyproject.toml) and only
+# then sets up its toolchain and installs/lints/tests/builds. This keeps the
+# workflow green while the platform is still being scaffolded (a leg with no code
+# is a clean no-op) and automatically "activates" each leg the moment its code
+# lands. Toolchain setup is gated on the presence check because actions/setup-node
+# with dependency caching fails if its lockfile does not yet exist.
 
 on:
   push:
@@ -38,13 +40,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-          cache: npm
-          cache-dependency-path: auto-shorts/backend/package-lock.json
-
       - name: Check for backend
         id: check
         run: |
@@ -54,6 +49,14 @@ jobs:
             echo "present=false" >> "$GITHUB_OUTPUT"
             echo "::notice::auto-shorts/backend not scaffolded yet — skipping."
           fi
+
+      - name: Set up Node.js
+        if: steps.check.outputs.present == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: auto-shorts/backend/package-lock.json
 
       - name: Install dependencies
         if: steps.check.outputs.present == 'true'
@@ -84,13 +87,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-          cache: npm
-          cache-dependency-path: auto-shorts/frontend/package-lock.json
-
       - name: Check for frontend
         id: check
         run: |
@@ -100,6 +96,14 @@ jobs:
             echo "present=false" >> "$GITHUB_OUTPUT"
             echo "::notice::auto-shorts/frontend not scaffolded yet — skipping."
           fi
+
+      - name: Set up Node.js
+        if: steps.check.outputs.present == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: auto-shorts/frontend/package-lock.json
 
       - name: Install dependencies
         if: steps.check.outputs.present == 'true'
@@ -130,11 +134,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
       - name: Check for render worker
         id: check
         run: |
@@ -144,6 +143,12 @@ jobs:
             echo "present=false" >> "$GITHUB_OUTPUT"
             echo "::notice::auto-shorts/render-worker not scaffolded yet — skipping."
           fi
+
+      - name: Set up Python
+        if: steps.check.outputs.present == 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
 
       - name: Install dependencies
         if: steps.check.outputs.present == 'true'
