@@ -5,6 +5,7 @@ import {
   hashtagStrategyAgent,
   hookVariationsAgent,
   seriesPlannerAgent,
+  titleOptimizerAgent,
   viralityScorer,
 } from "../agents";
 import { scriptedAgent } from "./fakes";
@@ -43,6 +44,19 @@ describe("hookVariationsAgent", () => {
     expect(
       await hookVariationsAgent({ plan, count: 99 }, scriptedAgent()),
     ).toHaveLength(8);
+  });
+});
+
+describe("titleOptimizerAgent", () => {
+  it("returns de-duplicated titles and keywords", async () => {
+    const result = await titleOptimizerAgent(
+      { plan, platform: "youtube_shorts" },
+      scriptedAgent(),
+    );
+    // Fake returns a duplicate title; it should be de-duped.
+    expect(new Set(result.titles).size).toBe(result.titles.length);
+    expect(result.titles.length).toBeGreaterThan(0);
+    expect(result.keywords.length).toBeGreaterThan(0);
   });
 });
 

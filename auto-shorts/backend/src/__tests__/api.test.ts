@@ -149,6 +149,19 @@ describe("API", () => {
     expect(res.status).toBe(400);
   });
 
+  it("POST /api/optimize-title returns titles + keywords", async () => {
+    const gen = await request(app)
+      .post("/api/generate-shorts")
+      .send({ url: "https://youtu.be/abc" });
+    const plan = gen.body.shorts[0];
+    const res = await request(app)
+      .post("/api/optimize-title")
+      .send({ plan, platform: "youtube_shorts" });
+    expect(res.status).toBe(200);
+    expect(res.body.titles.length).toBeGreaterThan(0);
+    expect(Array.isArray(res.body.keywords)).toBe(true);
+  });
+
   it("POST /api/broll returns suggestions", async () => {
     const gen = await request(app)
       .post("/api/generate-shorts")
