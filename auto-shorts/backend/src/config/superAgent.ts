@@ -9,6 +9,8 @@
  * Concrete model strings and token caps live ONLY in this file.
  */
 
+import { isRetryableModelError, withRetry } from "./retry";
+
 /** Capability tier. App code selects a tier; this file maps it to a model. */
 export enum Tier {
   /** Hardest reasoning: short-form planning, ambiguous judgement. */
@@ -95,13 +97,19 @@ class AnthropicSuperAgent implements SuperAgent {
     const maxTokens = Math.min(req.maxTokens ?? cfg.maxTokens, cfg.maxTokens);
     const client = await this.getClient();
 
-    const message = await client.messages.create({
-      model: cfg.model,
-      max_tokens: maxTokens,
-      temperature: req.temperature ?? 0.7,
-      system: req.system,
-      messages: [{ role: "user", content: req.prompt }],
-    });
+    // Ride out transient model errors (429 / 5xx / network) with backoff.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const message = await withRetry<any>(
+      () =>
+        client.messages.create({
+          model: cfg.model,
+          max_tokens: maxTokens,
+          temperature: req.temperature ?? 0.7,
+          system: req.system,
+          messages: [{ role: "user", content: req.prompt }],
+        }),
+      { retries: 3, isRetryable: isRetryableModelError },
+    );
 
     const text = (message.content ?? [])
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
