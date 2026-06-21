@@ -56,7 +56,14 @@ result = render_job(job, input_path="source.mp4", dry_run=True)
 print(result.command)                          # the ffmpeg argv
 ```
 
+## Object storage
+
+`objectstore.py` provides an `ObjectStore` protocol with a `FakeObjectStore`
+(tests/dev) and a lazily-loaded `S3ObjectStore` (AWS S3 / MinIO, `s3` extra).
+When `run_consumer` is given an `object_store`, each successful render is
+uploaded and its `output_url` is reported back to the backend callback.
+
 ## Next
 
-Upload rendered outputs to S3 from the consumer, and report render status back
-to the backend so the UI can surface previews/downloads.
+Add a consumer entrypoint that wires `RedisJobSource` + `S3ObjectStore` +
+`http_reporter` from env, and stream large renders instead of buffering.

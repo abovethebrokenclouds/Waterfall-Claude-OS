@@ -13,12 +13,27 @@ from collections.abc import Callable
 from typing import Any, Protocol, runtime_checkable
 
 from .models import RenderJob
+from .objectstore import ObjectStore
 from .worker import RenderResult, render_job
 
 logger = logging.getLogger("render_worker.consumer")
 
 #: Called after each job with its result, e.g. to report status to the backend.
 StatusReporter = Callable[[RenderResult], None]
+
+
+def upload_output(
+    result: RenderResult,
+    object_store: ObjectStore,
+    key: str,
+) -> RenderResult:
+    """Upload a finished render's file to object storage, setting ``output_url``.
+
+    No-op for any non-``done`` result (nothing to upload yet).
+    """
+    if result.status == "done":
+        result.output_url = object_store.upload(result.output_path, key)
+    return result
 
 
 def http_reporter(backend_url: str) -> StatusReporter:
@@ -30,7 +45,11 @@ def http_reporter(backend_url: str) -> StatusReporter:
 
         status = "done" if result.status in ("done", "planned") else "failed"
         payload = _json.dumps(
-            {"jobId": result.job_id, "status": status, "outputUrl": result.output_path}
+            {
+                "jobId": result.job_id,
+                "status": status,
+                "outputUrl": result.output_url or result.output_path,
+            }
         ).encode()
         req = urllib.request.Request(
             f"{backend_url.rstrip('/')}/api/render-callback",
@@ -85,13 +104,16 @@ def run_consumer(
     *,
     input_resolver: Callable[[RenderJob], str] | None = None,
     reporter: StatusReporter | None = None,
+    object_store: ObjectStore | None = None,
+    key_prefix: str = "shorts",
     dry_run: bool = False,
     max_jobs: int | None = None,
 ) -> list[RenderResult]:
     """Consume jobs until the source is empty (or ``max_jobs`` is reached).
 
-    Each job's result is appended and, if a ``reporter`` is given, reported (e.g.
-    back to the backend render callback).
+    For each job: render it, upload the output to ``object_store`` (if given and
+    the render succeeded), append the result, and report it (if a ``reporter`` is
+    given) — e.g. back to the backend render callback.
     """
     resolve = input_resolver or (lambda _job: "{INPUT}")
     results: list[RenderResult] = []
@@ -104,6 +126,8 @@ def run_consumer(
         job = RenderJob.from_dict(payload)
         logger.info("consuming render job %s (short %s)", job.id, job.short_id)
         result = render_job(job, input_path=resolve(job), dry_run=dry_run)
+        if object_store is not None:
+            upload_output(result, object_store, f"{key_prefix}/{job.short_id}.mp4")
         results.append(result)
         if reporter is not None:
             reporter(result)

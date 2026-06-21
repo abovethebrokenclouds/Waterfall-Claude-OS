@@ -37,3 +37,27 @@ def test_run_consumer_reports_each_result():
     reported = []
     run_consumer(source, dry_run=True, reporter=reported.append)
     assert [r.short_id for r in reported] == ["a", "b"]
+
+
+def test_run_consumer_uploads_successful_renders(monkeypatch):
+    from render_worker import consumer as consumer_mod
+    from render_worker.objectstore import FakeObjectStore
+    from render_worker.worker import RenderResult
+
+    # Force a "done" render so the upload path runs without invoking ffmpeg.
+    def fake_render(job, input_path, dry_run=False):
+        return RenderResult(
+            job_id=job.id,
+            short_id=job.short_id,
+            command=["ffmpeg"],
+            output_path=f"/tmp/{job.short_id}.mp4",
+            status="done",
+        )
+
+    monkeypatch.setattr(consumer_mod, "render_job", fake_render)
+
+    store = FakeObjectStore(bucket="auto-shorts")
+    results = run_consumer(FakeJobSource([_job("a")]), object_store=store)
+
+    assert results[0].output_url == "s3://auto-shorts/shorts/a.mp4"
+    assert store.uploaded == {"shorts/a.mp4": "/tmp/a.mp4"}

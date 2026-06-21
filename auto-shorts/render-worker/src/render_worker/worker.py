@@ -24,6 +24,8 @@ class RenderResult:
     command: list[str]
     output_path: str
     status: str
+    #: Set once the rendered file is uploaded to object storage.
+    output_url: str | None = None
 
 
 def render_job(
