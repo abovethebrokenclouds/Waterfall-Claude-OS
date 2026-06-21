@@ -1,7 +1,9 @@
 import { describe, it, expect } from "vitest";
 import {
   brollSuggestionAgent,
+  captionEmphasisAgent,
   coverConceptAgent,
+  ctaOptimizerAgent,
   hashtagStrategyAgent,
   hookVariationsAgent,
   seriesPlannerAgent,
@@ -44,6 +46,42 @@ describe("hookVariationsAgent", () => {
     expect(
       await hookVariationsAgent({ plan, count: 99 }, scriptedAgent()),
     ).toHaveLength(8);
+  });
+});
+
+describe("ctaOptimizerAgent", () => {
+  it("returns de-duplicated CTAs", async () => {
+    const { ctas } = await ctaOptimizerAgent(
+      { plan, platform: "tiktok" },
+      scriptedAgent(),
+    );
+    expect(ctas.length).toBeGreaterThan(0);
+    expect(new Set(ctas).size).toBe(ctas.length);
+  });
+});
+
+describe("captionEmphasisAgent", () => {
+  it("marks only the model-chosen keywords, preserving every token", async () => {
+    const { words } = await captionEmphasisAgent(
+      { text: "You need no budget to grow" },
+      scriptedAgent(),
+    );
+    expect(words.map((w) => w.word)).toEqual([
+      "You",
+      "need",
+      "no",
+      "budget",
+      "to",
+      "grow",
+    ]);
+    // The fake emphasizes "budget" (and "free", which isn't present).
+    expect(words.find((w) => w.word === "budget")?.emphasize).toBe(true);
+    expect(words.find((w) => w.word === "grow")?.emphasize).toBe(false);
+  });
+
+  it("returns empty for blank text", async () => {
+    const { words } = await captionEmphasisAgent({ text: "  " }, scriptedAgent());
+    expect(words).toEqual([]);
   });
 });
 

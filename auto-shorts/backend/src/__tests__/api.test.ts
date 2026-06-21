@@ -149,6 +149,27 @@ describe("API", () => {
     expect(res.status).toBe(400);
   });
 
+  it("POST /api/cta returns CTAs", async () => {
+    const gen = await request(app)
+      .post("/api/generate-shorts")
+      .send({ url: "https://youtu.be/abc" });
+    const plan = gen.body.shorts[0];
+    const res = await request(app).post("/api/cta").send({ plan });
+    expect(res.status).toBe(200);
+    expect(res.body.ctas.length).toBeGreaterThan(0);
+  });
+
+  it("POST /api/caption-emphasis marks words; requires text", async () => {
+    const ok = await request(app)
+      .post("/api/caption-emphasis")
+      .send({ text: "Grow with no budget" });
+    expect(ok.status).toBe(200);
+    expect(ok.body.words.length).toBe(4);
+
+    const bad = await request(app).post("/api/caption-emphasis").send({});
+    expect(bad.status).toBe(400);
+  });
+
   it("POST /api/optimize-title returns titles + keywords", async () => {
     const gen = await request(app)
       .post("/api/generate-shorts")
