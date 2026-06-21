@@ -1,54 +1,116 @@
 ============================================================================
-LOVABLE PROMPT — add 3 new creator features to the Auto-Shorts app
+LOVABLE PROMPT — surface the FULL Auto-Shorts creator toolkit
 (uses Lovable Cloud + Lovable AI; no external backend or API key)
 Paste this whole thing into the Lovable chat.
 ============================================================================
 
 GOAL
-Add three new AI features to each generated short — A/B hook variations, a
-virality score, and a cover/thumbnail concept — using Lovable Cloud edge
-functions with Lovable AI. Keep everything inside Lovable.
+Bring the Auto-Shorts app to feature parity with the canonical backend: every
+per-short AI "skill" should be reachable from the UI. Implement each as a
+Lovable Cloud edge function backed by Lovable AI, wire a typed caller in
+src/lib/api.ts (each with a graceful fallback on error), and surface it in the
+ShortCard or EditModal. Keep all existing behaviour (generate, variation, demo
+fallback) intact.
 
-1) Edge function `hook-variations`
-   - Input: { plan, count?: number (default 3, max 8) }
-   - Use Lovable AI to return { hooks: string[] } — `count` distinct alternative
-     hooks (<=12 words each), varying the angle (curiosity, bold claim, question,
-     stat, contrarian).
+Every edge function takes JSON, calls Lovable AI with a strict "return ONLY
+JSON" instruction, validates/clamps the result, and returns the shape below.
+If the model errors or returns junk, return a small deterministic fallback so
+the UI never breaks.
 
-2) Edge function `virality-score`
-   - Input: { plan }
-   - Use Lovable AI to return:
-     { score: number(0-100),
-       breakdown: { hook:0-100, pacing:0-100, payoff:0-100, shareability:0-100 },
-       reasons: string[] (<=5) }
-   - Clamp all numbers to 0-100.
+----------------------------------------------------------------------------
+EDGE FUNCTIONS (one per skill)
+----------------------------------------------------------------------------
 
-3) Edge function `cover-concept`
-   - Input: { plan, brandColor?: string }
-   - Use Lovable AI to return:
-     { coverText: string(<=5 words), subText: string, backgroundIdea: string,
-       emoji: string, textColor: "#RRGGBB" }
-   - If textColor isn't a valid hex, use brandColor (if valid) else "#FFFFFF".
+1) hook-variations
+   In:  { plan, count?: number (default 3, max 8) }
+   Out: { hooks: string[] }  — `count` distinct hooks (<=12 words), varied
+        angle (curiosity, bold claim, question, stat, contrarian).
 
-4) Frontend wiring (src/lib/api.ts) — add typed callers for the three functions
-   (functions.invoke), each with a graceful fallback on error.
+2) virality-score
+   In:  { plan }
+   Out: { score: 0-100,
+          breakdown: { hook:0-100, pacing:0-100, payoff:0-100, shareability:0-100 },
+          reasons: string[] (<=5) }  — clamp every number to 0-100.
 
-5) UI surfaces
-   - ShortCard: show a small VIRALITY badge (e.g. "🔥 82") on each card. Fetch it
-     lazily (after the grid renders, or on a "Score" tap). Colour the badge by
-     band: >=75 green, 50-74 amber, <50 slate.
-   - EditModal: add two sections:
-     a) "A/B Hooks" — a button that calls hook-variations and lists the returned
-        hooks; tapping one sets it as the short's hook.
-     b) "Cover" — a button that calls cover-concept and renders a 9:16 preview
-        tile: backgroundIdea as a subtle caption, coverText big (textColor),
-        subText small, and the emoji; plus a "Copy cover text" action.
+3) cover-concept
+   In:  { plan, brandColor?: string }
+   Out: { coverText: string(<=5 words), subText, backgroundIdea, emoji,
+          textColor: "#RRGGBB" }  — invalid hex -> brandColor (if valid) else "#FFFFFF".
 
-6) Keep all existing behaviour (generate, variation, demo fallback) intact.
+4) optimize-title  (SEO title variants)
+   In:  { plan, platform?: "tiktok"|"instagram_reels"|"youtube_shorts"|"facebook_reels"|"x" }
+   Out: { titles: string[] (3-6, de-duplicated, platform-aware length),
+          keywords: string[] (search terms to work in) }
 
+5) cta  (call-to-action optimizer)
+   In:  { plan, platform?, goal?: string (e.g. "follows","saves","link clicks") }
+   Out: { ctas: string[] }  — up to 5 stronger CTAs (<=10 words), de-duplicated.
+
+6) caption-emphasis  (karaoke word highlighting)
+   In:  { text: string }
+   Out: { words: { word: string, emphasize: boolean }[] }
+   NOTE: tokenize `text` on whitespace in the edge function and return ONE entry
+   per token in original order. Ask the model only for which words to emphasize
+   (the 2-4 punchiest keywords); mark those true, the rest false. Blank text -> [].
+
+7) hashtag-strategy
+   In:  { plan, platform? }
+   Out: { broad: string[](<=5), niche: string[](<=8), branded: string[](<=3) }
+        — strip leading '#', lowercase, de-duplicate across tiers.
+
+8) broll-suggestions
+   In:  { plan, transcriptExcerpt?: string, count?: number (default 4) }
+   Out: { suggestions: { atSec: number, idea: string, keyword: string }[] }
+        — clamp atSec to [0, plan.durationSec]; drop empty ideas.
+
+9) series-plan  (package multiple shorts into a numbered series)
+   In:  { plans: ShortPlan[], topic?: string }
+   Out: { seriesTitle, parts: { shortId, order, partTitle, teaser }[], cadence }
+        — parts reference only real plan ids, ordered 1..N. Empty plans -> empty parts.
+
+10) variation  (re-angle one short)  — keep your existing one if present.
+    In:  { plan, instruction: string }
+    Out: a patched plan { title, hook, theme, cta, layout }.
+
+----------------------------------------------------------------------------
+FRONTEND WIRING (src/lib/api.ts)
+----------------------------------------------------------------------------
+Add a typed caller per function via functions.invoke, each returning the typed
+shape above and falling back gracefully (empty/derived value) on error so the
+UI degrades instead of throwing.
+
+----------------------------------------------------------------------------
+UI SURFACES
+----------------------------------------------------------------------------
+ShortCard (compact, lazy — fetch after grid render or on tap):
+  - VIRALITY badge "🔥 82", coloured by band: >=75 green, 50-74 amber, <50 slate.
+  - A small "More" / toolkit affordance opening the EditModal on the right tab.
+
+EditModal — tabs/sections, each a button that calls its function and renders
+results inline; applying a result updates the short:
+  a) A/B Hooks      — list hooks; tap one to set the short's hook.
+  b) Title (SEO)    — list title variants (tap to apply) + a keywords chip row.
+  c) CTA            — list CTA variants; tap to set the short's cta.
+  d) Caption        — render the caption with emphasized words bolded/coloured
+                      (karaoke preview) from caption-emphasis; "Copy caption".
+  e) Hashtags       — three labelled rows (broad / niche / branded) + "Copy all".
+  f) B-roll         — timeline list of { atSec, idea, keyword }; "Copy shotlist".
+  g) Cover          — 9:16 preview tile (backgroundIdea caption, big coverText in
+                      textColor, small subText, emoji) + "Copy cover text".
+  h) Score          — score + breakdown bars + reasons list.
+
+Series (grid-level action, optional):
+  - A "Make Series" button over the whole grid that calls series-plan with all
+    shorts and shows the seriesTitle, ordered parts (partTitle + teaser), and
+    cadence; "Copy series plan".
+
+----------------------------------------------------------------------------
 ACCEPTANCE
-- Each card shows a virality badge from real AI.
-- The edit modal can generate alternative hooks (and apply one) and a cover
-  concept preview.
+----------------------------------------------------------------------------
+- Every skill above is reachable from the UI and returns real AI output.
+- Each card shows a virality badge; the edit modal exposes hooks, title, CTA,
+  caption karaoke, hashtags, b-roll, cover, and score.
+- A grid-level "Make Series" produces a numbered plan.
 - No external backend, API key, or hosting — all via Lovable Cloud + Lovable AI.
+- Existing generate / variation / demo-fallback behaviour still works.
 ============================================================================
