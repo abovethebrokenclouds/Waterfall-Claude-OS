@@ -1,0 +1,77 @@
+name: Deploy backend (Fly.io)
+
+# Deploys the Auto-Shorts backend to Fly.io from GitHub's runners (which CAN
+# reach Fly — unlike a restricted dev sandbox). Manual trigger.
+#
+# Prereqs (set once, in the browser):
+#   1. A Fly.io account (fly.io) with a payment method.
+#   2. A Fly access token: fly.io/dashboard → (user) → Tokens → create a
+#      "Personal access token" (NOT a narrow deploy token — app creation needs it).
+#   3. GitHub repo → Settings → Secrets and variables → Actions → New secret:
+#        FLY_API_TOKEN     = <the token>            (required)
+#        ANTHROPIC_API_KEY = <your Anthropic key>   (optional; enables real generation)
+#        CORS_ORIGINS      = https://pixelperfectaipro.lovable.app  (optional)
+#
+# Then: Actions → "Deploy backend (Fly.io)" → Run workflow. Output prints the URL.
+
+on:
+  workflow_dispatch:
+    inputs:
+      app_name:
+        description: "Fly app name (globally unique, lowercase)"
+        required: true
+        default: "auto-shorts-abovethebrokenclouds"
+
+concurrency:
+  group: deploy-fly
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: auto-shorts
+    env:
+      FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Require FLY_API_TOKEN
+        run: |
+          if [ -z "$FLY_API_TOKEN" ]; then
+            echo "::error::FLY_API_TOKEN is not set. Add it in Settings → Secrets and variables → Actions."
+            exit 1
+          fi
+
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+
+      - name: Create the app if it doesn't exist
+        run: flyctl apps create "${{ inputs.app_name }}" --org personal || echo "app already exists — continuing"
+
+      - name: Stage runtime secrets (if provided)
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          CORS_ORIGINS: ${{ secrets.CORS_ORIGINS }}
+        run: |
+          if [ -n "$ANTHROPIC_API_KEY" ]; then
+            flyctl secrets set \
+              ANTHROPIC_API_KEY="$ANTHROPIC_API_KEY" \
+              CORS_ORIGINS="${CORS_ORIGINS:-https://pixelperfectaipro.lovable.app}" \
+              --app "${{ inputs.app_name }}" --stage
+            echo "Runtime secrets staged (real generation enabled)."
+          else
+            echo "::notice::No ANTHROPIC_API_KEY secret — deploying in standalone mode (generation disabled until you add it)."
+          fi
+
+      - name: Deploy
+        run: flyctl deploy --remote-only --app "${{ inputs.app_name }}"
+
+      - name: Print the URL
+        run: |
+          echo "### ✅ Backend deployed" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "- App:    https://${{ inputs.app_name }}.fly.dev" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Health: https://${{ inputs.app_name }}.fly.dev/health" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Put the App URL into the Lovable app → Settings → API base URL → Test connection." >> "$GITHUB_STEP_SUMMARY"
