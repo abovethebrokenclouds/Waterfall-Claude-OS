@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "auto-shorts-render-worker"
+version = "0.1.0"
+description = "Auto-Shorts render worker — Whisper transcription + FFmpeg/MoviePy rendering."
+requires-python = ">=3.11"
+# Core runtime deps are intentionally light so CI installs fast. Heavy, optional
+# backends (Whisper, ffmpeg bindings) live in extras and are loaded lazily.
+dependencies = []
+
+[project.optional-dependencies]
+whisper = ["faster-whisper>=1.0"]
+dev = ["pytest>=8.0", "ruff>=0.6"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
