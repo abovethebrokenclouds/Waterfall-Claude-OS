@@ -32,3 +32,13 @@ export class WorkerIngestionService implements MediaIngestionService {
     return (await res.json()) as MediaRef;
   }
 }
+
+/**
+ * Standalone ingestion: no real download. Used when no worker is configured so
+ * the pipeline can run on the built-in sample transcript.
+ */
+export class StandaloneIngestionService implements MediaIngestionService {
+  async fetchAudio(ingestion: IngestionResult): Promise<MediaRef> {
+    return { audioRef: "standalone://no-media", sourceRef: ingestion.url };
+  }
+}

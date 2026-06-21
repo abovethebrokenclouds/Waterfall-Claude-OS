@@ -22,6 +22,9 @@ export const env = {
   nodeEnv: process.env.NODE_ENV ?? "development",
   anthropicApiKey: process.env.ANTHROPIC_API_KEY ?? "",
   corsOrigins: parseCorsOrigins(),
+  // Empty => "standalone" mode: no worker; the backend uses a built-in sample
+  // transcript so planning/copy work without Whisper/FFmpeg.
+  workerUrl: process.env.WORKER_URL ?? "",
   databaseUrl: process.env.DATABASE_URL ?? "",
   redisUrl: process.env.REDIS_URL ?? "",
   whisperModel: process.env.WHISPER_MODEL ?? "base",
