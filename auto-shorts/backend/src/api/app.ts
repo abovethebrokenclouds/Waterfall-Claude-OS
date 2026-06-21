@@ -6,7 +6,9 @@ import express, { type Express, type NextFunction, type Request, type Response }
 import cors from "cors";
 import {
   brollSuggestionAgent,
+  captionEmphasisAgent,
   coverConceptAgent,
+  ctaOptimizerAgent,
   hashtagStrategyAgent,
   hookVariationsAgent,
   seriesPlannerAgent,
@@ -63,6 +65,8 @@ export function createApp(deps: ApiDeps): Express {
         "POST /api/variation",
         "POST /api/hook-variations",
         "POST /api/optimize-title",
+        "POST /api/cta",
+        "POST /api/caption-emphasis",
         "POST /api/hashtag-strategy",
         "POST /api/series",
         "POST /api/broll",
@@ -146,6 +150,34 @@ export function createApp(deps: ApiDeps): Express {
         return;
       }
       const result = await titleOptimizerAgent({ plan, platform }, deps.agent);
+      res.json(result);
+    }),
+  );
+
+  // Optimized call-to-action variants for one plan.
+  app.post(
+    "/api/cta",
+    asyncHandler(async (req, res) => {
+      const { plan, platform, goal } = req.body ?? {};
+      if (!plan) {
+        res.status(400).json({ error: "plan is required" });
+        return;
+      }
+      const result = await ctaOptimizerAgent({ plan, platform, goal }, deps.agent);
+      res.json(result);
+    }),
+  );
+
+  // Caption word-emphasis (karaoke) for a caption line.
+  app.post(
+    "/api/caption-emphasis",
+    asyncHandler(async (req, res) => {
+      const { text } = req.body ?? {};
+      if (!text || typeof text !== "string") {
+        res.status(400).json({ error: "text is required" });
+        return;
+      }
+      const result = await captionEmphasisAgent({ text }, deps.agent);
       res.json(result);
     }),
   );

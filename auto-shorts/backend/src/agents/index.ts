@@ -59,3 +59,9 @@ export type {
   TitleOptimization,
   TitleOptimizerInput,
 } from "./titleOptimizer";
+
+export { ctaOptimizerAgent } from "./ctaOptimizer";
+export type { CtaOptimizerInput } from "./ctaOptimizer";
+
+export { captionEmphasisAgent } from "./captionEmphasis";
+export type { EmphasisWord, CaptionEmphasisInput } from "./captionEmphasis";

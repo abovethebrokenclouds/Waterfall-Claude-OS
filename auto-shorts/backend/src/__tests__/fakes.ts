@@ -68,6 +68,14 @@ export function scriptedAgent(): FakeSuperAgent {
         { startSec: 6, endSec: 11, score: 0.7, reason: "Useful tip" },
       ]);
     }
+    if (req.prompt.includes("stronger calls to action")) {
+      return JSON.stringify({
+        ctas: ["Follow for more", "Save this for later", "Follow for more", "Comment your take"],
+      });
+    }
+    if (req.prompt.includes("words to emphasize")) {
+      return JSON.stringify({ emphasize: ["budget", "free"] });
+    }
     if (req.prompt.includes("searchable title variants")) {
       return JSON.stringify({
         titles: [
