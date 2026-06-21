@@ -1,5 +1,5 @@
 /** Typed client for the Auto-Shorts backend API. */
-import type { GenerateShortsResult, ShortPlan } from "./types";
+import type { GenerateShortsResult, RenderJob, ShortPlan } from "./types";
 
 const BASE =
   process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4000";
@@ -10,6 +10,15 @@ async function post<T>(path: string, body: unknown): Promise<T> {
     headers: { "content-type": "application/json" },
     body: JSON.stringify(body),
   });
+  if (!res.ok) {
+    const detail = await res.text().catch(() => "");
+    throw new Error(`Request failed (${res.status}): ${detail}`);
+  }
+  return (await res.json()) as T;
+}
+
+async function get<T>(path: string): Promise<T> {
+  const res = await fetch(`${BASE}${path}`);
   if (!res.ok) {
     const detail = await res.text().catch(() => "");
     throw new Error(`Request failed (${res.status}): ${detail}`);
@@ -35,8 +44,10 @@ export const api = {
   },
 
   renderShort(shortId: string) {
-    return post<{ id: string; status: string }>("/api/render-short", {
-      shortId,
-    });
+    return post<RenderJob>("/api/render-short", { shortId });
+  },
+
+  getJob(jobId: string) {
+    return get<RenderJob>(`/api/jobs/${jobId}`);
   },
 };

@@ -58,6 +58,16 @@ export interface ShortCopy {
   copies: PlatformCopy[];
 }
 
+export type RenderStatus = "queued" | "rendering" | "done" | "failed";
+
+export interface RenderJob {
+  id: string;
+  shortId: string;
+  status: RenderStatus;
+  outputUrl?: string;
+  error?: string;
+}
+
 export interface GenerateShortsResult {
   ingestion: {
     url: string;

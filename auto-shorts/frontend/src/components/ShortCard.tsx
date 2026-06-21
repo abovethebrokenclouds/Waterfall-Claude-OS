@@ -1,5 +1,11 @@
 import { PLATFORM_LABELS, type ShortCopy, type ShortPlan } from "../lib/types";
 import { formatTimecode } from "../lib/format";
+import { useRenderJob } from "../hooks/useRenderJob";
+import {
+  isDownloadable,
+  isPolling,
+  renderButtonLabel,
+} from "../lib/render";
 
 interface Props {
   plan: ShortPlan;
@@ -9,6 +15,9 @@ interface Props {
 
 /** A single generated short in the results grid. */
 export function ShortCard({ plan, copy, onEdit }: Props) {
+  const { job, status, error, start } = useRenderJob(plan.id);
+  const downloadable = isDownloadable(job);
+
   return (
     <div className="flex flex-col gap-3 rounded-2xl border border-slate-800 bg-slate-900/40 p-4">
       {/* Vertical preview placeholder (render arrives via the worker). */}
@@ -41,14 +50,27 @@ export function ShortCard({ plan, copy, onEdit }: Props) {
         >
           Edit
         </button>
-        <button
-          disabled
-          title="Available once rendering lands"
-          className="flex-1 cursor-not-allowed rounded-lg bg-slate-800 px-3 py-2 text-sm font-medium text-slate-500"
-        >
-          Download
-        </button>
+
+        {downloadable ? (
+          <a
+            href={job?.outputUrl}
+            download
+            className="flex-1 rounded-lg bg-emerald-600 px-3 py-2 text-center text-sm font-medium text-white hover:bg-emerald-500"
+          >
+            Download
+          </a>
+        ) : (
+          <button
+            onClick={start}
+            disabled={isPolling(status)}
+            className="flex-1 rounded-lg bg-slate-700 px-3 py-2 text-sm font-medium text-white hover:bg-slate-600 disabled:cursor-progress disabled:opacity-70"
+          >
+            {renderButtonLabel(status)}
+          </button>
+        )}
       </div>
+
+      {error && <p className="text-xs text-red-400">{error}</p>}
 
       {copy && copy.copies.length > 0 && (
         <p className="text-xs text-slate-500">
