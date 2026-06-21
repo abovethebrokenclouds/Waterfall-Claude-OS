@@ -1,0 +1,233 @@
+==============================================================================
+MASTER PROMPT — AUTO-SHORTS AI  (paste this whole file into Lovable)
+==============================================================================
+
+ROLE
+You are building the web frontend + a thin, type-safe integration layer for an
+existing product called "Auto-Shorts AI". It turns any URL (YouTube, podcast,
+video link) into platform-ready short-form videos (TikTok, Instagram Reels,
+YouTube Shorts, Facebook, X) with captions, hooks, layouts, and per-platform copy.
+
+THE SINGLE MOST IMPORTANT RULE — INTEGRATE, DO NOT REBUILD
+The heavy lifting already exists as a separate backend service: media ingestion,
+Whisper transcription, the Claude agent pipeline (highlight detection, planning,
+copywriting), FFmpeg rendering, queue, persistence, and S3 upload. You must NOT
+re-implement any of that. Build ONLY the UI and a typed API client that calls the
+existing backend over HTTP. No model/API keys in the browser, no FFmpeg, no
+Python, no transcription logic client-side. Reference implementation + contracts:
+https://github.com/abovethebrokenclouds/Waterfall-Claude-OS/tree/main/auto-shorts
+
+GOAL
+A single, dynamic, modern landing page that doubles as the working app — every
+feature is reachable from this one page: paste a URL, generate shorts, browse the
+grid, edit copy, render, and download.
+
+------------------------------------------------------------------------------
+STACK & CONSTRAINTS
+------------------------------------------------------------------------------
+- React + Vite + TypeScript + Tailwind CSS + shadcn/ui + lucide-react icons.
+- All API calls go through ONE typed client file: src/lib/api.ts.
+- Backend base URL comes from an env var: VITE_API_BASE_URL
+  (default "http://localhost:4000"). Also expose it in a small Settings panel so
+  a user can point the app at their own backend at runtime (persist to
+  localStorage).
+- If Lovable Cloud is enabled, use it ONLY to persist the user's settings (API
+  base URL). Do not add auth, databases, or edge functions for the core flow —
+  the existing backend owns all of that.
+- Keep dependencies minimal. No state library beyond React hooks + a tiny query
+  helper. Add framer-motion for tasteful motion only.
+
+------------------------------------------------------------------------------
+DEMO MODE (REQUIRED — makes the preview work with no backend)
+------------------------------------------------------------------------------
+The backend may not be deployed yet. The client must degrade gracefully:
+- On any generate/ingest call, if the API is unreachable or returns an error,
+  fall back to bundled MOCK FIXTURES (src/lib/demoData.ts) so the grid, cards,
+  edit modal, and copy all render and feel alive.
+- Show a small amber "Demo data" badge whenever fixtures are used.
+- A "Try the demo" button on the hero loads fixtures instantly without a network
+  call.
+This guarantees the landing page is fully interactive in preview.
+
+------------------------------------------------------------------------------
+API CONTRACT (exact — camelCase JSON; mirror these routes & shapes)
+------------------------------------------------------------------------------
+POST /api/ingest-url
+  body: { url: string, html?: string }
+  -> IngestionResult
+
+POST /api/generate-shorts            (the main action)
+  body: { url: string, preferences?: { numShorts?: number, platforms?: Platform[] } }
+  -> GenerateShortsResult
+
+POST /api/variation                  (re-angle one plan)
+  body: { plan: ShortPlan, instruction: string }
+  -> ShortPlan
+
+POST /api/render-short               (enqueue a render)
+  body: { shortId: string }
+  -> RenderJob
+
+GET  /api/jobs/:id                   (poll render status)
+  -> RenderJob
+
+GET  /api/shorts/:id
+  -> { plan: ShortPlan, spec?: VideoSpec }
+
+------------------------------------------------------------------------------
+TYPES (mirror these exactly in src/lib/types.ts)
+------------------------------------------------------------------------------
+type Platform = "tiktok" | "instagram" | "youtube_shorts" | "facebook" | "x";
+
+interface CaptionStyle {
+  font: string; size: number; color: string;
+  highlightColor: string; position: "top" | "center" | "bottom";
+}
+
+interface ShortPlan {
+  id: string; highlightId: string;
+  title: string; hook: string; theme: string;
+  startSec: number; endSec: number; durationSec: number;
+  layout: "full_bleed" | "split_top_bottom" | "centered_card";
+  captionStyle: CaptionStyle; cta: string; platforms: Platform[];
+}
+
+interface PlatformCopy {
+  platform: Platform; title: string; description: string;
+  hashtags: string[]; cta: string;
+}
+interface ShortCopy { shortId: string; copies: PlatformCopy[]; }
+
+type RenderStatus = "queued" | "rendering" | "done" | "failed";
+interface RenderJob {
+  id: string; shortId: string; status: RenderStatus;
+  outputUrl?: string; error?: string;
+}
+
+interface IngestionResult {
+  url: string; sourceType: "youtube" | "direct_video" | "podcast" | "unknown";
+  ingestionMethod: "yt-dlp" | "http" | "rss";
+  metadata: { title?: string; author?: string; durationSec?: number };
+}
+
+interface GenerateShortsResult {
+  ingestion: IngestionResult;
+  shorts: ShortPlan[];
+  platformCopy: ShortCopy[];
+  // (transcript, highlights, videoSpecs also returned by the API but the UI
+  //  only needs the three above; keep the type loose for the rest.)
+}
+
+------------------------------------------------------------------------------
+PAGE LAYOUT (one dynamic landing page; every feature accessible)
+------------------------------------------------------------------------------
+1. STICKY NAV — logo "Auto-Shorts AI", anchor links (Generate, Features, How it
+   works, FAQ), a Settings (gear) button, and a primary "Generate shorts" CTA
+   that scrolls to the generator.
+
+2. HERO — bold gradient headline ("Turn any link into scroll-stopping shorts"),
+   one-line subhead, a large URL input + "Generate shorts" button, and a
+   secondary "Try the demo" button (loads fixtures). Animated, vertical
+   9:16 mock cards floating behind/beside the hero.
+
+3. GENERATOR + RESULTS (the core app, anchor #generate)
+   - The URL input also lives here, with optional controls: number of shorts
+     (1-10) and a multi-select of target platforms.
+   - On submit: call /api/generate-shorts. Show a friendly multi-step loading
+     state ("Ingesting → Transcribing → Finding highlights → Writing copy").
+   - Render a responsive grid (1/2/3 cols) of ShortCard.
+
+4. SHORT CARD
+   - 9:16 gradient preview tile with the hook text overlaid and the duration
+     badge (format m:ss).
+   - Title, platform chips.
+   - Buttons:
+       * "Edit"     -> opens the Edit modal.
+       * Render/Download control:
+           - idle/failed: button "Render" / "Retry render" -> POST /render-short,
+             then poll GET /api/jobs/:id every 2s.
+           - queued/rendering: disabled button "Queued…" / "Rendering…" with a
+             spinner.
+           - done + outputUrl: green "Download" link (href = job.outputUrl,
+             download attr).
+   - "Copy text" quick action that copies the default platform caption.
+
+5. EDIT MODAL / DRAWER
+   - Left: 9:16 preview with the (editable) hook.
+   - Right: editable Hook (textarea) and CTA (input).
+   - Platform tabs: TikTok / Instagram / YouTube Shorts / Facebook / X. Each tab
+     shows that platform's title, description, hashtags, CTA with a "Copy text"
+     button (copies a nicely formatted block).
+   - "Re-angle with a new instruction": text input + button that calls
+     /api/variation and updates the plan in place (e.g. "make it funnier",
+     "lead with the stat").
+   - Save / Cancel.
+
+6. FEATURES SECTION — a grid of feature cards (icon + title + blurb):
+   URL ingestion (YouTube/podcast/video) · AI highlight detection · Short-form
+   planner (hook/theme/layout/CTA) · Per-platform copy · Auto captions ·
+   One-click render & download. Each card subtly animates in on scroll.
+
+7. HOW IT WORKS — a 5-step horizontal/vertical stepper:
+   Paste URL → Transcribe → Detect highlights → Plan + write copy → Render &
+   download.
+
+8. FAQ — short accordion (What links work? How long does it take? Which platforms?
+   Do I need an API key? — answer: the hosted backend handles AI).
+
+9. SETTINGS PANEL (modal from the gear) — edit VITE_API_BASE_URL at runtime,
+   persisted to localStorage; a "Test connection" button hits GET {base}/health;
+   toggle to force Demo mode.
+
+10. FOOTER — links to the GitHub repo, "support@waterfalltechnologies.net", and a
+    small "Powered by the Auto-Shorts backend" line.
+
+------------------------------------------------------------------------------
+DESIGN
+------------------------------------------------------------------------------
+- Dark theme. Slate/near-black background (#020617), indigo→fuchsia gradient
+  accents, emerald for success/download.
+- Rounded-2xl cards, soft borders, subtle glassmorphism, generous spacing.
+- Vertical 9:16 aspect ratio for all video tiles.
+- framer-motion: fade/slide-in on scroll, hover lift on cards, hero float —
+  tasteful, never janky. Respect prefers-reduced-motion.
+- Fully responsive (mobile-first). Inter font.
+- Accessible (WCAG 2.1 AA): real <label>s on inputs, visible focus rings, alt
+  text, sufficient contrast, keyboard-operable tabs/modals.
+
+------------------------------------------------------------------------------
+ARCHITECTURE / FILES
+------------------------------------------------------------------------------
+src/
+  lib/
+    types.ts        // the types above
+    api.ts          // typed client; reads base URL from settings; demo fallback
+    demoData.ts     // GenerateShortsResult fixtures (3-4 shorts, full copy)
+    format.ts       // formatTimecode(seconds) -> "m:ss"
+    render.ts       // pure helpers: isDownloadable(job), isPolling(status),
+                    //                renderButtonLabel(status)
+  hooks/
+    useGenerateShorts.ts  // submit + loading/error + result
+    useRenderJob.ts       // start render + poll /api/jobs/:id until done/failed
+    useSettings.ts        // API base URL in localStorage
+  components/
+    Nav, Hero, Generator, ShortsGrid, ShortCard, EditModal, PlatformTabs,
+    Features, HowItWorks, Faq, SettingsModal, Footer, DemoBadge
+  App.tsx           // assembles the single landing page
+
+------------------------------------------------------------------------------
+ACCEPTANCE CRITERIA
+------------------------------------------------------------------------------
+1. The landing page renders fully and is interactive in the Lovable preview with
+   NO backend (demo fixtures + "Demo data" badge).
+2. Setting VITE_API_BASE_URL (or the Settings panel) to a running backend makes
+   the real flow work: generate → grid → edit/variation → render → poll →
+   download.
+3. All network access is confined to src/lib/api.ts and targets only the
+   configured backend base URL. No model/provider API calls from the client.
+4. Render status polling stops on done/failed and on unmount.
+5. "Copy text" works on every platform tab and card.
+6. Type-checks clean, builds clean, responsive, and accessible.
+
+Build it.
+==============================================================================
