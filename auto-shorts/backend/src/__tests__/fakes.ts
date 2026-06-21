@@ -69,6 +69,15 @@ export function scriptedAgent(): FakeSuperAgent {
         "What top creators never tell you",
       ]);
     }
+    if (req.prompt.includes("Design a cover")) {
+      return JSON.stringify({
+        coverText: "STOP SCROLLING",
+        subText: "the 3-second rule",
+        backgroundIdea: "blurred close-up of the speaker mid-gesture",
+        emoji: "🚀",
+        textColor: "#FACC15",
+      });
+    }
     if (req.prompt.includes("Rate the virality")) {
       return JSON.stringify({
         score: 82,

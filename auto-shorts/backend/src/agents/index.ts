@@ -31,3 +31,6 @@ export type {
   ViralityBreakdown,
   ViralityScorerInput,
 } from "./viralityScorer";
+
+export { coverConceptAgent } from "./coverConcept";
+export type { CoverConcept, CoverConceptInput } from "./coverConcept";

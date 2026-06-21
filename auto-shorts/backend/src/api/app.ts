@@ -5,6 +5,7 @@
 import express, { type Express, type NextFunction, type Request, type Response } from "express";
 import cors from "cors";
 import {
+  coverConceptAgent,
   hookVariationsAgent,
   urlIngestionAgent,
   variationAgent,
@@ -57,6 +58,7 @@ export function createApp(deps: ApiDeps): Express {
         "POST /api/generate-shorts",
         "POST /api/variation",
         "POST /api/hook-variations",
+        "POST /api/cover-concept",
         "POST /api/score",
         "POST /api/render-short",
         "GET /api/jobs/:id",
@@ -123,6 +125,20 @@ export function createApp(deps: ApiDeps): Express {
       }
       const hooks = await hookVariationsAgent({ plan, count }, deps.agent);
       res.json({ hooks });
+    }),
+  );
+
+  // Cover / thumbnail concept for one plan.
+  app.post(
+    "/api/cover-concept",
+    asyncHandler(async (req, res) => {
+      const { plan, brandColor } = req.body ?? {};
+      if (!plan) {
+        res.status(400).json({ error: "plan is required" });
+        return;
+      }
+      const concept = await coverConceptAgent({ plan, brandColor }, deps.agent);
+      res.json(concept);
     }),
   );
 
