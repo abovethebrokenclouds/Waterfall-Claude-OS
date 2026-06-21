@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { RedisRenderQueue, type RedisLike } from "../services/queue";
+import {
+  InMemoryRenderQueue,
+  RedisRenderQueue,
+  type RedisLike,
+} from "../services/queue";
 import type { VideoSpec } from "../types";
 
 /** In-memory stand-in for the bits of a redis client the queue uses. */
@@ -66,5 +70,38 @@ describe("RedisRenderQueue", () => {
     const job = await queue.enqueue(spec);
     expect(redis.lists.get("q")).toEqual([job.id]);
     expect(redis.hashes.get("j")?.has(job.id)).toBe(true);
+  });
+
+  it("updateStatus persists the transition + output url", async () => {
+    const queue = new RedisRenderQueue(new FakeRedis());
+    const job = await queue.enqueue(spec);
+
+    const updated = await queue.updateStatus(job.id, "done", {
+      outputUrl: "s3://bucket/short_1.mp4",
+    });
+    expect(updated?.status).toBe("done");
+    expect(updated?.outputUrl).toBe("s3://bucket/short_1.mp4");
+
+    const reread = await queue.get(job.id);
+    expect(reread?.status).toBe("done");
+    expect(reread?.outputUrl).toBe("s3://bucket/short_1.mp4");
+  });
+
+  it("updateStatus returns undefined for an unknown job", async () => {
+    const queue = new RedisRenderQueue(new FakeRedis());
+    expect(await queue.updateStatus("missing", "failed")).toBeUndefined();
+  });
+});
+
+describe("InMemoryRenderQueue.updateStatus", () => {
+  it("records failure with an error message", async () => {
+    const queue = new InMemoryRenderQueue();
+    const job = await queue.enqueue(spec);
+    const updated = await queue.updateStatus(job.id, "failed", {
+      error: "ffmpeg exited 1",
+    });
+    expect(updated?.status).toBe("failed");
+    expect(updated?.error).toBe("ffmpeg exited 1");
+    expect((await queue.get(job.id))?.error).toBe("ffmpeg exited 1");
   });
 });

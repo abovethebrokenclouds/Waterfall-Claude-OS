@@ -84,6 +84,47 @@ describe("API", () => {
     expect(res.status).toBe(404);
   });
 
+  it("render lifecycle: enqueue -> callback -> job status reflects it", async () => {
+    const gen = await request(app)
+      .post("/api/generate-shorts")
+      .send({ url: "https://youtu.be/abc" });
+    const shortId = gen.body.shorts[0].id;
+    const render = await request(app)
+      .post("/api/render-short")
+      .send({ shortId });
+    const jobId = render.body.id;
+
+    const cb = await request(app)
+      .post("/api/render-callback")
+      .send({ jobId, status: "done", outputUrl: "s3://b/out.mp4" });
+    expect(cb.status).toBe(200);
+    expect(cb.body.status).toBe("done");
+
+    const job = await request(app).get(`/api/jobs/${jobId}`);
+    expect(job.status).toBe(200);
+    expect(job.body.status).toBe("done");
+    expect(job.body.outputUrl).toBe("s3://b/out.mp4");
+  });
+
+  it("POST /api/render-callback rejects an invalid status", async () => {
+    const res = await request(app)
+      .post("/api/render-callback")
+      .send({ jobId: "j1", status: "bogus" });
+    expect(res.status).toBe(400);
+  });
+
+  it("POST /api/render-callback 404s for an unknown job", async () => {
+    const res = await request(app)
+      .post("/api/render-callback")
+      .send({ jobId: "missing", status: "done" });
+    expect(res.status).toBe(404);
+  });
+
+  it("GET /api/jobs/:id 404s for an unknown job", async () => {
+    const res = await request(app).get("/api/jobs/nope");
+    expect(res.status).toBe(404);
+  });
+
   it("POST /api/variation re-angles a plan", async () => {
     const gen = await request(app)
       .post("/api/generate-shorts")

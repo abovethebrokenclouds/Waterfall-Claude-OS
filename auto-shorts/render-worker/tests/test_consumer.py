@@ -30,3 +30,10 @@ def test_run_consumer_uses_input_resolver():
         source, dry_run=True, input_resolver=lambda job: f"/media/{job.short_id}.mp4"
     )
     assert "/media/a.mp4" in results[0].command
+
+
+def test_run_consumer_reports_each_result():
+    source = FakeJobSource([_job("a"), _job("b")])
+    reported = []
+    run_consumer(source, dry_run=True, reporter=reported.append)
+    assert [r.short_id for r in reported] == ["a", "b"]

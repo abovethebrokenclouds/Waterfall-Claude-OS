@@ -96,6 +96,41 @@ export function createApp(deps: ApiDeps): Express {
     }),
   );
 
+  // Fetch a render job's status.
+  app.get(
+    "/api/jobs/:id",
+    asyncHandler(async (req, res) => {
+      const job = await deps.queue.get(String(req.params.id));
+      if (!job) {
+        res.status(404).json({ error: "job not found" });
+        return;
+      }
+      res.json(job);
+    }),
+  );
+
+  // Worker callback: report a render's outcome.
+  app.post(
+    "/api/render-callback",
+    asyncHandler(async (req, res) => {
+      const { jobId, status, outputUrl, error } = req.body ?? {};
+      const allowed = ["queued", "rendering", "done", "failed"];
+      if (!jobId || typeof jobId !== "string" || !allowed.includes(status)) {
+        res.status(400).json({ error: "jobId and a valid status are required" });
+        return;
+      }
+      const updated = await deps.queue.updateStatus(jobId, status, {
+        outputUrl,
+        error,
+      });
+      if (!updated) {
+        res.status(404).json({ error: "job not found" });
+        return;
+      }
+      res.json(updated);
+    }),
+  );
+
   // Fetch a stored short.
   app.get(
     "/api/shorts/:id",
