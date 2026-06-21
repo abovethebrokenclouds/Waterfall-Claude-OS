@@ -53,3 +53,9 @@ export type {
   SeriesPart,
   SeriesPlannerInput,
 } from "./seriesPlanner";
+
+export { titleOptimizerAgent } from "./titleOptimizer";
+export type {
+  TitleOptimization,
+  TitleOptimizerInput,
+} from "./titleOptimizer";

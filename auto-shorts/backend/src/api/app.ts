@@ -10,6 +10,7 @@ import {
   hashtagStrategyAgent,
   hookVariationsAgent,
   seriesPlannerAgent,
+  titleOptimizerAgent,
   urlIngestionAgent,
   variationAgent,
   viralityScorer,
@@ -61,6 +62,7 @@ export function createApp(deps: ApiDeps): Express {
         "POST /api/generate-shorts",
         "POST /api/variation",
         "POST /api/hook-variations",
+        "POST /api/optimize-title",
         "POST /api/hashtag-strategy",
         "POST /api/series",
         "POST /api/broll",
@@ -131,6 +133,20 @@ export function createApp(deps: ApiDeps): Express {
       }
       const hooks = await hookVariationsAgent({ plan, count }, deps.agent);
       res.json({ hooks });
+    }),
+  );
+
+  // SEO-optimized title variants for one plan.
+  app.post(
+    "/api/optimize-title",
+    asyncHandler(async (req, res) => {
+      const { plan, platform } = req.body ?? {};
+      if (!plan) {
+        res.status(400).json({ error: "plan is required" });
+        return;
+      }
+      const result = await titleOptimizerAgent({ plan, platform }, deps.agent);
+      res.json(result);
     }),
   );
 

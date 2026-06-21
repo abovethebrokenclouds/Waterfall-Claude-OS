@@ -68,6 +68,16 @@ export function scriptedAgent(): FakeSuperAgent {
         { startSec: 6, endSec: 11, score: 0.7, reason: "Useful tip" },
       ]);
     }
+    if (req.prompt.includes("searchable title variants")) {
+      return JSON.stringify({
+        titles: [
+          "How to grow on social with no budget",
+          "Grow on social (no budget needed)",
+          "How to grow on social with no budget",
+        ],
+        keywords: ["grow on social", "social media growth", "no budget"],
+      });
+    }
     if (req.prompt.includes("alternative hooks")) {
       return JSON.stringify([
         "The mistake costing you followers",
