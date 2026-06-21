@@ -149,6 +149,17 @@ describe("API", () => {
     expect(res.status).toBe(400);
   });
 
+  it("POST /api/cover-concept returns a cover", async () => {
+    const gen = await request(app)
+      .post("/api/generate-shorts")
+      .send({ url: "https://youtu.be/abc" });
+    const plan = gen.body.shorts[0];
+    const res = await request(app).post("/api/cover-concept").send({ plan });
+    expect(res.status).toBe(200);
+    expect(res.body.coverText.length).toBeGreaterThan(0);
+    expect(res.body.textColor).toMatch(/^#[0-9a-fA-F]{6}$/);
+  });
+
   it("POST /api/score returns a virality score", async () => {
     const gen = await request(app)
       .post("/api/generate-shorts")

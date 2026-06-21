@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { hookVariationsAgent, viralityScorer } from "../agents";
+import {
+  coverConceptAgent,
+  hookVariationsAgent,
+  viralityScorer,
+} from "../agents";
 import { scriptedAgent } from "./fakes";
 import type { ShortPlan } from "../types";
 
@@ -36,6 +40,32 @@ describe("hookVariationsAgent", () => {
     expect(
       await hookVariationsAgent({ plan, count: 99 }, scriptedAgent()),
     ).toHaveLength(8);
+  });
+});
+
+describe("coverConceptAgent", () => {
+  it("returns a complete cover concept", async () => {
+    const cover = await coverConceptAgent({ plan }, scriptedAgent());
+    expect(cover.coverText.length).toBeGreaterThan(0);
+    expect(cover.emoji.length).toBeGreaterThan(0);
+    expect(cover.textColor).toMatch(/^#[0-9a-fA-F]{6}$/);
+  });
+
+  it("falls back to a valid hex when the model returns junk", async () => {
+    const badAgent = {
+      async call() {
+        return {
+          text: JSON.stringify({ coverText: "Hi", textColor: "not-a-color" }),
+          model: "fake",
+          tier: 1 as unknown as never,
+        };
+      },
+    };
+    const cover = await coverConceptAgent(
+      { plan, brandColor: "#123456" },
+      badAgent as never,
+    );
+    expect(cover.textColor).toBe("#123456");
   });
 });
 
