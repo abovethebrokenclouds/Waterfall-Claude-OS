@@ -7,7 +7,13 @@ its tests run — with no native dependencies installed.
 """
 
 from .app import create_app
-from .consumer import FakeJobSource, JobSource, RedisJobSource, run_consumer
+from .consumer import (
+    FakeJobSource,
+    JobSource,
+    RedisJobSource,
+    http_reporter,
+    run_consumer,
+)
 from .ffmpeg import build_ffmpeg_args
 from .ingest import Downloader, FakeDownloader, MediaRef, YtDlpDownloader
 from .models import RenderJob, WhisperSegment, video_spec_from_dict
@@ -15,6 +21,7 @@ from .models import RenderJob, WhisperSegment, video_spec_from_dict
 __all__ = [
     "create_app",
     "run_consumer",
+    "http_reporter",
     "JobSource",
     "FakeJobSource",
     "RedisJobSource",

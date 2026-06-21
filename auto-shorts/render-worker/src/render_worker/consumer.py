@@ -17,6 +17,31 @@ from .worker import RenderResult, render_job
 
 logger = logging.getLogger("render_worker.consumer")
 
+#: Called after each job with its result, e.g. to report status to the backend.
+StatusReporter = Callable[[RenderResult], None]
+
+
+def http_reporter(backend_url: str) -> StatusReporter:
+    """Build a reporter that POSTs each result to the backend render callback."""
+
+    def report(result: RenderResult) -> None:  # pragma: no cover - network
+        import json as _json
+        import urllib.request
+
+        status = "done" if result.status in ("done", "planned") else "failed"
+        payload = _json.dumps(
+            {"jobId": result.job_id, "status": status, "outputUrl": result.output_path}
+        ).encode()
+        req = urllib.request.Request(
+            f"{backend_url.rstrip('/')}/api/render-callback",
+            data=payload,
+            headers={"content-type": "application/json"},
+            method="POST",
+        )
+        urllib.request.urlopen(req, timeout=5).close()  # noqa: S310
+
+    return report
+
 
 @runtime_checkable
 class JobSource(Protocol):
@@ -59,10 +84,15 @@ def run_consumer(
     source: JobSource,
     *,
     input_resolver: Callable[[RenderJob], str] | None = None,
+    reporter: StatusReporter | None = None,
     dry_run: bool = False,
     max_jobs: int | None = None,
 ) -> list[RenderResult]:
-    """Consume jobs until the source is empty (or ``max_jobs`` is reached)."""
+    """Consume jobs until the source is empty (or ``max_jobs`` is reached).
+
+    Each job's result is appended and, if a ``reporter`` is given, reported (e.g.
+    back to the backend render callback).
+    """
     resolve = input_resolver or (lambda _job: "{INPUT}")
     results: list[RenderResult] = []
     processed = 0
@@ -73,7 +103,10 @@ def run_consumer(
             break
         job = RenderJob.from_dict(payload)
         logger.info("consuming render job %s (short %s)", job.id, job.short_id)
-        results.append(render_job(job, input_path=resolve(job), dry_run=dry_run))
+        result = render_job(job, input_path=resolve(job), dry_run=dry_run)
+        results.append(result)
+        if reporter is not None:
+            reporter(result)
         processed += 1
 
     return results

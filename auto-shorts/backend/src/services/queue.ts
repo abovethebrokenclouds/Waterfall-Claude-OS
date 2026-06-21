@@ -3,11 +3,36 @@
  * here keeps the API runnable in dev and deterministic in tests.
  */
 import { makeId } from "../agents/ids";
-import type { RenderJob, VideoSpec } from "../types";
+import type { RenderJob, RenderStatus, VideoSpec } from "../types";
+
+export interface RenderStatusUpdate {
+  outputUrl?: string;
+  error?: string;
+}
 
 export interface RenderQueue {
   enqueue(spec: VideoSpec): Promise<RenderJob>;
   get(jobId: string): Promise<RenderJob | undefined>;
+  /** Record a status transition reported by the worker. */
+  updateStatus(
+    jobId: string,
+    status: RenderStatus,
+    fields?: RenderStatusUpdate,
+  ): Promise<RenderJob | undefined>;
+}
+
+/** Apply a status transition to a job, dropping undefined fields. */
+function withStatus(
+  job: RenderJob,
+  status: RenderStatus,
+  fields: RenderStatusUpdate = {},
+): RenderJob {
+  return {
+    ...job,
+    status,
+    ...(fields.outputUrl !== undefined ? { outputUrl: fields.outputUrl } : {}),
+    ...(fields.error !== undefined ? { error: fields.error } : {}),
+  };
 }
 
 export class InMemoryRenderQueue implements RenderQueue {
@@ -27,6 +52,18 @@ export class InMemoryRenderQueue implements RenderQueue {
 
   async get(jobId: string): Promise<RenderJob | undefined> {
     return this.jobs.get(jobId);
+  }
+
+  async updateStatus(
+    jobId: string,
+    status: RenderStatus,
+    fields?: RenderStatusUpdate,
+  ): Promise<RenderJob | undefined> {
+    const job = this.jobs.get(jobId);
+    if (!job) return undefined;
+    const updated = withStatus(job, status, fields);
+    this.jobs.set(jobId, updated);
+    return updated;
   }
 }
 
@@ -81,5 +118,17 @@ export class RedisRenderQueue implements RenderQueue {
   async get(jobId: string): Promise<RenderJob | undefined> {
     const raw = await this.redis.hGet(this.jobsKey, jobId);
     return raw ? (JSON.parse(raw) as RenderJob) : undefined;
+  }
+
+  async updateStatus(
+    jobId: string,
+    status: RenderStatus,
+    fields?: RenderStatusUpdate,
+  ): Promise<RenderJob | undefined> {
+    const job = await this.get(jobId);
+    if (!job) return undefined;
+    const updated = withStatus(job, status, fields);
+    await this.redis.hSet(this.jobsKey, jobId, JSON.stringify(updated));
+    return updated;
   }
 }
