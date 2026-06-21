@@ -258,4 +258,63 @@ describe("API", () => {
     expect(res.body.id).toBe(plan.id);
     expect(res.body.title).toBe("New Title");
   });
+
+  it("validation errors use the structured envelope with a requestId", async () => {
+    const res = await request(app).post("/api/ingest-url").send({});
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe("bad_request");
+    expect(res.body.error.message).toBe("url is required");
+    // The requestId echoes the response header so a client can trace it.
+    expect(res.body.requestId).toBe(res.headers["x-request-id"]);
+    expect(res.headers["x-request-id"]).toMatch(/^req_/);
+  });
+
+  it("not-found errors use the structured envelope", async () => {
+    const res = await request(app).get("/api/jobs/nope");
+    expect(res.status).toBe(404);
+    expect(res.body.error.code).toBe("not_found");
+  });
+
+  it("honours an inbound x-request-id", async () => {
+    const res = await request(app)
+      .get("/health")
+      .set("x-request-id", "trace-123");
+    expect(res.headers["x-request-id"]).toBe("trace-123");
+  });
+});
+
+describe("rate limiting", () => {
+  function limitedApp(max: number): Express {
+    return createApp({
+      agent: scriptedAgent(),
+      ingestion: new FakeIngestionService(),
+      transcription: new FakeTranscriptionService(),
+      queue: new InMemoryRenderQueue(),
+      repository: new InMemoryShortsRepository(),
+      rateLimit: { max, windowMs: 60_000 },
+    });
+  }
+
+  it("429s past the cap with a Retry-After header and rate_limited code", async () => {
+    const app = limitedApp(2);
+    const ok1 = await request(app).post("/api/ingest-url").send({});
+    const ok2 = await request(app).post("/api/ingest-url").send({});
+    const blocked = await request(app).post("/api/ingest-url").send({});
+
+    // First two pass the limiter (still 400 from validation, not 429).
+    expect(ok1.status).toBe(400);
+    expect(ok2.status).toBe(400);
+    expect(blocked.status).toBe(429);
+    expect(blocked.body.error.code).toBe("rate_limited");
+    expect(blocked.headers["retry-after"]).toBeDefined();
+    expect(blocked.headers["x-ratelimit-limit"]).toBe("2");
+  });
+
+  it("does not throttle when max is 0 (default)", async () => {
+    const app = limitedApp(0);
+    for (let i = 0; i < 5; i++) {
+      const res = await request(app).get("/health");
+      expect(res.status).toBe(200);
+    }
+  });
 });
