@@ -18,11 +18,14 @@
   "license": "UNLICENSED",
   "dependencies": {
     "@anthropic-ai/sdk": "^0.105.0",
-    "express": "^5.2.1"
+    "express": "^5.2.1",
+    "pg": "^8.22.0",
+    "redis": "^6.0.0"
   },
   "devDependencies": {
     "@types/express": "^5.0.6",
     "@types/node": "^26.0.0",
+    "@types/pg": "^8.20.0",
     "@types/supertest": "^7.2.0",
     "ajv": "^8.20.0",
     "supertest": "^7.2.2",
