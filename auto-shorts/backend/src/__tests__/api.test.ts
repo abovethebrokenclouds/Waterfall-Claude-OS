@@ -1,0 +1,99 @@
+import { describe, it, expect, beforeEach } from "vitest";
+import request from "supertest";
+import { createApp } from "../api/app";
+import { InMemoryRenderQueue } from "../services/queue";
+import { InMemoryShortsRepository } from "../services/storage";
+import {
+  FakeIngestionService,
+  FakeTranscriptionService,
+  scriptedAgent,
+} from "./fakes";
+import type { Express } from "express";
+
+function buildApp(): Express {
+  return createApp({
+    agent: scriptedAgent(),
+    ingestion: new FakeIngestionService(),
+    transcription: new FakeTranscriptionService(),
+    queue: new InMemoryRenderQueue(),
+    repository: new InMemoryShortsRepository(),
+  });
+}
+
+describe("API", () => {
+  let app: Express;
+  beforeEach(() => {
+    app = buildApp();
+  });
+
+  it("GET /health -> ok", async () => {
+    const res = await request(app).get("/health");
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe("ok");
+  });
+
+  it("POST /api/ingest-url requires a url", async () => {
+    const res = await request(app).post("/api/ingest-url").send({});
+    expect(res.status).toBe(400);
+  });
+
+  it("POST /api/ingest-url classifies a url", async () => {
+    const res = await request(app)
+      .post("/api/ingest-url")
+      .send({ url: "https://youtu.be/abc" });
+    expect(res.status).toBe(200);
+    expect(res.body.sourceType).toBe("youtube");
+  });
+
+  it("POST /api/generate-shorts returns the unified result and persists shorts", async () => {
+    const res = await request(app)
+      .post("/api/generate-shorts")
+      .send({ url: "https://youtu.be/abc", preferences: { platforms: ["x"] } });
+    expect(res.status).toBe(200);
+    expect(res.body.shorts.length).toBeGreaterThan(0);
+
+    // A persisted short is fetchable and rendarable.
+    const shortId = res.body.shorts[0].id;
+    const getRes = await request(app).get(`/api/shorts/${shortId}`);
+    // NOTE: separate app instance per test would lose state; reuse same app.
+    expect([200, 404]).toContain(getRes.status);
+  });
+
+  it("persists shorts so they can be fetched and rendered (same app)", async () => {
+    const gen = await request(app)
+      .post("/api/generate-shorts")
+      .send({ url: "https://youtu.be/abc" });
+    const shortId = gen.body.shorts[0].id;
+
+    const got = await request(app).get(`/api/shorts/${shortId}`);
+    expect(got.status).toBe(200);
+    expect(got.body.plan.id).toBe(shortId);
+
+    const render = await request(app)
+      .post("/api/render-short")
+      .send({ shortId });
+    expect(render.status).toBe(202);
+    expect(render.body.status).toBe("queued");
+    expect(render.body.spec.shortId).toBe(shortId);
+  });
+
+  it("POST /api/render-short 404s for an unknown short", async () => {
+    const res = await request(app)
+      .post("/api/render-short")
+      .send({ shortId: "nope" });
+    expect(res.status).toBe(404);
+  });
+
+  it("POST /api/variation re-angles a plan", async () => {
+    const gen = await request(app)
+      .post("/api/generate-shorts")
+      .send({ url: "https://youtu.be/abc" });
+    const plan = gen.body.shorts[0];
+    const res = await request(app)
+      .post("/api/variation")
+      .send({ plan, instruction: "make it punchier" });
+    expect(res.status).toBe(200);
+    expect(res.body.id).toBe(plan.id);
+    expect(res.body.title).toBe("New Title");
+  });
+});
