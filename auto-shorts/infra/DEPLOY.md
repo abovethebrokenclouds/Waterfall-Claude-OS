@@ -57,6 +57,26 @@ Then, in **Render → the backend service → Environment**, add:
 > transcript. To transcribe/render **actual** media (Whisper + FFmpeg), deploy the
 > full stack below.
 
+## Fly.io (terminal; no repo-picker)
+
+A ready-made `auto-shorts/fly.toml` is committed, so there's nothing to author.
+
+```bash
+# install flyctl: https://fly.io/docs/hands-on/install-flyctl/  then: fly auth signup
+git clone https://github.com/abovethebrokenclouds/Waterfall-Claude-OS.git
+cd Waterfall-Claude-OS/auto-shorts
+fly launch          # detects fly.toml; pick a UNIQUE app name; decline Postgres/Redis
+fly deploy          # if launch didn't already deploy
+fly open            # opens your URL -> shows the running banner
+```
+
+Then point the app at the URL (Settings → API base URL → Test connection), and for
+real generation:
+
+```bash
+fly secrets set ANTHROPIC_API_KEY=sk-... CORS_ORIGINS=https://pixelperfectaipro.lovable.app
+```
+
 ## Full stack — worker + Postgres + Redis
 
 Use the full blueprint `auto-shorts/infra/render.full.yaml` (copy it to the repo

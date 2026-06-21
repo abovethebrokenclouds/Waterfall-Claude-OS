@@ -1,0 +1,13 @@
+# Keep build contexts clean (applies to backend + worker image builds, which use
+# auto-shorts/ as the context).
+**/node_modules
+**/dist
+**/.venv
+**/__pycache__
+**/.next
+**/.pytest_cache
+**/.ruff_cache
+**/*.log
+**/.git
+**/coverage
+**/*.tsbuildinfo
