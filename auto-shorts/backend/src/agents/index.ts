@@ -46,3 +46,10 @@ export type {
   BRollSuggestion,
   BRollSuggestionsInput,
 } from "./brollSuggestions";
+
+export { seriesPlannerAgent } from "./seriesPlanner";
+export type {
+  SeriesPlan,
+  SeriesPart,
+  SeriesPlannerInput,
+} from "./seriesPlanner";

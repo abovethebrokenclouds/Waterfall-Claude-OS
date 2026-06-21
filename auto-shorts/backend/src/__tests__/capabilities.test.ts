@@ -4,6 +4,7 @@ import {
   coverConceptAgent,
   hashtagStrategyAgent,
   hookVariationsAgent,
+  seriesPlannerAgent,
   viralityScorer,
 } from "../agents";
 import { scriptedAgent } from "./fakes";
@@ -42,6 +43,28 @@ describe("hookVariationsAgent", () => {
     expect(
       await hookVariationsAgent({ plan, count: 99 }, scriptedAgent()),
     ).toHaveLength(8);
+  });
+});
+
+describe("seriesPlannerAgent", () => {
+  it("orders parts and references only real short ids", async () => {
+    const plans: ShortPlan[] = [
+      { ...plan, id: "short_a" },
+      { ...plan, id: "short_b" },
+    ];
+    const series = await seriesPlannerAgent(
+      { plans, topic: "growth" },
+      scriptedAgent(),
+    );
+    expect(series.seriesTitle.length).toBeGreaterThan(0);
+    expect(series.cadence.length).toBeGreaterThan(0);
+    expect(series.parts.map((p) => p.shortId)).toEqual(["short_a", "short_b"]);
+    expect(series.parts.map((p) => p.order)).toEqual([1, 2]);
+  });
+
+  it("returns an empty series for no plans", async () => {
+    const series = await seriesPlannerAgent({ plans: [] }, scriptedAgent());
+    expect(series.parts).toEqual([]);
   });
 });
 
