@@ -1,0 +1,58 @@
+============================================================================
+LOVABLE PROMPT — run the backend INSIDE Lovable Cloud (no external hosting)
+Paste this whole thing into the Lovable chat for the Auto-Shorts app.
+============================================================================
+
+GOAL
+Make the app fully functional with NO separate backend server. Use Lovable Cloud
++ Lovable AI so generation runs in an edge function. No Render/Fly, no external
+URL, and no API keys for me to manage.
+
+1) Enable Lovable Cloud for this project.
+
+2) Create an edge function `generate-shorts`:
+   - Accept POST JSON: { url: string, preferences?: { numShorts?: number, platforms?: string[] } }
+   - Build a transcript for the video: if you can retrieve the URL's
+     captions/transcript, use it; otherwise create a short, plausible transcript
+     for the apparent topic of the URL.
+   - Using Lovable AI (the built-in AI — no external API key), generate:
+     a) 3–6 highlights: { startSec, endSec, score (0..1), reason }
+     b) one ShortPlan per highlight:
+        { id, highlightId, title, hook (<=12 words), theme, startSec, endSec,
+          durationSec, layout: "full_bleed"|"split_top_bottom"|"centered_card",
+          captionStyle: { font, size, color, highlightColor, position },
+          cta, platforms: string[] }
+     c) per-platform copy for tiktok, instagram, youtube_shorts, facebook, x:
+        { platform, title, description, hashtags: string[], cta }
+   - Return JSON EXACTLY in this shape (matches src/lib/types.ts):
+     {
+       "ingestion": { "url", "sourceType", "ingestionMethod", "metadata": { "title?","author?","durationSec?" } },
+       "shorts": ShortPlan[],
+       "platformCopy": [ { "shortId": string, "copies": PlatformCopy[] } ]
+     }
+   - Respect preferences.numShorts and preferences.platforms when provided.
+
+3) Create an edge function `variation`:
+   - Accept POST JSON: { plan: ShortPlan, instruction: string }
+   - Use Lovable AI to return an updated ShortPlan: keep the same id and
+     start/end timestamps; change only title, hook, theme, cta, and (optionally)
+     layout per the instruction.
+
+4) Wire the frontend to these functions:
+   - In src/lib/api.ts, change generateShorts() and variation() to call the
+     Lovable Cloud edge functions (use the Cloud client / functions.invoke)
+     INSTEAD of an external base URL.
+   - Keep the exact same return types and the existing demo fallback on error.
+   - Result: Generate and Re-angle work with NO VITE_API_BASE_URL and NO external
+     backend.
+
+5) Leave renderShort() and getJob() as the existing in-app demo simulation —
+   real MP4 rendering needs a separate FFmpeg worker and is out of scope here.
+   Keep the Download button behavior as-is.
+
+ACCEPTANCE
+- With Lovable Cloud enabled, clicking "Generate" returns real AI-written shorts
+  (plans + per-platform copy) with NO external backend and NO "Demo data" badge.
+- "Edit → Re-angle with a new instruction" works via the variation function.
+- Nothing requires me to deploy or host anything outside Lovable.
+============================================================================
