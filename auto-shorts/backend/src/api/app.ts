@@ -9,6 +9,7 @@ import {
   coverConceptAgent,
   hashtagStrategyAgent,
   hookVariationsAgent,
+  seriesPlannerAgent,
   urlIngestionAgent,
   variationAgent,
   viralityScorer,
@@ -61,6 +62,7 @@ export function createApp(deps: ApiDeps): Express {
         "POST /api/variation",
         "POST /api/hook-variations",
         "POST /api/hashtag-strategy",
+        "POST /api/series",
         "POST /api/broll",
         "POST /api/cover-concept",
         "POST /api/score",
@@ -129,6 +131,20 @@ export function createApp(deps: ApiDeps): Express {
       }
       const hooks = await hookVariationsAgent({ plan, count }, deps.agent);
       res.json({ hooks });
+    }),
+  );
+
+  // Package a set of plans into a numbered series.
+  app.post(
+    "/api/series",
+    asyncHandler(async (req, res) => {
+      const { plans, topic } = req.body ?? {};
+      if (!Array.isArray(plans) || plans.length === 0) {
+        res.status(400).json({ error: "plans (non-empty array) is required" });
+        return;
+      }
+      const series = await seriesPlannerAgent({ plans, topic }, deps.agent);
+      res.json(series);
     }),
   );
 

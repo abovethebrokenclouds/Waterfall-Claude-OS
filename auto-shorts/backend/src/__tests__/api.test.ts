@@ -160,6 +160,23 @@ describe("API", () => {
     expect(res.body.suggestions.length).toBeGreaterThan(0);
   });
 
+  it("POST /api/series packages plans into a series", async () => {
+    const gen = await request(app)
+      .post("/api/generate-shorts")
+      .send({ url: "https://youtu.be/abc" });
+    const res = await request(app)
+      .post("/api/series")
+      .send({ plans: gen.body.shorts, topic: "growth" });
+    expect(res.status).toBe(200);
+    expect(res.body.seriesTitle.length).toBeGreaterThan(0);
+    expect(res.body.parts.length).toBeGreaterThan(0);
+  });
+
+  it("POST /api/series requires a non-empty plans array", async () => {
+    const res = await request(app).post("/api/series").send({ plans: [] });
+    expect(res.status).toBe(400);
+  });
+
   it("POST /api/hashtag-strategy returns tiered tags", async () => {
     const gen = await request(app)
       .post("/api/generate-shorts")

@@ -37,8 +37,19 @@ export function scriptedAgent(): FakeSuperAgent {
       });
     }
     if (req.tier === Tier.OPUS) {
+      const ids = [...req.prompt.matchAll(/id=(\S+?)[:\s]/g)].map((m) => m[1]);
+      if (req.prompt.includes("cohesive numbered series")) {
+        return JSON.stringify({
+          seriesTitle: "Grow Without a Budget: The Series",
+          parts: ids.map((id, i) => ({
+            shortId: id,
+            partTitle: `Part ${i + 1}`,
+            teaser: `Teaser ${i + 1}`,
+          })),
+          cadence: "Post one part every weekday at 6pm.",
+        });
+      }
       // Short-form planner — one plan per highlight id mentioned.
-      const ids = [...req.prompt.matchAll(/id=(\S+)/g)].map((m) => m[1]);
       return JSON.stringify(
         ids.map((id, i) => ({
           highlightId: id,
