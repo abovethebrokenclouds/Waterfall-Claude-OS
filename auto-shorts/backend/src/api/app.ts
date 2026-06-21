@@ -6,6 +6,7 @@ import express, { type Express, type NextFunction, type Request, type Response }
 import cors from "cors";
 import {
   coverConceptAgent,
+  hashtagStrategyAgent,
   hookVariationsAgent,
   urlIngestionAgent,
   variationAgent,
@@ -58,6 +59,7 @@ export function createApp(deps: ApiDeps): Express {
         "POST /api/generate-shorts",
         "POST /api/variation",
         "POST /api/hook-variations",
+        "POST /api/hashtag-strategy",
         "POST /api/cover-concept",
         "POST /api/score",
         "POST /api/render-short",
@@ -125,6 +127,20 @@ export function createApp(deps: ApiDeps): Express {
       }
       const hooks = await hookVariationsAgent({ plan, count }, deps.agent);
       res.json({ hooks });
+    }),
+  );
+
+  // Tiered hashtag strategy for one plan.
+  app.post(
+    "/api/hashtag-strategy",
+    asyncHandler(async (req, res) => {
+      const { plan, platform } = req.body ?? {};
+      if (!plan) {
+        res.status(400).json({ error: "plan is required" });
+        return;
+      }
+      const strategy = await hashtagStrategyAgent({ plan, platform }, deps.agent);
+      res.json(strategy);
     }),
   );
 

@@ -149,6 +149,19 @@ describe("API", () => {
     expect(res.status).toBe(400);
   });
 
+  it("POST /api/hashtag-strategy returns tiered tags", async () => {
+    const gen = await request(app)
+      .post("/api/generate-shorts")
+      .send({ url: "https://youtu.be/abc" });
+    const plan = gen.body.shorts[0];
+    const res = await request(app)
+      .post("/api/hashtag-strategy")
+      .send({ plan, platform: "tiktok" });
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body.broad)).toBe(true);
+    expect(Array.isArray(res.body.niche)).toBe(true);
+  });
+
   it("POST /api/cover-concept returns a cover", async () => {
     const gen = await request(app)
       .post("/api/generate-shorts")
