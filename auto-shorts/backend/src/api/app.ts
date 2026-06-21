@@ -41,6 +41,23 @@ export function createApp(deps: ApiDeps): Express {
 
   app.use(express.json({ limit: "1mb" }));
 
+  // Friendly root so opening the bare deploy URL confirms the API is live
+  // (instead of Express's default "Cannot GET /").
+  app.get("/", (_req, res) => {
+    res.json({
+      name: "Auto-Shorts API",
+      status: "running",
+      health: "/health",
+      endpoints: [
+        "POST /api/generate-shorts",
+        "POST /api/render-short",
+        "GET /api/jobs/:id",
+        "POST /api/variation",
+        "POST /api/ingest-url",
+      ],
+    });
+  });
+
   app.get("/health", (_req, res) => {
     res.json({ status: "ok" });
   });
