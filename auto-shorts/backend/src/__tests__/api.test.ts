@@ -132,6 +132,34 @@ describe("API", () => {
     expect(res.status).toBe(404);
   });
 
+  it("POST /api/hook-variations returns hooks", async () => {
+    const gen = await request(app)
+      .post("/api/generate-shorts")
+      .send({ url: "https://youtu.be/abc" });
+    const plan = gen.body.shorts[0];
+    const res = await request(app)
+      .post("/api/hook-variations")
+      .send({ plan, count: 4 });
+    expect(res.status).toBe(200);
+    expect(res.body.hooks).toHaveLength(4);
+  });
+
+  it("POST /api/hook-variations requires a plan", async () => {
+    const res = await request(app).post("/api/hook-variations").send({});
+    expect(res.status).toBe(400);
+  });
+
+  it("POST /api/score returns a virality score", async () => {
+    const gen = await request(app)
+      .post("/api/generate-shorts")
+      .send({ url: "https://youtu.be/abc" });
+    const plan = gen.body.shorts[0];
+    const res = await request(app).post("/api/score").send({ plan });
+    expect(res.status).toBe(200);
+    expect(res.body.score).toBeGreaterThanOrEqual(0);
+    expect(res.body.breakdown.hook).toBeGreaterThanOrEqual(0);
+  });
+
   it("POST /api/variation re-angles a plan", async () => {
     const gen = await request(app)
       .post("/api/generate-shorts")

@@ -57,6 +57,25 @@ export function scriptedAgent(): FakeSuperAgent {
         { startSec: 6, endSec: 11, score: 0.7, reason: "Useful tip" },
       ]);
     }
+    if (req.prompt.includes("alternative hooks")) {
+      return JSON.stringify([
+        "The mistake costing you followers",
+        "Stop scrolling — this changes everything",
+        "Why your hooks keep failing",
+        "One line that 10x'd our views",
+        "The 3-second rule nobody teaches",
+        "Your budget isn't the problem",
+        "Read this before you post again",
+        "What top creators never tell you",
+      ]);
+    }
+    if (req.prompt.includes("Rate the virality")) {
+      return JSON.stringify({
+        score: 82,
+        breakdown: { hook: 88, pacing: 76, payoff: 80, shareability: 85 },
+        reasons: ["Strong tension in the hook", "Clear, fast payoff"],
+      });
+    }
     if (req.prompt.includes("one object per platform")) {
       const platforms = [...req.prompt.matchAll(/Platforms: (.+)/g)][0]?.[1]
         ?.split(",")

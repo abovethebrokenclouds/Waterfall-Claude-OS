@@ -21,3 +21,13 @@ export type { PlatformCopywriterInput } from "./platformCopywriter";
 
 export { variationAgent } from "./variationAgent";
 export type { VariationAgentInput } from "./variationAgent";
+
+export { hookVariationsAgent } from "./hookVariations";
+export type { HookVariationsInput } from "./hookVariations";
+
+export { viralityScorer } from "./viralityScorer";
+export type {
+  ViralityScore,
+  ViralityBreakdown,
+  ViralityScorerInput,
+} from "./viralityScorer";
