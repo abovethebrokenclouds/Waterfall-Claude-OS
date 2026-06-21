@@ -22,6 +22,8 @@ import type { RenderQueue } from "../services/queue";
 import type { ShortsRepository } from "../services/storage";
 import { logger } from "../config/logger";
 import { videoTemplateBuilder } from "../agents";
+import { badRequest, notFound, sendError } from "./http";
+import { rateLimit, requestContext } from "./middleware";
 
 export interface ApiDeps extends OrchestratorDeps {
   queue: RenderQueue;
@@ -31,6 +33,11 @@ export interface ApiDeps extends OrchestratorDeps {
    * Lovable app URL); `null`/omitted reflects any origin (dev/demo).
    */
   corsOrigins?: string[] | null;
+  /**
+   * Per-IP rate limit for /api routes. Omit or set `max: 0` to disable
+   * (default in dev/test). Set a positive cap in production.
+   */
+  rateLimit?: { max: number; windowMs: number };
 }
 
 /** Wrap an async handler so rejections reach the error middleware. */
@@ -45,6 +52,10 @@ function asyncHandler(
 export function createApp(deps: ApiDeps): Express {
   const app = express();
 
+  // Per-request id + access logging first, so every later line and error
+  // envelope can reference the same requestId.
+  app.use(requestContext());
+
   // CORS: allow the (separately hosted) frontend to call the API. A configured
   // allowlist locks it down; otherwise any origin is reflected for dev/demo.
   const origin =
@@ -52,6 +63,15 @@ export function createApp(deps: ApiDeps): Express {
   app.use(cors({ origin, methods: ["GET", "POST", "OPTIONS"] }));
 
   app.use(express.json({ limit: "1mb" }));
+
+  // Optional abuse protection on the API surface (no-op when max is 0).
+  app.use(
+    "/api",
+    rateLimit({
+      max: deps.rateLimit?.max ?? 0,
+      windowMs: deps.rateLimit?.windowMs ?? 60_000,
+    }),
+  );
 
   // Friendly root so opening the bare deploy URL confirms the API is live
   // (instead of Express's default "Cannot GET /").
@@ -89,7 +109,7 @@ export function createApp(deps: ApiDeps): Express {
     asyncHandler(async (req, res) => {
       const { url, html } = req.body ?? {};
       if (!url || typeof url !== "string") {
-        res.status(400).json({ error: "url is required" });
+        badRequest(res, "url is required");
         return;
       }
       const result = await urlIngestionAgent({ url, html }, deps.agent);
@@ -103,7 +123,7 @@ export function createApp(deps: ApiDeps): Express {
     asyncHandler(async (req, res) => {
       const { url, html, preferences } = req.body ?? {};
       if (!url || typeof url !== "string") {
-        res.status(400).json({ error: "url is required" });
+        badRequest(res, "url is required");
         return;
       }
       const result = await generateShorts({ url, html, preferences }, deps);
@@ -118,7 +138,7 @@ export function createApp(deps: ApiDeps): Express {
     asyncHandler(async (req, res) => {
       const { plan, instruction } = req.body ?? {};
       if (!plan || !instruction) {
-        res.status(400).json({ error: "plan and instruction are required" });
+        badRequest(res, "plan and instruction are required");
         return;
       }
       const updated = await variationAgent({ plan, instruction }, deps.agent);
@@ -132,7 +152,7 @@ export function createApp(deps: ApiDeps): Express {
     asyncHandler(async (req, res) => {
       const { plan, count } = req.body ?? {};
       if (!plan) {
-        res.status(400).json({ error: "plan is required" });
+        badRequest(res, "plan is required");
         return;
       }
       const hooks = await hookVariationsAgent({ plan, count }, deps.agent);
@@ -146,7 +166,7 @@ export function createApp(deps: ApiDeps): Express {
     asyncHandler(async (req, res) => {
       const { plan, platform } = req.body ?? {};
       if (!plan) {
-        res.status(400).json({ error: "plan is required" });
+        badRequest(res, "plan is required");
         return;
       }
       const result = await titleOptimizerAgent({ plan, platform }, deps.agent);
@@ -160,7 +180,7 @@ export function createApp(deps: ApiDeps): Express {
     asyncHandler(async (req, res) => {
       const { plan, platform, goal } = req.body ?? {};
       if (!plan) {
-        res.status(400).json({ error: "plan is required" });
+        badRequest(res, "plan is required");
         return;
       }
       const result = await ctaOptimizerAgent({ plan, platform, goal }, deps.agent);
@@ -174,7 +194,7 @@ export function createApp(deps: ApiDeps): Express {
     asyncHandler(async (req, res) => {
       const { text } = req.body ?? {};
       if (!text || typeof text !== "string") {
-        res.status(400).json({ error: "text is required" });
+        badRequest(res, "text is required");
         return;
       }
       const result = await captionEmphasisAgent({ text }, deps.agent);
@@ -188,7 +208,7 @@ export function createApp(deps: ApiDeps): Express {
     asyncHandler(async (req, res) => {
       const { plans, topic } = req.body ?? {};
       if (!Array.isArray(plans) || plans.length === 0) {
-        res.status(400).json({ error: "plans (non-empty array) is required" });
+        badRequest(res, "plans (non-empty array) is required");
         return;
       }
       const series = await seriesPlannerAgent({ plans, topic }, deps.agent);
@@ -202,7 +222,7 @@ export function createApp(deps: ApiDeps): Express {
     asyncHandler(async (req, res) => {
       const { plan, transcriptExcerpt, count } = req.body ?? {};
       if (!plan) {
-        res.status(400).json({ error: "plan is required" });
+        badRequest(res, "plan is required");
         return;
       }
       const suggestions = await brollSuggestionAgent(
@@ -219,7 +239,7 @@ export function createApp(deps: ApiDeps): Express {
     asyncHandler(async (req, res) => {
       const { plan, platform } = req.body ?? {};
       if (!plan) {
-        res.status(400).json({ error: "plan is required" });
+        badRequest(res, "plan is required");
         return;
       }
       const strategy = await hashtagStrategyAgent({ plan, platform }, deps.agent);
@@ -233,7 +253,7 @@ export function createApp(deps: ApiDeps): Express {
     asyncHandler(async (req, res) => {
       const { plan, brandColor } = req.body ?? {};
       if (!plan) {
-        res.status(400).json({ error: "plan is required" });
+        badRequest(res, "plan is required");
         return;
       }
       const concept = await coverConceptAgent({ plan, brandColor }, deps.agent);
@@ -247,7 +267,7 @@ export function createApp(deps: ApiDeps): Express {
     asyncHandler(async (req, res) => {
       const { plan, transcriptExcerpt } = req.body ?? {};
       if (!plan) {
-        res.status(400).json({ error: "plan is required" });
+        badRequest(res, "plan is required");
         return;
       }
       const score = await viralityScorer({ plan, transcriptExcerpt }, deps.agent);
@@ -261,12 +281,12 @@ export function createApp(deps: ApiDeps): Express {
     asyncHandler(async (req, res) => {
       const { shortId } = req.body ?? {};
       if (!shortId || typeof shortId !== "string") {
-        res.status(400).json({ error: "shortId is required" });
+        badRequest(res, "shortId is required");
         return;
       }
       const stored = await deps.repository.getShort(shortId);
       if (!stored) {
-        res.status(404).json({ error: "short not found" });
+        notFound(res, "short not found");
         return;
       }
       const spec =
@@ -282,7 +302,7 @@ export function createApp(deps: ApiDeps): Express {
     asyncHandler(async (req, res) => {
       const job = await deps.queue.get(String(req.params.id));
       if (!job) {
-        res.status(404).json({ error: "job not found" });
+        notFound(res, "job not found");
         return;
       }
       res.json(job);
@@ -296,7 +316,7 @@ export function createApp(deps: ApiDeps): Express {
       const { jobId, status, outputUrl, error } = req.body ?? {};
       const allowed = ["queued", "rendering", "done", "failed"];
       if (!jobId || typeof jobId !== "string" || !allowed.includes(status)) {
-        res.status(400).json({ error: "jobId and a valid status are required" });
+        badRequest(res, "jobId and a valid status are required");
         return;
       }
       const updated = await deps.queue.updateStatus(jobId, status, {
@@ -304,7 +324,7 @@ export function createApp(deps: ApiDeps): Express {
         error,
       });
       if (!updated) {
-        res.status(404).json({ error: "job not found" });
+        notFound(res, "job not found");
         return;
       }
       res.json(updated);
@@ -317,18 +337,19 @@ export function createApp(deps: ApiDeps): Express {
     asyncHandler(async (req, res) => {
       const stored = await deps.repository.getShort(String(req.params.id));
       if (!stored) {
-        res.status(404).json({ error: "short not found" });
+        notFound(res, "short not found");
         return;
       }
       res.json(stored);
     }),
   );
 
-  // Centralised error handler.
+  // Centralised error handler — same envelope as validation errors, with the
+  // requestId so a client failure traces to a server log line.
   app.use(
-    (err: Error, _req: Request, res: Response, _next: NextFunction) => {
-      logger.error("api.error", { message: err.message });
-      res.status(500).json({ error: "internal_error", message: err.message });
+    (err: Error, req: Request, res: Response, _next: NextFunction) => {
+      logger.error("api.error", { requestId: req.requestId, message: err.message });
+      sendError(res, 500, "internal_error", err.message);
     },
   );
 

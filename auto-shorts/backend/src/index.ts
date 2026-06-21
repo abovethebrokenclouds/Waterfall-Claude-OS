@@ -94,6 +94,7 @@ async function main(): Promise<void> {
     queue: await buildQueue(),
     repository: buildRepository(),
     corsOrigins: env.corsOrigins,
+    rateLimit: { max: env.rateLimitMax, windowMs: env.rateLimitWindowMs },
   });
 
   app.listen(env.port, () => {

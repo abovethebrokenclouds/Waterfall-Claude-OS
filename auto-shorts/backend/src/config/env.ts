@@ -22,6 +22,10 @@ export const env = {
   nodeEnv: process.env.NODE_ENV ?? "development",
   anthropicApiKey: process.env.ANTHROPIC_API_KEY ?? "",
   corsOrigins: parseCorsOrigins(),
+  // Per-IP fixed-window rate limit on /api routes. RATE_LIMIT_MAX=0 disables it
+  // (default in dev); set a positive cap in production.
+  rateLimitMax: Number(process.env.RATE_LIMIT_MAX ?? 0),
+  rateLimitWindowMs: Number(process.env.RATE_LIMIT_WINDOW_MS ?? 60_000),
   // Empty => "standalone" mode: no worker; the backend uses a built-in sample
   // transcript so planning/copy work without Whisper/FFmpeg.
   workerUrl: process.env.WORKER_URL ?? "",
