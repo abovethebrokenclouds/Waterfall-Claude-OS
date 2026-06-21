@@ -69,6 +69,13 @@ export function scriptedAgent(): FakeSuperAgent {
         "What top creators never tell you",
       ]);
     }
+    if (req.prompt.includes("tiered hashtag strategy")) {
+      return JSON.stringify({
+        broad: ["#shorts", "shorts", "viral", "fyp", "fyp"],
+        niche: ["creatortips", "#contentstrategy", "hookwriting"],
+        branded: ["autoshorts", "autoshorts"],
+      });
+    }
     if (req.prompt.includes("Design a cover")) {
       return JSON.stringify({
         coverText: "STOP SCROLLING",

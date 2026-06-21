@@ -34,3 +34,9 @@ export type {
 
 export { coverConceptAgent } from "./coverConcept";
 export type { CoverConcept, CoverConceptInput } from "./coverConcept";
+
+export { hashtagStrategyAgent } from "./hashtagStrategy";
+export type {
+  HashtagStrategy,
+  HashtagStrategyInput,
+} from "./hashtagStrategy";

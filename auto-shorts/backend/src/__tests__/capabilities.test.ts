@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   coverConceptAgent,
+  hashtagStrategyAgent,
   hookVariationsAgent,
   viralityScorer,
 } from "../agents";
@@ -40,6 +41,22 @@ describe("hookVariationsAgent", () => {
     expect(
       await hookVariationsAgent({ plan, count: 99 }, scriptedAgent()),
     ).toHaveLength(8);
+  });
+});
+
+describe("hashtagStrategyAgent", () => {
+  it("returns tiered, normalised, de-duplicated tags within caps", async () => {
+    const s = await hashtagStrategyAgent(
+      { plan, platform: "tiktok" },
+      scriptedAgent(),
+    );
+    expect(s.broad.length).toBeLessThanOrEqual(5);
+    expect(s.niche.length).toBeLessThanOrEqual(8);
+    expect(s.branded.length).toBeLessThanOrEqual(3);
+    // '#' stripped and de-duplicated (fake returns "#shorts","shorts" + dup "fyp").
+    expect(s.broad).toContain("shorts");
+    expect(s.broad.every((t) => !t.startsWith("#"))).toBe(true);
+    expect(new Set(s.broad).size).toBe(s.broad.length);
   });
 });
 
