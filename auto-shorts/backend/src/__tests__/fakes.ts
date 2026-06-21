@@ -69,6 +69,14 @@ export function scriptedAgent(): FakeSuperAgent {
         "What top creators never tell you",
       ]);
     }
+    if (req.prompt.includes("b-roll moments")) {
+      return JSON.stringify([
+        { atSec: 1, idea: "close-up of a phone scrolling", keyword: "phone scrolling" },
+        { atSec: 4, idea: "stopwatch ticking", keyword: "stopwatch" },
+        { atSec: 999, idea: "crowd cheering (out of range)", keyword: "crowd" },
+        { atSec: 8, idea: "", keyword: "ignored-empty-idea" },
+      ]);
+    }
     if (req.prompt.includes("tiered hashtag strategy")) {
       return JSON.stringify({
         broad: ["#shorts", "shorts", "viral", "fyp", "fyp"],

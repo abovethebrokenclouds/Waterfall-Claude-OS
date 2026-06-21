@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
+  brollSuggestionAgent,
   coverConceptAgent,
   hashtagStrategyAgent,
   hookVariationsAgent,
@@ -41,6 +42,18 @@ describe("hookVariationsAgent", () => {
     expect(
       await hookVariationsAgent({ plan, count: 99 }, scriptedAgent()),
     ).toHaveLength(8);
+  });
+});
+
+describe("brollSuggestionAgent", () => {
+  it("clamps timestamps to the clip and drops empty ideas", async () => {
+    const suggestions = await brollSuggestionAgent({ plan }, scriptedAgent());
+    // The fake returns 4 items: one out-of-range atSec and one empty idea.
+    expect(suggestions.every((s) => s.atSec >= 0 && s.atSec <= plan.durationSec)).toBe(
+      true,
+    );
+    expect(suggestions.every((s) => s.idea.trim().length > 0)).toBe(true);
+    expect(suggestions.length).toBeGreaterThan(0);
   });
 });
 

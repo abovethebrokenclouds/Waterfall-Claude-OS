@@ -5,6 +5,7 @@
 import express, { type Express, type NextFunction, type Request, type Response } from "express";
 import cors from "cors";
 import {
+  brollSuggestionAgent,
   coverConceptAgent,
   hashtagStrategyAgent,
   hookVariationsAgent,
@@ -60,6 +61,7 @@ export function createApp(deps: ApiDeps): Express {
         "POST /api/variation",
         "POST /api/hook-variations",
         "POST /api/hashtag-strategy",
+        "POST /api/broll",
         "POST /api/cover-concept",
         "POST /api/score",
         "POST /api/render-short",
@@ -127,6 +129,23 @@ export function createApp(deps: ApiDeps): Express {
       }
       const hooks = await hookVariationsAgent({ plan, count }, deps.agent);
       res.json({ hooks });
+    }),
+  );
+
+  // B-roll suggestions for one plan.
+  app.post(
+    "/api/broll",
+    asyncHandler(async (req, res) => {
+      const { plan, transcriptExcerpt, count } = req.body ?? {};
+      if (!plan) {
+        res.status(400).json({ error: "plan is required" });
+        return;
+      }
+      const suggestions = await brollSuggestionAgent(
+        { plan, transcriptExcerpt, count },
+        deps.agent,
+      );
+      res.json({ suggestions });
     }),
   );
 
