@@ -1,0 +1,131 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://waterfalltechnologies.net/auto-shorts/contracts.schema.json",
+  "title": "Auto-Shorts cross-language contracts",
+  "description": "Canonical JSON Schema for the entities that cross the Node backend <-> Python worker boundary. Kept in sync with shared/types (TypeScript). Validators reference the named $defs.",
+  "$defs": {
+    "CaptionStyle": {
+      "type": "object",
+      "required": ["font", "size", "color", "highlightColor", "position"],
+      "additionalProperties": false,
+      "properties": {
+        "font": { "type": "string" },
+        "size": { "type": "number" },
+        "color": { "type": "string" },
+        "highlightColor": { "type": "string" },
+        "position": { "enum": ["top", "center", "bottom"] }
+      }
+    },
+    "Position": {
+      "type": "object",
+      "required": ["x", "y"],
+      "additionalProperties": false,
+      "properties": {
+        "x": { "type": "number", "minimum": 0, "maximum": 1 },
+        "y": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+    "Timing": {
+      "type": "object",
+      "required": ["startSec", "endSec"],
+      "additionalProperties": false,
+      "properties": {
+        "startSec": { "type": "number", "minimum": 0 },
+        "endSec": { "type": "number", "minimum": 0 }
+      }
+    },
+    "Overlay": {
+      "type": "object",
+      "required": ["type", "position"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "enum": ["text", "image", "box"] },
+        "position": { "$ref": "#/$defs/Position" },
+        "timing": { "$ref": "#/$defs/Timing" },
+        "text": { "type": "string" },
+        "fontSize": { "type": "number" },
+        "color": { "type": "string" },
+        "src": { "type": "string" },
+        "width": { "type": "number" },
+        "height": { "type": "number" },
+        "fill": { "type": "string" },
+        "opacity": { "type": "number" }
+      }
+    },
+    "VideoSpec": {
+      "type": "object",
+      "required": [
+        "id",
+        "shortId",
+        "aspectRatio",
+        "resolution",
+        "fps",
+        "source",
+        "background",
+        "overlays",
+        "captions"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string" },
+        "shortId": { "type": "string" },
+        "aspectRatio": { "const": "9:16" },
+        "resolution": {
+          "type": "object",
+          "required": ["w", "h"],
+          "additionalProperties": false,
+          "properties": {
+            "w": { "type": "integer", "minimum": 1 },
+            "h": { "type": "integer", "minimum": 1 }
+          }
+        },
+        "fps": { "type": "integer", "minimum": 1 },
+        "source": {
+          "type": "object",
+          "required": ["startSec", "endSec"],
+          "additionalProperties": false,
+          "properties": {
+            "startSec": { "type": "number", "minimum": 0 },
+            "endSec": { "type": "number", "minimum": 0 }
+          }
+        },
+        "background": {
+          "type": "object",
+          "required": ["type", "value"],
+          "additionalProperties": false,
+          "properties": {
+            "type": { "enum": ["blur", "color"] },
+            "value": { "type": "string" }
+          }
+        },
+        "overlays": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/Overlay" }
+        },
+        "captions": {
+          "type": "object",
+          "required": ["enabled", "style"],
+          "additionalProperties": false,
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "style": { "$ref": "#/$defs/CaptionStyle" }
+          }
+        }
+      }
+    },
+    "RenderJob": {
+      "type": "object",
+      "required": ["id", "shortId", "spec", "status", "createdAt"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string" },
+        "shortId": { "type": "string" },
+        "spec": { "$ref": "#/$defs/VideoSpec" },
+        "status": { "enum": ["queued", "rendering", "done", "failed"] },
+        "outputUrl": { "type": "string" },
+        "error": { "type": "string" },
+        "createdAt": { "type": "string" }
+      }
+    }
+  }
+}
