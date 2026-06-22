@@ -4,8 +4,11 @@ import {
   captionEmphasisAgent,
   coverConceptAgent,
   ctaOptimizerAgent,
+  engagementPromptAgent,
   hashtagStrategyAgent,
   hookVariationsAgent,
+  musicSuggestionAgent,
+  retentionScorer,
   seriesPlannerAgent,
   titleOptimizerAgent,
   viralityScorer,
@@ -82,6 +85,44 @@ describe("captionEmphasisAgent", () => {
   it("returns empty for blank text", async () => {
     const { words } = await captionEmphasisAgent({ text: "  " }, scriptedAgent());
     expect(words).toEqual([]);
+  });
+});
+
+describe("retentionScorer", () => {
+  it("clamps the score + timestamps, coerces risk, drops empty fixes", async () => {
+    const result = await retentionScorer({ plan }, scriptedAgent());
+    expect(result.score).toBeGreaterThanOrEqual(0);
+    expect(result.score).toBeLessThanOrEqual(100);
+    // Fake returns 3 dropoffs: one out-of-range atSec and one empty fix.
+    expect(result.dropoffs.length).toBe(2);
+    expect(
+      result.dropoffs.every((d) => d.atSec >= 0 && d.atSec <= plan.durationSec),
+    ).toBe(true);
+    expect(result.dropoffs.every((d) => d.fix.trim().length > 0)).toBe(true);
+    // "MED" coerces to the "medium" bucket.
+    expect(result.dropoffs.map((d) => d.risk)).toEqual(["high", "medium"]);
+  });
+});
+
+describe("engagementPromptAgent", () => {
+  it("returns de-duplicated prompts", async () => {
+    const { prompts } = await engagementPromptAgent(
+      { plan, platform: "tiktok" },
+      scriptedAgent(),
+    );
+    expect(prompts.length).toBeGreaterThan(0);
+    expect(new Set(prompts).size).toBe(prompts.length);
+  });
+});
+
+describe("musicSuggestionAgent", () => {
+  it("returns a mood, de-duplicated lists, and a coerced tempo", async () => {
+    const s = await musicSuggestionAgent({ plan }, scriptedAgent());
+    expect(s.mood.length).toBeGreaterThan(0);
+    expect(new Set(s.genres).size).toBe(s.genres.length);
+    expect(new Set(s.searchTerms).size).toBe(s.searchTerms.length);
+    // "FAST" coerces to the "fast" bucket.
+    expect(s.tempo).toBe("fast");
   });
 });
 

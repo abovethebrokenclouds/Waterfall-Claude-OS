@@ -76,6 +76,33 @@ export function scriptedAgent(): FakeSuperAgent {
     if (req.prompt.includes("words to emphasize")) {
       return JSON.stringify({ emphasize: ["budget", "free"] });
     }
+    if (req.prompt.includes("drop-off risk points")) {
+      return JSON.stringify({
+        score: 71,
+        dropoffs: [
+          { atSec: 2, risk: "high", fix: "Tighten the intro to a 1-line hook" },
+          { atSec: 999, risk: "MED", fix: "Add a pattern interrupt (out of range)" },
+          { atSec: 8, risk: "low", fix: "" },
+        ],
+      });
+    }
+    if (req.prompt.includes("engagement prompts")) {
+      return JSON.stringify({
+        prompts: [
+          "Which side are you on? 👀",
+          "Tag someone who needs this",
+          "Which side are you on? 👀",
+        ],
+      });
+    }
+    if (req.prompt.includes("trending audio")) {
+      return JSON.stringify({
+        mood: "uplifting and punchy",
+        genres: ["lo-fi", "phonk", "lo-fi"],
+        tempo: "FAST",
+        searchTerms: ["trending upbeat", "viral phonk", "trending upbeat"],
+      });
+    }
     if (req.prompt.includes("searchable title variants")) {
       return JSON.stringify({
         titles: [

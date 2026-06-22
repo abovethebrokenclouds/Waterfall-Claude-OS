@@ -65,3 +65,21 @@ export type { CtaOptimizerInput } from "./ctaOptimizer";
 
 export { captionEmphasisAgent } from "./captionEmphasis";
 export type { EmphasisWord, CaptionEmphasisInput } from "./captionEmphasis";
+
+export { retentionScorer } from "./retentionScorer";
+export type {
+  RetentionScore,
+  RetentionDropoff,
+  RetentionRisk,
+  RetentionScorerInput,
+} from "./retentionScorer";
+
+export { engagementPromptAgent } from "./engagementPrompt";
+export type { EngagementPromptInput } from "./engagementPrompt";
+
+export { musicSuggestionAgent } from "./musicSuggestion";
+export type {
+  MusicSuggestion,
+  Tempo,
+  MusicSuggestionInput,
+} from "./musicSuggestion";
