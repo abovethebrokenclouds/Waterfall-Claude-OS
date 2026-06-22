@@ -1,0 +1,28 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="RTA Insight Pro">
+  <defs>
+    <linearGradient id="barGrad" x1="0" y1="464" x2="0" y2="48" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#A855F7"/>
+      <stop offset="0.5" stop-color="#FF6B8A"/>
+      <stop offset="1" stop-color="#F6A623"/>
+    </linearGradient>
+    <linearGradient id="tileGrad" x1="0" y1="0" x2="512" y2="512" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#1F1828"/>
+      <stop offset="1" stop-color="#16121C"/>
+    </linearGradient>
+    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="14" result="b"/>
+      <feMerge>
+        <feMergeNode in="b"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <rect x="16" y="16" width="480" height="480" rx="108" fill="url(#tileGrad)" stroke="#2A2233" stroke-width="4"/>
+  <g filter="url(#glow)">
+    <rect x="92"  y="300" width="44" height="116" rx="16" fill="url(#barGrad)"/>
+    <rect x="156" y="220" width="44" height="196" rx="16" fill="url(#barGrad)"/>
+    <rect x="220" y="120" width="44" height="296" rx="16" fill="url(#barGrad)"/>
+    <rect x="284" y="176" width="44" height="240" rx="16" fill="url(#barGrad)"/>
+    <rect x="348" y="84"  width="44" height="332" rx="16" fill="url(#barGrad)"/>
+  </g>
+</svg>
