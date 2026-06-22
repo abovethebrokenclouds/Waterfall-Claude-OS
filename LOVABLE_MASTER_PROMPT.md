@@ -90,6 +90,11 @@ Generate a complete, consistent brand set derived from the app's name/concept (c
 Build only what the brief needs, but when relevant, reach for these well-made building blocks:
 
 - **Landing page** (if public-facing): sticky glass navbar with `<BrandMark />` + CTAs; hero with **gradient-text headline**, subhead, dual CTAs, and an animated (reduced-motion-aware) background; a bento feature grid; a "how it works" section; CTA band; footer. Add OG/social meta.
+- **Photorealistic imagery** (heroes, landing sections, feature/marketing cards): generate **photorealistic, on-brand** images and wire them through one typed manifest + one `<AppImage>` component. Non-negotiable rules:
+  - **No baked-in text — ever.** Generated rasters must contain **no words, letters, numbers, labels, captions, logos, or signage** — models hallucinate and misspell text inside images. End every image prompt with an explicit "no text / no words / no letters" clause. Render all real copy as **HTML/SVG over** the image, never inside the raster.
+  - **Required alt text** on every image (accurate + descriptive); decorative-only images are `aria-hidden`.
+  - **Graceful + preview-safe:** `<AppImage>` shows a tasteful on-brand placeholder (no network request) until the asset actually exists, so a missing image never 404s, breaks the build, or breaks the live preview. Lazy-load, async-decode, `object-cover`, soft fade-in.
+  - Keep a machine-readable manifest (`src/lib/images.ts`: `src`, `alt`, photoreal `prompt`, `aspectRatio`, `present`) as the single source of truth **and** the spec used to generate the images.
 - **Auth** (if accounts needed): Lovable Cloud email/password sign-up/in/out + reset; protected routes via an `<AuthGuard>`; auto-create a default workspace + owner membership on first sign-up; profile/settings page.
 - **App shell / dashboard** (if authenticated app): collapsible sidebar with `<BrandMark />` + icon nav + active-state gradient indicator; top bar with ⌘K command palette, search, notifications, theme toggle, user menu; responsive (sidebar → drawer on mobile); toaster for async feedback.
 - **Universal CRUD engine** (if it manages data): generic `<DataTable />` (server sort/filter/paginate, row select, empty/loading/error states, skeletons), schema-driven `<EntityForm />` (Zod), `<EntityModal />`/sheet, `<ConfirmDialog />`, typed data hooks over TanStack Query + Supabase, RLS-protected access. Wire one reference entity end to end.
@@ -113,6 +118,18 @@ Always build in this order. After each phase, confirm the preview compiles and r
 
 ---
 
+## 5b. PREVIEW HEALTH & CONTINUOUS DELIVERY (keep the live preview working on every change)
+
+The Lovable live preview runs `vite dev` with SSR, which fails in ways a production `vite build` does **not** catch ("green build, broken preview"). Build so the preview never breaks, and wire CI so every merge ships safely to the connected branch:
+
+- **Never put Node built-ins in the client graph.** vite dev does no tree-shaking and the route tree imports every route, so a top-level `import … from 'crypto' | 'fs' | 'path' | 'node:*'` (or `Buffer` / `require`) in any module loads in the browser and crashes the preview. Use Web/platform APIs, or lazy `await import()` **inside** a server handler.
+- **No browser globals or `process.env` at module scope.** Read `window` / `document` / `navigator` / `localStorage` / env **inside** functions, effects, or handlers — never at import time (it crashes SSR).
+- **Keep generated route trees in sync** and never hand-edit them; **resolve all asset imports** (a missing `@/assets/...` fails the build).
+- **Ship a preview guard in CI** (`scripts/preview-guard.sh`) that scans for the above and runs as a **required gate on every PR and push**, plus a build gate and unit tests. Make CI the contract that keeps the connected branch deployable so the preview is always live.
+- **Auto-update flow:** label-gated/branch-gated auto-merge that **squash-merges only after CI is green** — squash keeps history linear and never rewrites the Lovable-connected branch, so two-way sync stays intact.
+
+---
+
 ## 6. DEFINITION OF DONE (acceptance criteria)
 
 - ✅ App boots with the standard install/dev commands; seed/demo data present; no required external keys for the core experience.
@@ -124,6 +141,8 @@ Always build in this order. After each phase, confirm the preview compiles and r
 - ✅ Accounts/data (if used) are RLS-protected and never exposed via the anon key.
 - ✅ Any AI routes through a single swappable gateway with a Lovable AI fallback and graceful "not configured" states.
 - ✅ WCAG 2.1 AA: labels, focus, contrast, keyboard, `prefers-reduced-motion`.
+- ✅ **Photorealistic imagery** where the brief calls for it — on-brand, **no text baked into any raster**, required alt text, and a preview-safe placeholder so missing art never breaks the build.
+- ✅ **Live preview always works:** no Node built-ins / browser globals in the client/SSR graph; a CI preview guard + build + tests gate every merge; auto-update squash-merges only on green CI.
 - ✅ Modular feature-folder structure with small, typed, composable components — easy to extend and refactor.
 
 ---
