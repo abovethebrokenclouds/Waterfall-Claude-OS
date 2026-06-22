@@ -1,0 +1,19 @@
+# Generated artifacts (build outputs, deliverable bundles)
+*.zip
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/
+
+# Dependencies / build
+node_modules/
+dist/
+build/
+
+# Logs & env
+*.log
+.env
+.env.local
