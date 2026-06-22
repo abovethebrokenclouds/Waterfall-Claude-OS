@@ -68,7 +68,23 @@ EDGE FUNCTIONS (one per skill)
    Out: { seriesTitle, parts: { shortId, order, partTitle, teaser }[], cadence }
         — parts reference only real plan ids, ordered 1..N. Empty plans -> empty parts.
 
-10) variation  (re-angle one short)  — keep your existing one if present.
+10) retention  (predicted drop-off curve + fixes)
+    In:  { plan, transcriptExcerpt?: string }
+    Out: { score: 0-100, dropoffs: { atSec: number, risk: "low"|"medium"|"high",
+           fix: string }[] }  — clamp atSec to [0, plan.durationSec], coerce risk,
+           drop empty fixes, max 5.
+
+11) engagement-prompt  (comment-driving pinned questions)
+    In:  { plan, platform? }
+    Out: { prompts: string[] }  — up to 5 (<=15 words), de-duplicated; vary angle
+           (poll, hot take, fill-in-the-blank, tag-a-friend, question).
+
+12) music  (audio direction)
+    In:  { plan }
+    Out: { mood: string, genres: string[](<=4), tempo: "slow"|"medium"|"fast",
+           searchTerms: string[](<=5) }  — coerce tempo, de-duplicate lists.
+
+13) variation  (re-angle one short)  — keep your existing one if present.
     In:  { plan, instruction: string }
     Out: a patched plan { title, hook, theme, cta, layout }.
 
@@ -98,6 +114,11 @@ results inline; applying a result updates the short:
   g) Cover          — 9:16 preview tile (backgroundIdea caption, big coverText in
                       textColor, small subText, emoji) + "Copy cover text".
   h) Score          — score + breakdown bars + reasons list.
+  i) Retention      — overall retention score + a list of drop-off points
+                      (atSec, risk pill, fix); colour the risk pill high/med/low.
+  j) Engagement     — list pinned-comment prompts; "Copy" each.
+  k) Music          — mood line, tempo pill, genre chips, and search-term chips
+                      (each chip copies a trending-audio search query).
 
 Series (grid-level action, optional):
   - A "Make Series" button over the whole grid that calls series-plan with all

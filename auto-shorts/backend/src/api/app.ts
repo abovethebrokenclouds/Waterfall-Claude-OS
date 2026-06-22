@@ -9,8 +9,11 @@ import {
   captionEmphasisAgent,
   coverConceptAgent,
   ctaOptimizerAgent,
+  engagementPromptAgent,
   hashtagStrategyAgent,
   hookVariationsAgent,
+  musicSuggestionAgent,
+  retentionScorer,
   seriesPlannerAgent,
   titleOptimizerAgent,
   urlIngestionAgent,
@@ -92,6 +95,9 @@ export function createApp(deps: ApiDeps): Express {
         "POST /api/broll",
         "POST /api/cover-concept",
         "POST /api/score",
+        "POST /api/retention",
+        "POST /api/engagement-prompt",
+        "POST /api/music",
         "POST /api/render-short",
         "GET /api/jobs/:id",
         "POST /api/ingest-url",
@@ -272,6 +278,48 @@ export function createApp(deps: ApiDeps): Express {
       }
       const score = await viralityScorer({ plan, transcriptExcerpt }, deps.agent);
       res.json(score);
+    }),
+  );
+
+  // Predicted retention curve + drop-off fixes for one plan.
+  app.post(
+    "/api/retention",
+    asyncHandler(async (req, res) => {
+      const { plan, transcriptExcerpt } = req.body ?? {};
+      if (!plan) {
+        badRequest(res, "plan is required");
+        return;
+      }
+      const result = await retentionScorer({ plan, transcriptExcerpt }, deps.agent);
+      res.json(result);
+    }),
+  );
+
+  // Comment-driving engagement prompts for one plan.
+  app.post(
+    "/api/engagement-prompt",
+    asyncHandler(async (req, res) => {
+      const { plan, platform } = req.body ?? {};
+      if (!plan) {
+        badRequest(res, "plan is required");
+        return;
+      }
+      const result = await engagementPromptAgent({ plan, platform }, deps.agent);
+      res.json(result);
+    }),
+  );
+
+  // Music / audio direction for one plan.
+  app.post(
+    "/api/music",
+    asyncHandler(async (req, res) => {
+      const { plan } = req.body ?? {};
+      if (!plan) {
+        badRequest(res, "plan is required");
+        return;
+      }
+      const result = await musicSuggestionAgent({ plan }, deps.agent);
+      res.json(result);
     }),
   );
 

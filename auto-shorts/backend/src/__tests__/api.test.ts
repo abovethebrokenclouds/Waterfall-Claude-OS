@@ -235,6 +235,40 @@ describe("API", () => {
     expect(res.body.textColor).toMatch(/^#[0-9a-fA-F]{6}$/);
   });
 
+  it("POST /api/retention returns a retention score with dropoffs", async () => {
+    const gen = await request(app)
+      .post("/api/generate-shorts")
+      .send({ url: "https://youtu.be/abc" });
+    const plan = gen.body.shorts[0];
+    const res = await request(app).post("/api/retention").send({ plan });
+    expect(res.status).toBe(200);
+    expect(res.body.score).toBeGreaterThanOrEqual(0);
+    expect(Array.isArray(res.body.dropoffs)).toBe(true);
+  });
+
+  it("POST /api/engagement-prompt returns prompts", async () => {
+    const gen = await request(app)
+      .post("/api/generate-shorts")
+      .send({ url: "https://youtu.be/abc" });
+    const plan = gen.body.shorts[0];
+    const res = await request(app)
+      .post("/api/engagement-prompt")
+      .send({ plan });
+    expect(res.status).toBe(200);
+    expect(res.body.prompts.length).toBeGreaterThan(0);
+  });
+
+  it("POST /api/music returns an audio direction", async () => {
+    const gen = await request(app)
+      .post("/api/generate-shorts")
+      .send({ url: "https://youtu.be/abc" });
+    const plan = gen.body.shorts[0];
+    const res = await request(app).post("/api/music").send({ plan });
+    expect(res.status).toBe(200);
+    expect(res.body.mood.length).toBeGreaterThan(0);
+    expect(["slow", "medium", "fast"]).toContain(res.body.tempo);
+  });
+
   it("POST /api/score returns a virality score", async () => {
     const gen = await request(app)
       .post("/api/generate-shorts")
