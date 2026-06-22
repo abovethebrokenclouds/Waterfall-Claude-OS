@@ -9,6 +9,7 @@ on:
     types: [opened, synchronize, reopened, ready_for_review]
     paths:
       - "auto-shorts/**"
+      - "audio-analyzer/**"
       - ".github/workflows/**"
 
 permissions:
@@ -34,6 +35,7 @@ jobs:
             const paths = files.map((f) => f.filename);
 
             const rules = {
+              "audio-analyzer": (p) => p.startsWith("audio-analyzer/"),
               frontend: (p) => p.startsWith("auto-shorts/frontend/"),
               backend: (p) => p.startsWith("auto-shorts/backend/"),
               "render-worker": (p) => p.startsWith("auto-shorts/render-worker/"),

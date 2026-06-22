@@ -1,8 +1,30 @@
 {
   "version": 3,
-  "updated_at": "2026-06-20T18:44:41Z",
+  "updated_at": "2026-06-22T04:37:39Z",
   "description": "Waterfall Claude OS \u2014 canonical catalog of every skill across the Waterfall Technologies platform. Source of truth lives in the Waterfall-Claude-OS repo (assets/global/registry.json), which also holds a full mirror of every skill (.claude/skills + .agents/skills) and the portable waterfall-skills bundle. `installed_in` is where a skill physically ships (loaded by Claude Code from that repo's .claude/skills or .agents/skills); `applies_to` is where it is relevant. OS-core skills ship in every repo. Any app-repo catalog (e.g. cairo-ai-pro/app-assets/global) is a superseded mirror.",
-  "agents": [],
+  "agents": [
+    {
+      "name": "audio-measurement-reviewer",
+      "type": "agent",
+      "path": ".claude/agents/audio-measurement-reviewer.md",
+      "description": "Review RTA Insight Pro changes for measurement correctness and the warm-studio design contract \u2014 verifies DSP math (windowing, bin math, A/C/Z weighting formulas, RT60 fit, coherence gating), measurement-grade getUserMedia constraints, SSR-safe browser-global guarding, and that no neon-green palette regressions slip in; runs the three audio skills' scanner scripts.",
+      "source": "audio-analyzer",
+      "applies_to": [
+        "audio-analyzer"
+      ],
+      "installed_in": [
+        "waterfall-claude-os"
+      ],
+      "dependencies": [
+        "skill:audio-dsp-measurement",
+        "skill:audio-device-integration",
+        "skill:warm-studio-ui"
+      ],
+      "integration_notes": "Tools: Read, Grep, Glob, Bash. Scoped to the audio-analyzer app. Orchestrates the three audio skills' scanners (check-dsp.sh, scan-audio-io.sh, scan-palette.sh) as part of its review.",
+      "recommended_usage": "When reviewing a PR or change to audio-analyzer for DSP/measurement correctness, input-capture safety, or design-system conformance.",
+      "status": "active"
+    }
+  ],
   "skills": [
     {
       "name": "active-risk-monitoring",
@@ -44,6 +66,44 @@
       ],
       "integration_notes": "Stack-specific to TanStack Start file-based routing; not portable to react-router apps (waterfall-nexus).",
       "recommended_usage": "Adding a page, nested/layout route, or API/server route in cairo-ai-pro.",
+      "status": "active"
+    },
+    {
+      "name": "audio-device-integration",
+      "type": "skill",
+      "path": ".claude/skills/audio-device-integration",
+      "description": "Guide and audit safe Web Audio / MediaDevices integration for the RTA Insight Pro analyzer \u2014 device enumeration, measurement-grade getUserMedia constraints (autoGainControl, echoCancellation, noiseSuppression all false), sample-rate negotiation, USB / class-compliant interface handling, AudioContext / AudioWorklet capture, SSR-safe guarding of window / navigator / AudioContext, and graceful permission-denied / empty-device fallbacks.",
+      "source": "audio-analyzer",
+      "applies_to": [
+        "audio-analyzer"
+      ],
+      "installed_in": [
+        "waterfall-claude-os"
+      ],
+      "dependencies": [
+        "helper:scan-audio-io.sh"
+      ],
+      "integration_notes": "Ships scan-audio-io.sh: flags getUserMedia calls that don't disable AGC/echo/noise (a measurement-accuracy bug) and unguarded top-level AudioContext / navigator.mediaDevices access (an SSR hazard); exits non-zero on findings, no-ops cleanly when audio-analyzer/frontend is absent. Pairs with audio-dsp-measurement and the audio-measurement-reviewer agent.",
+      "recommended_usage": "When building or reviewing microphone/input capture, a device picker, the audio input pipeline, the getUserMedia permission flow, or interface selection.",
+      "status": "active"
+    },
+    {
+      "name": "audio-dsp-measurement",
+      "type": "skill",
+      "path": ".claude/skills/audio-dsp-measurement",
+      "description": "Guide and validate the DSP/measurement layer of the RTA Insight Pro audio analyzer \u2014 FFT sizing & windowing, fractional-octave smoothing (1/1\u20131/24), A/C/Z frequency weighting, SPL / Leq / time-weighting, RT60 via Schroeder backward integration (T20/T30/EDT), and dual-channel transfer function (magnitude, phase, coherence with gating); explains the math, the pitfalls, and how the app's frontend/src/lib/dsp modules are structured and tested.",
+      "source": "audio-analyzer",
+      "applies_to": [
+        "audio-analyzer"
+      ],
+      "installed_in": [
+        "waterfall-claude-os"
+      ],
+      "dependencies": [
+        "helper:check-dsp.sh"
+      ],
+      "integration_notes": "Ships check-dsp.sh: verifies the expected dsp modules (fft, octave, weighting, spl, rt60, transfer) and their *.test.ts exist, exits non-zero on a gap so the measurement core stays test-covered. No-ops cleanly when the dsp dir is absent. Feeds the audio-measurement-reviewer agent.",
+      "recommended_usage": "When building or reviewing FFT, spectrum, octave-band, SPL meter, reverberation time, or transfer-function / coherence code, when numbers look wrong, or before shipping the DSP layer.",
       "status": "active"
     },
     {
@@ -753,6 +813,25 @@
       ],
       "integration_notes": "Shared OS skill. Personalized claim-status video pairs with insurance-claims-ux to remove where's-my-claim calls.",
       "recommended_usage": "Scripting, producing, or planning explainer/onboarding/claims video, or generating a video brief.",
+      "status": "active"
+    },
+    {
+      "name": "warm-studio-ui",
+      "type": "skill",
+      "path": ".claude/skills/warm-studio-ui",
+      "description": "Define and enforce the warm-studio design system for RTA Insight Pro \u2014 a warm violet-tinted dark palette (ink #0C0A12, panel #16121C, amber #F6A623, rose #FF6B8A, violet #A855F7, teal #2DD4BF), gradient hero text (amber\u2192rose\u2192violet), subtle film grain, soft glows, monospace numeric readouts, a mobile-first bottom-nav layout, and accessibility (prefers-reduced-motion, contrast). Central rule: NO tech/neon green.",
+      "source": "audio-analyzer",
+      "applies_to": [
+        "audio-analyzer"
+      ],
+      "installed_in": [
+        "waterfall-claude-os"
+      ],
+      "dependencies": [
+        "helper:scan-palette.sh"
+      ],
+      "integration_notes": "Ships scan-palette.sh: greps the frontend and tailwind.config.ts for forbidden neon-green hex codes and green-(300|400|500|600) Tailwind utilities, printing offenders and exiting non-zero. Safe as a CI gate; no-ops cleanly when the frontend is absent.",
+      "recommended_usage": "When building or reviewing UI, theming, the Tailwind config, color tokens, charts/meters, the spectrum/SPL readouts, or layout for the audio analyzer, or whenever a green hex creeps in.",
       "status": "active"
     },
     {

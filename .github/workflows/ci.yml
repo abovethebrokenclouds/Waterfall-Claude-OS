@@ -15,10 +15,12 @@ on:
     branches: [main, "claude/**"]
     paths:
       - "auto-shorts/**"
+      - "audio-analyzer/**"
       - ".github/workflows/ci.yml"
   pull_request:
     paths:
       - "auto-shorts/**"
+      - "audio-analyzer/**"
       - ".github/workflows/ci.yml"
 
 # Cancel superseded runs on the same ref to keep CI fast.
@@ -126,6 +128,46 @@ jobs:
         run: npm run build --if-present
 
   # --------------------------------------------------------------------------
+  # RTA Insight Pro — audio analyzer frontend: Next.js / React / Tailwind
+  # --------------------------------------------------------------------------
+  audio-analyzer-frontend:
+    name: Audio Analyzer (Next.js)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check for audio-analyzer frontend
+        id: check
+        run: |
+          if [ -f audio-analyzer/frontend/package.json ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::audio-analyzer/frontend not scaffolded yet — skipping."
+          fi
+
+      - name: Set up Node.js
+        if: steps.check.outputs.present == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        if: steps.check.outputs.present == 'true'
+        working-directory: audio-analyzer/frontend
+        run: npm install --no-audit --no-fund
+
+      - name: Lint
+        if: steps.check.outputs.present == 'true'
+        working-directory: audio-analyzer/frontend
+        run: npm run lint --if-present
+
+      - name: Test
+        if: steps.check.outputs.present == 'true'
+        working-directory: audio-analyzer/frontend
+        run: npm test --if-present
+
+  # --------------------------------------------------------------------------
   # Render worker — Python: Whisper + FFmpeg/MoviePy
   # --------------------------------------------------------------------------
   render-worker:
@@ -174,13 +216,14 @@ jobs:
   ci:
     name: CI
     runs-on: ubuntu-latest
-    needs: [backend, frontend, render-worker]
+    needs: [backend, frontend, audio-analyzer-frontend, render-worker]
     if: always()
     steps:
       - name: Verify all legs succeeded
         run: |
           if [ "${{ needs.backend.result }}" != "success" ] \
             || [ "${{ needs.frontend.result }}" != "success" ] \
+            || [ "${{ needs.audio-analyzer-frontend.result }}" != "success" ] \
             || [ "${{ needs.render-worker.result }}" != "success" ]; then
             echo "One or more CI jobs failed."
             exit 1
