@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "updated_at": "2026-06-23T12:00:00Z",
+  "updated_at": "2026-06-23T23:01:46Z",
   "description": "Waterfall Claude OS \u2014 canonical catalog of every skill across the Waterfall Technologies platform. Source of truth lives in the Waterfall-Claude-OS repo (assets/global/registry.json), which also holds a full mirror of every skill (.claude/skills + .agents/skills) and the portable waterfall-skills bundle. `installed_in` is where a skill physically ships (loaded by Claude Code from that repo's .claude/skills or .agents/skills); `applies_to` is where it is relevant. OS-core skills ship in every repo. Any app-repo catalog (e.g. cairo-ai-pro/app-assets/global) is a superseded mirror.",
   "agents": [
     {
@@ -22,6 +22,27 @@
       ],
       "integration_notes": "Tools: Read, Grep, Glob, Bash. Scoped to the audio-analyzer app. Orchestrates the three audio skills' scanners (check-dsp.sh, scan-audio-io.sh, scan-palette.sh) as part of its review.",
       "recommended_usage": "When reviewing a PR or change to audio-analyzer for DSP/measurement correctness, input-capture safety, or design-system conformance.",
+      "status": "active"
+    },
+    {
+      "name": "live-sound-tuning-advisor",
+      "type": "agent",
+      "path": ".claude/agents/live-sound-tuning-advisor.md",
+      "description": "Assistive agent that walks a user through tuning a PA, aligning monitors, or measuring a room with RTA Insight Pro's transfer-function and impulse-response workflows \u2014 scopes the rig (measurement mic vs. built-in, reference-signal access, subs+tops vs. single system), guides pink-noise capture, delay/phase alignment, and coherence-gated EQ, and interprets RT60/clarity/intelligibility in plain language with concrete numbers. Assistive, never prescriptive; no hearing-safety advice.",
+      "source": "audio-analyzer",
+      "applies_to": [
+        "audio-analyzer"
+      ],
+      "installed_in": [
+        "waterfall-claude-os"
+      ],
+      "dependencies": [
+        "skill:transfer-function-workflow",
+        "skill:impulse-response-metrics",
+        "skill:spl-logging-leq"
+      ],
+      "integration_notes": "Tools: Read, Grep, Glob, Bash. Scoped to RTA Insight Pro. Composes the three Smaart-parity audio skills into a guided live-sound/room measurement session.",
+      "recommended_usage": "When a user wants help capturing a real measurement and acting on it \u2014 PA tuning, monitor ring-out, sub/top alignment, or RT60/clarity interpretation.",
       "status": "active"
     }
   ],
@@ -311,6 +332,25 @@
       ],
       "integration_notes": "One pipeline, two passes (forensics then extraction). Writes structured records to coi-live-certificate and underwriting-agent. All extraction routes through the Super Agent. Diff 3.",
       "recommended_usage": "Building a COI upload/analyzer, ACORD parser, document classifier, or OCR extraction pipeline.",
+      "status": "active"
+    },
+    {
+      "name": "impulse-response-metrics",
+      "type": "skill",
+      "path": ".claude/skills/impulse-response-metrics",
+      "description": "Impulse Response (IR) mode acoustics for RTA Insight Pro's Studio edition (Smaart Suite parity) \u2014 RT60 via Schroeder backward integration (T20/T30), EDT, the clarity/definition family (C50, C80, D50), centre time Ts, and STI / %ALcons speech-intelligibility estimates from a measured or loaded impulse response, with IR windowing/Lundeby truncation, the ETC / log-time display, and interpretation thresholds.",
+      "source": "audio-analyzer",
+      "applies_to": [
+        "audio-analyzer"
+      ],
+      "installed_in": [
+        "waterfall-claude-os"
+      ],
+      "dependencies": [
+        "helper:check-ir-metrics.sh"
+      ],
+      "integration_notes": "Ships check-ir-metrics.sh: flags a missing ir-metrics DSP module and its *.test.ts and warns when the rt60/edt/c50/c80/d50/sti functions appear absent. No-ops cleanly when the dsp dir is absent. Mirrors Smaart v9 Suite IR mode; pairs with the live-sound-tuning-advisor agent and audio-dsp-measurement.",
+      "recommended_usage": "When building or reviewing IR-mode acoustics, RT60/EDT/clarity/intelligibility code, ETC/log-time display, or interpreting room-acoustics numbers.",
       "status": "active"
     },
     {
@@ -673,6 +713,25 @@
       "status": "active"
     },
     {
+      "name": "spl-logging-leq",
+      "type": "skill",
+      "path": ".claude/skills/spl-logging-leq",
+      "description": "SPL metering & logging parity for RTA Insight Pro's SPL / Studio editions (Smaart SPL parity) \u2014 A/C/Z frequency weighting, Fast/Slow/Impulse time-weighting, equivalent level (Leq), Lmax/Lmin, statistical percentiles (L10/L90/Ln), sound-exposure/dose framing (measurement only, no hearing-health advice), multiple simultaneous meters with custom metrics, session logging cadence, and a CSV/JSON export schema for logged SPL.",
+      "source": "audio-analyzer",
+      "applies_to": [
+        "audio-analyzer"
+      ],
+      "installed_in": [
+        "waterfall-claude-os"
+      ],
+      "dependencies": [
+        "helper:check-spl-logging.sh"
+      ],
+      "integration_notes": "Ships check-spl-logging.sh: flags missing SPL logging / Leq support in the frontend SPL view and lib; no-ops cleanly when targets absent. Mirrors Smaart SPL/Suite metering+logging.",
+      "recommended_usage": "When building or reviewing SPL metering, an SPL logger, Leq/percentile computation, multi-meter views, custom metrics, or show-compliance logging and export.",
+      "status": "active"
+    },
+    {
       "name": "supabase-feature",
       "type": "skill",
       "path": ".claude/skills/supabase-feature",
@@ -767,6 +826,25 @@
       "dependencies": [],
       "integration_notes": "Tied to cairo-ai-pro's AI tool registry. Tools must route AI through the Super Agent, never call models directly.",
       "recommended_usage": "Adding or modifying a tool exposed to Cairo agents.",
+      "status": "active"
+    },
+    {
+      "name": "transfer-function-workflow",
+      "type": "skill",
+      "path": ".claude/skills/transfer-function-workflow",
+      "description": "The Smaart-style dual-FFT system-tuning workflow for RTA Insight Pro \u2014 drive the system with pink noise, set reference vs. measurement channels, find and compensate the inter-channel delay (cross-correlation / delay locator), then read magnitude, phase, and coherence to make EQ/level/delay decisions and verify. Covers step order, coherence gating, sub/top phase alignment, averaging strategy, and the common mistakes.",
+      "source": "audio-analyzer",
+      "applies_to": [
+        "audio-analyzer"
+      ],
+      "installed_in": [
+        "waterfall-claude-os"
+      ],
+      "dependencies": [
+        "helper:check-transfer.sh"
+      ],
+      "integration_notes": "Ships check-transfer.sh: flags a missing transfer-function or delay-finder DSP module and its *.test.ts; no-ops cleanly when the dir is absent. Mirrors Smaart v9 Real-Time transfer function; pairs with the live-sound-tuning-advisor agent.",
+      "recommended_usage": "When building or reviewing the transfer-function/signal-generator/delay-finder workflow, aligning a PA, time-aligning subs and tops, or interpreting a coherence trace.",
       "status": "active"
     },
     {
