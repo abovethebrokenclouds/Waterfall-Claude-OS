@@ -9,8 +9,11 @@ ok()    { printf '[OK] %s\n' "$1"; }
 
 echo "── Preview Doctor ───────────────────────────────────────────────"
 
-# 1) Node built-in top-level imports anywhere in src (client graph in vite dev).
-nb=$(grep -rnE "^import .* from ['\"](node:|crypto|fs|path|os|buffer|stream|http2?|https|net|child_process|tls|zlib|dns)['\"]" "$SRC" 2>/dev/null || true)
+# 1) Node built-in top-level imports in the client graph (vite dev, no tree-shaking).
+#    Catches `node:`-prefixed subpaths (e.g. node:process, node:fs/promises) too —
+#    the bare-name list alone misses those. Excludes *.server.ts(x), which are
+#    stripped from the client bundle and may legitimately use Node built-ins.
+nb=$(grep -rnE "^import .* from ['\"](node:[a-z0-9_/.]+|crypto|fs|path|os|buffer|stream|http2?|https|net|child_process|tls|zlib|dns|util|events|process|async_hooks|worker_threads|perf_hooks|querystring|readline)['\"]" "$SRC" 2>/dev/null | grep -vE "\.server\.(ts|tsx):" || true)
 if [ -n "$nb" ]; then while IFS= read -r l; do issue "node-import" "$l (use Web APIs or lazy import inside a server handler)"; done <<< "$nb"
 else ok "no Node built-in imports in the client graph"; fi
 
