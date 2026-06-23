@@ -93,6 +93,39 @@ Blocked calls are surfaced, never retry-looped: the orchestrator turns a blocked
 call into a `conflict` message and ends the round; workflow LLM nodes
 fail-with-retry within bounds.
 
+## Gateway runtime guarantees (resilience · caching · observability)
+
+The gateway is hardened the way production LLM gateways (Portkey / LiteLLM /
+OpenRouter) are. App code gets these for free — no per-app implementation.
+
+- **Ordered tier fallback + retry.** On provider overload / rate-limit / payment
+  (`429 / 402 / 529`) or exhausted `5xx`, the call degrades down the tier chain
+  `OPUS → SONNET → HAIKU → free` (never escalates cost), each model with bounded
+  exponential-backoff retry on transient errors. Only a fully-exhausted chain
+  returns `{ blocked: true }`; other `4xx` surface as errors.
+- **Result cache.** A short-TTL exact-match cache (keyed by user + model + prompt
+  + token cap) serves repeated tool-less prompt→content calls for free. Tool-call
+  flows are never cached.
+- **Per-call observability.** Every call records `{ tier, served_model,
+  cache_hit, fallback, latency_ms }` to `ai_usage_log.meta`; cache hits log a
+  zero-cost row. This is the single source for latency / cache-hit / fallback
+  dashboards — don't add per-app telemetry.
+
+## Quality gate (eval)
+
+The brain contract is regression-gated in CI (Braintrust-style):
+
+- **`scripts/eval-gate.mjs`** — deterministic, network-free, secret-free. Scores
+  tier routing, the LLM-judge scoring math, and the safety prompt baseline; the
+  `Eval Gate` workflow blocks any PR that regresses them.
+- **`scripts/eval-live.mjs`** — optional live LLM-judge benchmark; self-skips
+  without a `LOVABLE_API_KEY` secret, soft on provider flakiness, hard only on a
+  measured below-threshold score.
+
+> CI eval harnesses under `scripts/` may call the gateway directly — they are
+> test infrastructure, not app runtime. THE ONE RULE binds app code (`src/`),
+> which `superagent-conformance` scans; it does not bind CI scripts.
+
 ## Capability layers — compose, don't bypass
 
 These layers **compose** `superAgent.call()` — every hop is a governed call.
