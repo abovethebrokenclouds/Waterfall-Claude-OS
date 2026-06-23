@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "updated_at": "2026-06-23T12:00:00Z",
+  "updated_at": "2026-06-23T18:00:00Z",
   "description": "Waterfall Claude OS \u2014 canonical catalog of every skill across the Waterfall Technologies platform. Source of truth lives in the Waterfall-Claude-OS repo (assets/global/registry.json), which also holds a full mirror of every skill (.claude/skills + .agents/skills) and the portable waterfall-skills bundle. `installed_in` is where a skill physically ships (loaded by Claude Code from that repo's .claude/skills or .agents/skills); `applies_to` is where it is relevant. OS-core skills ship in every repo. Any app-repo catalog (e.g. cairo-ai-pro/app-assets/global) is a superseded mirror.",
   "agents": [
     {
@@ -646,6 +646,43 @@
       "dependencies": [],
       "integration_notes": "OS-core: installed in every Waterfall repo. Generalized from cairo-only (moved from .agents/skills to .claude/skills); Lovable-sync section is marked as applying only to Lovable-synced repos.",
       "recommended_usage": "Setting up repository governance or advising on PR/branch workflow.",
+      "status": "active"
+    },
+    {
+      "name": "repo-reorganizer",
+      "type": "skill",
+      "path": ".claude/skills/repo-reorganizer",
+      "description": "Control plane. Unify, normalize, and maintain every Waterfall app repo under one architectural standard — scan + classify (scan-repo.sh), enforce governance/no-deprecated-dirs (check-architecture.sh, CI-gating), generate a per-app CLAUDE.md (gen-claude-md.sh), and roll out across the fleet one PR at a time. The OS home is exempt (registry, not an app); the folder taxonomy applies to app repos only.",
+      "source": "waterfall-claude-os",
+      "applies_to": [
+        "adventureapp",
+        "atlasaipro",
+        "cairo-ai-pro",
+        "health-link-engine",
+        "lightma-assistant",
+        "physiqai",
+        "pixelperfectaipro",
+        "recipe-ai-26",
+        "resumaipro",
+        "rtai",
+        "sentryinsurance",
+        "shoperamrkt",
+        "verseful",
+        "waterfall-nexus",
+        "waterfall-tech-command",
+        "waterfall-technologies"
+      ],
+      "installed_in": [
+        "waterfall-claude-os"
+      ],
+      "dependencies": [
+        "skill:waterfall-os",
+        "skill:repo-hygiene",
+        "skill:superagent-conformance",
+        "skill:security-monitor"
+      ],
+      "integration_notes": "Control-plane skill authored in the OS home; targets all Waterfall app repos (applies_to lists the active set). Composes with superagent-conformance (THE ONE RULE) and security-monitor during normalization — it never relaxes the Super Agent contract. Scripts resolve the git root, exempt the OS home, and no-op cleanly; check-architecture.sh gates governance + clearly-wrong artifacts only (structural layout is advisory via scan-repo.sh) so it is safe as a CI gate without fighting framework conventions.",
+      "recommended_usage": "Reorganizing a Waterfall repo, normalizing folder structure, auditing architecture drift, generating an app CLAUDE.md, or planning a cross-repo refactor rollout.",
       "status": "active"
     },
     {
