@@ -1,0 +1,31 @@
+{
+  "name": "RTA Insight Pro",
+  "short_name": "RTA Insight",
+  "description": "Real-time audio spectrum, SPL, RT60 and transfer-function analyzer.",
+  "theme_color": "#0C0A12",
+  "background_color": "#0C0A12",
+  "display": "standalone",
+  "orientation": "any",
+  "start_url": "/app",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

@@ -5,6 +5,7 @@ import {
   sampleSessions,
   type Session,
 } from "../lib/sessions";
+import { buildReportHtml } from "../lib/report";
 
 const STORAGE_KEY = "rta-insight.sessions.v1";
 
@@ -45,7 +46,31 @@ function download(filename: string, content: string, mime: string) {
   URL.revokeObjectURL(url);
 }
 
-/** Saved-session list with notes/tags editing and JSON/CSV export. */
+/**
+ * Open a printable report for a session in a new window and trigger the print
+ * dialog (browser → Save as PDF). SSR-safe: only runs in an event handler.
+ */
+function exportPdf(session: Session) {
+  if (typeof window === "undefined" || typeof document === "undefined") return;
+  const html = buildReportHtml(session);
+  const win = window.open("", "_blank");
+  if (win && win.document) {
+    win.document.open();
+    win.document.write(html);
+    win.document.close();
+    win.focus();
+    // Give the new document a tick to lay out before printing.
+    win.setTimeout(() => win.print(), 250);
+    return;
+  }
+  // Popup blocked: fall back to a blob URL in the same tab context.
+  const blob = new Blob([html], { type: "text/html" });
+  const url = URL.createObjectURL(blob);
+  const fallback = window.open(url, "_blank");
+  if (!fallback) URL.revokeObjectURL(url);
+}
+
+/** Saved-session list with notes/tags editing and JSON/CSV/PDF export. */
 export function SessionsView() {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [hydrated, setHydrated] = useState(false);
@@ -129,14 +154,6 @@ export function SessionsView() {
           >
             Export CSV
           </button>
-          <button
-            type="button"
-            disabled
-            title="Available on Pro"
-            className="cursor-not-allowed rounded-lg border border-line bg-panel2 px-3 py-1.5 text-sm text-haze opacity-60"
-          >
-            PDF (Pro)
-          </button>
         </div>
       </div>
 
@@ -168,13 +185,22 @@ export function SessionsView() {
                   )}
                 </div>
               </div>
-              <button
-                type="button"
-                onClick={() => remove(s.id)}
-                className="text-xs text-rose hover:text-rose-deep"
-              >
-                delete
-              </button>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => exportPdf(s)}
+                  className="text-xs text-amber hover:text-amber-soft"
+                >
+                  Export PDF
+                </button>
+                <button
+                  type="button"
+                  onClick={() => remove(s.id)}
+                  className="text-xs text-rose hover:text-rose-deep"
+                >
+                  delete
+                </button>
+              </div>
             </div>
 
             <div className="mt-3 grid gap-2 sm:grid-cols-2">

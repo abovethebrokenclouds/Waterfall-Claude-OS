@@ -1,15 +1,17 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Head from "next/head";
 import Link from "next/link";
 import { Logo } from "../components/Logo";
 import { DeviceBar } from "../components/DeviceBar";
 import { BottomNav, type AnalyzerTab } from "../components/BottomNav";
-import { RtaView } from "../components/RtaView";
+import { RtaView, type SpectrumSnapshot } from "../components/RtaView";
 import { TransferView } from "../components/TransferView";
 import { SplView } from "../components/SplView";
 import { Rt60View } from "../components/Rt60View";
 import { SessionsView } from "../components/SessionsView";
+import { InsightsPanel } from "../components/InsightsPanel";
 import { useAudioState } from "../hooks/useAudioState";
+import { analyze } from "../lib/diagnostics";
 
 const TAB_TITLES: Record<AnalyzerTab, string> = {
   rta: "Spectrum Analyzer",
@@ -31,11 +33,21 @@ const TAB_INSIGHTS: Record<AnalyzerTab, string> = {
 export default function AnalyzerApp() {
   const audio = useAudioState();
   const [tab, setTab] = useState<AnalyzerTab>("rta");
+  const [spectrum, setSpectrum] = useState<SpectrumSnapshot | null>(null);
+
+  // Heuristic diagnostics over the active (live or demo) RTA spectrum.
+  const insights = useMemo(
+    () =>
+      spectrum
+        ? analyze({ spectrum })
+        : analyze({}),
+    [spectrum],
+  );
 
   const renderView = () => {
     switch (tab) {
       case "rta":
-        return <RtaView audio={audio} />;
+        return <RtaView audio={audio} onSpectrum={setSpectrum} />;
       case "transfer":
         return <TransferView />;
       case "spl":
@@ -93,20 +105,37 @@ export default function AnalyzerApp() {
                 {TAB_TITLES[tab]}
               </h1>
               {renderView()}
+
+              {/* Mobile insights: collapsible, RTA tab only. */}
+              {tab === "rta" && (
+                <div className="mt-4 lg:hidden">
+                  <InsightsPanel
+                    insights={insights}
+                    live={!!audio.engine}
+                    collapsible
+                  />
+                </div>
+              )}
             </div>
           </main>
 
           {/* Insights panel (desktop only) */}
           <aside className="hidden w-72 shrink-0 border-l border-line bg-panel/40 p-5 lg:block">
             <h2 className="mb-2 text-sm font-semibold text-text">Insights</h2>
-            <p className="text-sm leading-relaxed text-haze">
-              {TAB_INSIGHTS[tab]}
-            </p>
-            <div className="mt-5 rounded-xl border border-line bg-panel2/60 p-3 text-xs text-haze">
-              {audio.engine
-                ? "Live input connected. Measurements are real."
-                : "No live input — modes show demo data until you press Start."}
-            </div>
+            {tab === "rta" ? (
+              <InsightsPanel insights={insights} live={!!audio.engine} />
+            ) : (
+              <>
+                <p className="text-sm leading-relaxed text-haze">
+                  {TAB_INSIGHTS[tab]}
+                </p>
+                <div className="mt-5 rounded-xl border border-line bg-panel2/60 p-3 text-xs text-haze">
+                  {audio.engine
+                    ? "Live input connected. Measurements are real."
+                    : "No live input — modes show demo data until you press Start."}
+                </div>
+              </>
+            )}
           </aside>
         </div>
 
