@@ -1,0 +1,94 @@
+/**
+ * adapters/yamaha.ts — Yamaha CL/QL-family adapter.
+ *
+ * Yamaha CL/QL/RIVAGE classically speak SCP; RIVAGE adds OSC. The bridge
+ * abstracts the control surface behind the X32-compatible OSC tree the rest of
+ * the stack uses (the app and bridge agreed on one normalized OSC mapping), so
+ * this adapter reuses the shared X32-tree builders and differs only in identity
+ * and channel defaults. Vendor-specific SCP translation, if a real CL is on the
+ * LAN, would slot in here behind the same interface.
+ */
+
+import type { ConsoleChannel, ConsoleDescriptor, MeterFrame, MeterTap } from '../model.js';
+import type { OscMessage } from '../osc/types.js';
+import type { ConsoleAdapter, IncomingUpdate } from './types.js';
+import { channelNumberFromId } from './types.js';
+import {
+  buildX32Set,
+  defaultX32Channel,
+  parseX32Param,
+} from './x32-shared.js';
+
+export interface YamahaOptions {
+  id?: string;
+  model?: string;
+  channelCount?: number;
+  address: string; // host:port of the console control endpoint
+}
+
+export class YamahaAdapter implements ConsoleAdapter {
+  readonly descriptor: ConsoleDescriptor;
+
+  constructor(opts: YamahaOptions) {
+    const channelCount = opts.channelCount ?? 72;
+    this.descriptor = {
+      id: opts.id ?? 'yamaha-cl5',
+      vendor: 'Yamaha',
+      model: opts.model ?? 'CL5',
+      channelCount,
+      transport: 'dante',
+      address: opts.address,
+    };
+  }
+
+  listChannels(): ConsoleChannel[] {
+    const out: ConsoleChannel[] = [];
+    for (let ch = 1; ch <= this.descriptor.channelCount; ch++) {
+      out.push(defaultX32Channel(ch, `CL CH ${ch}`));
+    }
+    return out;
+  }
+
+  buildSet(channelId: string, path: string, value: number | boolean): OscMessage | null {
+    const ch = channelNumberFromId(channelId);
+    if (ch === null || ch > this.descriptor.channelCount) return null;
+    return buildX32Set(ch, path, value);
+  }
+
+  buildMeterRequest(_tap: MeterTap, _channels: number[]): OscMessage | null {
+    // X32-tree consoles use /xremote to begin a meter/param subscription.
+    return { address: '/xremote', args: [] };
+  }
+
+  parseIncoming(msg: OscMessage): IncomingUpdate | null {
+    const param = parseX32Param(msg);
+    if (param) {
+      return { kind: 'param', channelId: param.channelId, path: param.path, value: param.value };
+    }
+    const meters = parseMeterBlob(msg);
+    if (meters) return meters;
+    return null;
+  }
+}
+
+/**
+ * Parse a normalized meter message of the form
+ *   /meters/<tap>  with args [ch,rms,peak, ch,rms,peak, ...]
+ * The bridge's simulated adapter emits this; real consoles deliver a packed
+ * blob which a production SCP/OSC parser would unpack here.
+ */
+export function parseMeterBlob(msg: OscMessage): { kind: 'meters'; tap: MeterTap; frames: MeterFrame[] } | null {
+  const m = /^\/meters\/(pre-eq|post-eq|post-fader)$/.exec(msg.address);
+  if (!m) return null;
+  const tap = m[1] as MeterTap;
+  const frames: MeterFrame[] = [];
+  for (let i = 0; i + 2 < msg.args.length; i += 3) {
+    const ch = msg.args[i];
+    const rms = msg.args[i + 1];
+    const peak = msg.args[i + 2];
+    if (ch?.type === 'i' && rms?.type === 'f' && peak?.type === 'f') {
+      frames.push({ ch: ch.value, rms: rms.value, peak: peak.value });
+    }
+  }
+  return { kind: 'meters', tap, frames };
+}
