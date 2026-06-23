@@ -7,6 +7,14 @@ import {
   REFERENCE_CURVES,
   sampleReference,
 } from "../lib/dsp";
+import {
+  captureTrace,
+  sampleTraceDb,
+  type SpectrumTrace,
+} from "../lib/traces";
+import { Spectrograph } from "./Spectrograph";
+import { LockChip } from "./LockChip";
+import { hasFeature, type Edition } from "../lib/editions";
 
 type RtaMode = "live" | "peak" | "average";
 
@@ -20,6 +28,8 @@ interface RtaViewProps {
   audio: UseAudioState;
   /** Throttled smoothed-spectrum callback for the insights engine. */
   onSpectrum?: (snapshot: SpectrumSnapshot) => void;
+  /** Current edition — gates spectrograph, traces, and live averaging. */
+  edition?: Edition;
 }
 
 const REFERENCE_OFF = "off";
@@ -34,20 +44,35 @@ const F_MAX = 20000;
  * live engine is available; otherwise renders a synthetic demo spectrum so the
  * view is never blank. All canvas / rAF access is inside useEffect (SSR-safe).
  */
-export function RtaView({ audio, onSpectrum }: RtaViewProps) {
+export function RtaView({ audio, onSpectrum, edition = "studio" }: RtaViewProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [fraction, setFraction] = useState<number>(3);
   const [mode, setMode] = useState<RtaMode>("live");
   const [reference, setReference] = useState<string>(REFERENCE_OFF);
+  const [view, setView] = useState<"spectrum" | "spectrograph">("spectrum");
+  const [liveAverage, setLiveAverage] = useState(false);
+  const [avgN, setAvgN] = useState(16);
+  const [traces, setTraces] = useState<SpectrumTrace[]>([]);
+
+  const canTraces = hasFeature(edition, "traces");
+  const canLiveAvg = hasFeature(edition, "liveAverage");
+  const canSpectrograph = hasFeature(edition, "spectrograph");
 
   const fractionRef = useRef(fraction);
   const modeRef = useRef(mode);
   const referenceRef = useRef(reference);
   const onSpectrumRef = useRef(onSpectrum);
+  const tracesRef = useRef(traces);
+  const liveAvgRef = useRef(liveAverage && canLiveAvg);
+  const avgNRef = useRef(avgN);
+  const latestRef = useRef<SpectrumSnapshot | null>(null);
   fractionRef.current = fraction;
   modeRef.current = mode;
   referenceRef.current = reference;
   onSpectrumRef.current = onSpectrum;
+  tracesRef.current = traces;
+  liveAvgRef.current = liveAverage && canLiveAvg;
+  avgNRef.current = avgN;
 
   const { engine, performanceMode } = audio;
 
@@ -62,6 +87,7 @@ export function RtaView({ audio, onSpectrum }: RtaViewProps) {
     let avgAccum: Float64Array | null = null;
     let avgCount = 0;
     let frame = 0;
+    const avgRing: Float64Array[] = []; // rolling live-average history
 
     const analyser = engine?.analyser ?? null;
     const sampleRate = engine?.sampleRate ?? 48000;
@@ -158,6 +184,23 @@ export function RtaView({ audio, onSpectrum }: RtaViewProps) {
         peakHold = null;
         avgAccum = null;
         avgCount = 0;
+      }
+
+      // Live averaging — a rolling mean of the last N display frames. Applies
+      // on top of the selected mode (independent of cumulative "average").
+      if (liveAvgRef.current) {
+        const copy = display.slice();
+        avgRing.push(copy);
+        const cap = Math.max(1, avgNRef.current);
+        while (avgRing.length > cap) avgRing.shift();
+        const rolled = new Float64Array(binCount);
+        for (const f of avgRing) {
+          for (let i = 0; i < binCount; i++) rolled[i] += f[i];
+        }
+        for (let i = 0; i < binCount; i++) rolled[i] /= avgRing.length;
+        display = rolled;
+      } else if (avgRing.length) {
+        avgRing.length = 0;
       }
 
       // Plot as filled spectrum.
@@ -260,18 +303,43 @@ export function RtaView({ audio, onSpectrum }: RtaViewProps) {
         ctx.setLineDash([]);
       }
 
-      // Report a sparse log-sampled smoothed spectrum upward (~4 Hz throttle).
-      const cb = onSpectrumRef.current;
-      if (cb && frame % 15 === 0) {
-        const freqOut: number[] = [];
-        const dbOut: number[] = [];
+      // Captured static traces (warm-palette overlays).
+      const trs = tracesRef.current;
+      for (const tr of trs) {
+        if (!tr.visible) continue;
+        ctx.beginPath();
+        let tStarted = false;
         for (let i = 1; i < binCount; i++) {
           const f = binToFrequency(i, fftSize, sampleRate);
           if (f < F_MIN || f > F_MAX) continue;
-          freqOut.push(f);
-          dbOut.push(smoothDb[i]);
+          const v = sampleTraceDb(tr, f);
+          if (v === null) continue;
+          const x = xAt(i);
+          const y = yAt(v);
+          if (!tStarted) {
+            ctx.moveTo(x, y);
+            tStarted = true;
+          } else ctx.lineTo(x, y);
         }
-        cb({ freq: freqOut, db: dbOut });
+        ctx.strokeStyle = tr.color;
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+      }
+
+      // Report a sparse log-sampled smoothed spectrum upward (~4 Hz throttle),
+      // and keep the most recent snapshot for trace capture.
+      const freqOut: number[] = [];
+      const dbOut: number[] = [];
+      for (let i = 1; i < binCount; i++) {
+        const f = binToFrequency(i, fftSize, sampleRate);
+        if (f < F_MIN || f > F_MAX) continue;
+        freqOut.push(f);
+        dbOut.push(display[i]);
+      }
+      latestRef.current = { freq: freqOut, db: dbOut };
+      const cb = onSpectrumRef.current;
+      if (cb && frame % 15 === 0) {
+        cb({ freq: freqOut.slice(), db: dbOut.slice() });
       }
 
       frame++;
@@ -293,8 +361,49 @@ export function RtaView({ audio, onSpectrum }: RtaViewProps) {
     };
   }, [engine, performanceMode]);
 
+  const handleCapture = () => {
+    const snap = latestRef.current;
+    if (!snap) return;
+    setTraces((prev) => [...prev, captureTrace(snap, prev.length)]);
+  };
+  const toggleTrace = (id: string) =>
+    setTraces((prev) =>
+      prev.map((t) => (t.id === id ? { ...t, visible: !t.visible } : t)),
+    );
+  const deleteTrace = (id: string) =>
+    setTraces((prev) => prev.filter((t) => t.id !== id));
+
   return (
     <div className="flex flex-col gap-3">
+      {/* Spectrum / Spectrograph sub-view toggle. */}
+      <div className="flex items-center gap-1 self-start rounded-lg border border-line bg-panel2 p-0.5">
+        <button
+          type="button"
+          onClick={() => setView("spectrum")}
+          className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
+            view === "spectrum" ? "bg-amber text-ink" : "text-haze hover:text-text"
+          }`}
+        >
+          Spectrum
+        </button>
+        <button
+          type="button"
+          onClick={() => canSpectrograph && setView("spectrograph")}
+          className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
+            view === "spectrograph"
+              ? "bg-amber text-ink"
+              : "text-haze hover:text-text"
+          }`}
+        >
+          Spectrograph
+          {!canSpectrograph && <LockChip edition="pro" />}
+        </button>
+      </div>
+
+      {view === "spectrograph" && canSpectrograph ? (
+        <Spectrograph audio={audio} />
+      ) : (
+        <>
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-2 text-xs text-haze">
           Smoothing
@@ -339,6 +448,30 @@ export function RtaView({ audio, onSpectrum }: RtaViewProps) {
             ))}
           </select>
         </div>
+        <label className="flex items-center gap-2 text-xs text-haze">
+          <input
+            type="checkbox"
+            checked={liveAverage && canLiveAvg}
+            disabled={!canLiveAvg}
+            onChange={(e) => setLiveAverage(e.target.checked)}
+            className="accent-amber disabled:opacity-40"
+          />
+          Live avg
+          {!canLiveAvg && <LockChip edition="pro" />}
+          {canLiveAvg && liveAverage && (
+            <select
+              value={avgN}
+              onChange={(e) => setAvgN(Number(e.target.value))}
+              className="rounded-md border border-line bg-panel2 px-1.5 py-0.5 font-mono text-xs text-text"
+            >
+              {[8, 16, 32, 64].map((n) => (
+                <option key={n} value={n}>
+                  {n}
+                </option>
+              ))}
+            </select>
+          )}
+        </label>
         <span className="ml-auto font-mono text-xs text-haze">
           {F_MIN} Hz – {F_MAX / 1000} kHz
         </span>
@@ -349,10 +482,63 @@ export function RtaView({ audio, onSpectrum }: RtaViewProps) {
         className="h-64 w-full rounded-xl border border-line bg-ink sm:h-80"
         aria-label="Real-time spectrum"
       />
+
+      {/* Trace management. */}
+      <div className="flex flex-col gap-2 rounded-xl border border-line bg-panel2/40 p-3">
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-semibold text-text">Traces</span>
+          <button
+            type="button"
+            onClick={handleCapture}
+            disabled={!canTraces}
+            className="flex items-center gap-1.5 rounded-lg border border-line bg-panel2 px-2.5 py-1 text-xs font-medium text-text transition-colors hover:border-haze disabled:opacity-40"
+          >
+            Capture trace
+            {!canTraces && <LockChip edition="pro" />}
+          </button>
+        </div>
+        {traces.length === 0 ? (
+          <p className="text-xs text-haze">
+            Capture the current curve to overlay it as a static reference.
+          </p>
+        ) : (
+          <ul className="flex flex-col gap-1.5">
+            {traces.map((t) => (
+              <li
+                key={t.id}
+                className="flex items-center gap-2 text-xs text-haze"
+              >
+                <span
+                  className="h-2.5 w-2.5 shrink-0 rounded-full"
+                  style={{ backgroundColor: t.color }}
+                />
+                <span className="flex-1 truncate text-text">{t.name}</span>
+                <button
+                  type="button"
+                  onClick={() => toggleTrace(t.id)}
+                  className="text-haze hover:text-text"
+                >
+                  {t.visible ? "hide" : "show"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => deleteTrace(t.id)}
+                  className="text-rose hover:text-rose-deep"
+                >
+                  delete
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
       {!engine && (
         <p className="font-mono text-xs text-amber-soft">
           Demo spectrum — press Start in the source bar to measure live.
         </p>
+      )}
+        </>
       )}
     </div>
   );

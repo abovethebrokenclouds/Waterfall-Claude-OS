@@ -1,5 +1,14 @@
-import { useEffect, useRef, useState } from "react";
-import { syntheticTransfer, type TransferPoint } from "../lib/dsp";
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  syntheticTransfer,
+  findDelay,
+  compensatePhase,
+  whiteNoise,
+  type TransferPoint,
+} from "../lib/dsp";
+import { SignalGenerator } from "./SignalGenerator";
+import { LockChip } from "./LockChip";
+import { hasFeature, type Edition } from "../lib/editions";
 
 type TransferTrace = "magnitude" | "phase" | "coherence";
 
@@ -7,17 +16,52 @@ const F_MIN = 20;
 const F_MAX = 20000;
 const COHERENCE_GATE = 0.85;
 
+const SR = 48000;
+const DEMO_DELAY_SAMPLES = 41; // the "true" inter-channel delay to recover
+
+interface TransferViewProps {
+  edition?: Edition;
+}
+
 /**
  * Dual-channel transfer-function view driven by deterministic synthetic data.
  * Clearly labelled as demo data; includes the pink-noise measurement hint.
  */
-export function TransferView() {
+export function TransferView({ edition = "studio" }: TransferViewProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [trace, setTrace] = useState<TransferTrace>("magnitude");
-  const dataRef = useRef<TransferPoint[]>([]);
-  if (dataRef.current.length === 0) {
-    dataRef.current = syntheticTransfer(F_MIN, F_MAX, 256);
-  }
+  const [delaySamples, setDelaySamples] = useState<number | null>(null);
+  const [compensated, setCompensated] = useState(false);
+
+  const canDelay = hasFeature(edition, "delayFinder");
+  const canGen = hasFeature(edition, "signalGenerator");
+
+  const baseData = useMemo(() => syntheticTransfer(F_MIN, F_MAX, 256), []);
+
+  // The displayed data has its phase trace delay-compensated once aligned.
+  const data = useMemo<TransferPoint[]>(() => {
+    if (!compensated || delaySamples === null) return baseData;
+    return baseData.map((p) => ({
+      ...p,
+      phaseDeg: compensatePhase(p.phaseDeg, p.freq, delaySamples, SR),
+    }));
+  }, [baseData, compensated, delaySamples]);
+
+  const dataRef = useRef<TransferPoint[]>(data);
+  dataRef.current = data;
+
+  /** Cross-correlate a reference against a delayed measurement to recover the lag. */
+  const handleFindDelay = () => {
+    const ref = whiteNoise(2048, 13);
+    const meas = new Float64Array(ref.length);
+    for (let i = 0; i < ref.length; i++) {
+      const src = i - DEMO_DELAY_SAMPLES;
+      meas[i] = src >= 0 && src < ref.length ? ref[src] : 0;
+    }
+    const r = findDelay(ref, meas, SR);
+    setDelaySamples(r.samples);
+    setCompensated(true);
+  };
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -33,7 +77,7 @@ export function TransferView() {
 
     const w = rect.width;
     const h = rect.height;
-    const data = dataRef.current;
+    const points = dataRef.current;
     ctx.clearRect(0, 0, w, h);
 
     const xAt = (f: number) =>
@@ -90,8 +134,8 @@ export function TransferView() {
     ctx.lineWidth = 2;
     let prevX: number | null = null;
     let prevY: number | null = null;
-    for (let i = 0; i < data.length; i++) {
-      const p = data[i];
+    for (let i = 0; i < points.length; i++) {
+      const p = points[i];
       const x = xAt(p.freq);
       const y = yAt(valueOf(p));
       const gated = p.coherence < COHERENCE_GATE;
@@ -118,7 +162,7 @@ export function TransferView() {
       ctx.fillText("1.0", 4, 12);
       ctx.fillText("0.0", 4, h - 16);
     }
-  }, [trace]);
+  }, [trace, data]);
 
   return (
     <div className="flex flex-col gap-3">
@@ -148,10 +192,53 @@ export function TransferView() {
         aria-label="Transfer function"
       />
 
+      {/* Delay finder / time alignment. */}
+      <div className="flex flex-wrap items-center gap-3 rounded-xl border border-line bg-panel2/40 p-3">
+        <button
+          type="button"
+          onClick={handleFindDelay}
+          disabled={!canDelay}
+          className="flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-amber to-rose px-3 py-1.5 text-xs font-semibold text-ink transition-transform hover:scale-[1.03] disabled:opacity-40"
+        >
+          Find delay
+          {!canDelay && <LockChip edition="pro" />}
+        </button>
+        {delaySamples !== null && (
+          <span className="font-mono text-xs text-text">
+            Δ {delaySamples} samples ·{" "}
+            {((delaySamples / SR) * 1000).toFixed(2)} ms
+          </span>
+        )}
+        {delaySamples !== null && (
+          <label className="flex items-center gap-2 text-xs text-haze">
+            <input
+              type="checkbox"
+              checked={compensated}
+              onChange={(e) => setCompensated(e.target.checked)}
+              className="accent-amber"
+            />
+            Compensate phase
+          </label>
+        )}
+        <span className="ml-auto font-mono text-[11px] text-haze">
+          {compensated ? "phase aligned" : "raw phase"}
+        </span>
+      </div>
+
+      {canGen ? (
+        <SignalGenerator />
+      ) : (
+        <div className="flex items-center gap-2 rounded-xl border border-line bg-panel2/40 p-3 text-xs text-haze">
+          Signal generator <LockChip edition="pro" />
+          <span>— pink noise excitation is a Pro feature.</span>
+        </div>
+      )}
+
       <p className="rounded-lg border border-line bg-panel2/60 px-3 py-2 text-xs text-haze">
         Workflow: send pink noise through the system, feed a reference signal to
-        the second channel, and align the two before reading magnitude and
-        phase. Trust only bands where coherence stays above {COHERENCE_GATE}.
+        the second channel, then <span className="text-text">Find delay</span>{" "}
+        and compensate before reading magnitude and phase. Trust only bands where
+        coherence stays above {COHERENCE_GATE}.
       </p>
     </div>
   );

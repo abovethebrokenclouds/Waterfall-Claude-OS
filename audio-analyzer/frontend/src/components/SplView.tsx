@@ -9,9 +9,20 @@ import {
   TIME_CONSTANTS,
   type Weighting,
 } from "../lib/dsp";
+import { LockChip } from "./LockChip";
+import { hasFeature, type Edition } from "../lib/editions";
 
 interface SplViewProps {
   audio: UseAudioState;
+  /** Current edition — gates continuous SPL logging. */
+  edition?: Edition;
+}
+
+interface SplLogEntry {
+  t: number; // ms since log start
+  spl: number;
+  leq: number;
+  weighting: Weighting;
 }
 
 const CAL_OFFSET = 100; // demo dBFS->dB SPL offset
@@ -21,18 +32,25 @@ const CAL_OFFSET = 100; // demo dBFS->dB SPL offset
  * exists, else simulates a plausible level. A/C/Z weighting toggle, Fast/Slow
  * ballistics, big mono readout, plus Leq and peak.
  */
-export function SplView({ audio }: SplViewProps) {
+export function SplView({ audio, edition = "studio" }: SplViewProps) {
   const { engine } = audio;
   const [weighting, setWeighting] = useState<Weighting>("A");
   const [response, setResponse] = useState<"fast" | "slow">("fast");
   const [display, setDisplay] = useState(0);
   const [peak, setPeak] = useState(0);
   const [leqValue, setLeqValue] = useState(0);
+  const [logging, setLogging] = useState(false);
+  const [log, setLog] = useState<SplLogEntry[]>([]);
+
+  const canLog = hasFeature(edition, "splLogging");
 
   const weightingRef = useRef(weighting);
   const responseRef = useRef(response);
+  const loggingRef = useRef(logging && canLog);
+  const logStartRef = useRef(0);
   weightingRef.current = weighting;
   responseRef.current = response;
+  loggingRef.current = logging && canLog;
 
   useEffect(() => {
     let raf = 0;
@@ -85,6 +103,18 @@ export function SplView({ audio }: SplViewProps) {
         setLeqValue(leq(history));
       }
 
+      // SPL logging cadence (~1 Hz) when active.
+      if (loggingRef.current && frame % 60 === 0) {
+        const tMs = now - logStartRef.current;
+        const lq = leq(history);
+        const wq = weightingRef.current;
+        setLog((prev) =>
+          prev.length > 7200
+            ? prev
+            : [...prev, { t: tMs, spl: smoothed, leq: lq, weighting: wq }],
+        );
+      }
+
       frame++;
       raf = requestAnimationFrame(tick);
     };
@@ -96,6 +126,55 @@ export function SplView({ audio }: SplViewProps) {
   }, [engine]);
 
   const resetPeak = () => setPeak(0);
+
+  const toggleLogging = () => {
+    if (!canLog) return;
+    setLogging((on) => {
+      if (!on) {
+        logStartRef.current =
+          typeof performance !== "undefined" ? performance.now() : 0;
+        setLog([]);
+      }
+      return !on;
+    });
+  };
+
+  const download = (filename: string, mime: string, text: string) => {
+    if (typeof window === "undefined" || typeof document === "undefined") return;
+    const blob = new Blob([text], { type: mime });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const exportCsv = () => {
+    const header = "time_s,spl_db,leq_db,weighting";
+    const rows = log.map(
+      (e) =>
+        `${(e.t / 1000).toFixed(1)},${e.spl.toFixed(1)},${e.leq.toFixed(1)},${e.weighting}`,
+    );
+    download("spl-log.csv", "text/csv", [header, ...rows].join("\n"));
+  };
+
+  const exportJson = () => {
+    download(
+      "spl-log.json",
+      "application/json",
+      JSON.stringify(
+        log.map((e) => ({
+          time_s: e.t / 1000,
+          spl_db: e.spl,
+          leq_db: e.leq,
+          weighting: e.weighting,
+        })),
+        null,
+        2,
+      ),
+    );
+  };
 
   return (
     <div className="flex flex-col gap-4">
@@ -161,6 +240,77 @@ export function SplView({ audio }: SplViewProps) {
             {peak.toFixed(1)}
           </div>
         </div>
+      </div>
+
+      {/* SPL logging (Studio). */}
+      <div className="flex flex-col gap-2 rounded-xl border border-line bg-panel2/40 p-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="text-xs font-semibold text-text">SPL log</span>
+          <button
+            type="button"
+            onClick={toggleLogging}
+            disabled={!canLog}
+            className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-transform hover:scale-[1.03] disabled:opacity-40 ${
+              logging && canLog
+                ? "border border-rose/50 bg-rose/10 text-rose"
+                : "bg-gradient-to-r from-amber to-rose text-ink"
+            }`}
+          >
+            {logging && canLog ? "Stop logging" : "Start logging"}
+            {!canLog && <LockChip edition="studio" />}
+          </button>
+          {canLog && log.length > 0 && (
+            <>
+              <span className="font-mono text-xs text-haze">
+                {log.length} samples
+              </span>
+              <button
+                type="button"
+                onClick={exportCsv}
+                className="rounded-lg border border-line bg-panel2 px-2.5 py-1 text-xs text-text hover:border-haze"
+              >
+                CSV
+              </button>
+              <button
+                type="button"
+                onClick={exportJson}
+                className="rounded-lg border border-line bg-panel2 px-2.5 py-1 text-xs text-text hover:border-haze"
+              >
+                JSON
+              </button>
+            </>
+          )}
+        </div>
+        {canLog && log.length > 0 && (
+          <div className="max-h-32 overflow-auto rounded-lg border border-line/60">
+            <table className="w-full text-left font-mono text-[11px]">
+              <thead className="sticky top-0 bg-panel2 text-haze">
+                <tr>
+                  <th className="px-2 py-1">t (s)</th>
+                  <th className="px-2 py-1">SPL</th>
+                  <th className="px-2 py-1">Leq</th>
+                  <th className="px-2 py-1">W</th>
+                </tr>
+              </thead>
+              <tbody className="text-text">
+                {log.slice(-12).map((e) => (
+                  <tr key={e.t} className="border-t border-line/40">
+                    <td className="px-2 py-0.5 tabular-nums">{(e.t / 1000).toFixed(0)}</td>
+                    <td className="px-2 py-0.5 tabular-nums">{e.spl.toFixed(1)}</td>
+                    <td className="px-2 py-0.5 tabular-nums">{e.leq.toFixed(1)}</td>
+                    <td className="px-2 py-0.5">{e.weighting}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        {canLog && log.length === 0 && (
+          <p className="text-xs text-haze">
+            Logs SPL and Leq once per second; export to CSV or JSON for a show
+            report.
+          </p>
+        )}
       </div>
 
       {!engine && (
