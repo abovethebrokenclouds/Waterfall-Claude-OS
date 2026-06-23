@@ -159,7 +159,7 @@ export function IrView() {
     { label: "C80", value: `${metrics.c80.toFixed(1)} dB` },
     { label: "D50", value: `${(metrics.d50 * 100).toFixed(0)} %` },
     { label: "Ts", value: `${(metrics.ts * 1000).toFixed(0)} ms` },
-    { label: "STI", value: metrics.sti.toFixed(2) },
+    { label: "STI (est.)", value: metrics.sti.toFixed(2) },
   ];
 
   return (
