@@ -3,10 +3,10 @@ import Link from "next/link";
 import { Logo } from "./Logo";
 
 const LINKS = [
-  { href: "#features", label: "Features" },
-  { href: "#modes", label: "Modes" },
-  { href: "#integrations", label: "Integrations" },
-  { href: "#pricing", label: "Pricing" },
+  { href: "/#features", label: "Features" },
+  { href: "/#modes", label: "Modes" },
+  { href: "/editions", label: "Editions" },
+  { href: "/#pricing", label: "Pricing" },
 ];
 
 /** Sticky translucent landing-page navigation with a mobile hamburger. */

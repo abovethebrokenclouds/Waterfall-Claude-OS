@@ -16,6 +16,8 @@ import {
   IconMic,
   IconChip,
   IconUsb,
+  IconGrid,
+  IconPulse,
 } from "../components/icons";
 
 export default function Landing() {
@@ -117,7 +119,7 @@ export default function Landing() {
         {/* MEASUREMENT MODES */}
         <section id="modes" className="py-16 md:py-20">
           <h2 className="mb-2 text-center text-3xl font-bold tracking-tight">
-            Five measurement modes
+            A full measurement suite
           </h2>
           <p className="mb-10 text-center text-haze">
             Everything you need to measure a system, in one app.
@@ -127,8 +129,15 @@ export default function Landing() {
               glow="amber"
               icon={<IconWave />}
               title="Spectrum Analyzer"
-              description="Real-time 1/1 to 1/24-octave RTA with peak-hold and averaging."
+              description="Real-time 1/1 to 1/24-octave RTA with peak-hold, averaging, and captured traces."
               useCase="Find the ringing frequency before it feeds back."
+            />
+            <ModeCard
+              glow="rose"
+              icon={<IconGrid />}
+              title="Spectrograph"
+              description="Scrolling time-frequency heatmap in a warm colormap — watch the spectrum move."
+              useCase="Spot an intermittent resonance that an RTA misses."
             />
             <ModeCard
               glow="rose"
@@ -152,13 +161,35 @@ export default function Landing() {
               useCase="Decide where the next bass trap should go."
             />
             <ModeCard
+              glow="violet"
+              icon={<IconPulse />}
+              title="Impulse Response"
+              description="RT60, EDT, C50, C80, D50, Ts, and STI from a measured impulse response."
+              useCase="Check whether speech will be intelligible in the room."
+            />
+            <ModeCard
+              glow="rose"
+              icon={<IconTransfer />}
+              title="Signal Generator"
+              description="Pink and white noise, sine, and a log sweep to excite the system under test."
+              useCase="Drive the PA with pink noise for a transfer measurement."
+            />
+            <ModeCard
               glow="amber"
               icon={<IconList />}
-              title="Session Logging"
-              description="Save measurements with notes and tags, export to JSON or CSV."
+              title="Session & SPL Logging"
+              description="Save tagged measurements and continuous SPL / Leq logs, export to JSON or CSV."
               useCase="Hand the venue a before/after report."
             />
           </div>
+
+          <p className="mt-10 text-center text-sm text-haze">
+            Features scale across editions —{" "}
+            <Link href="/editions" className="text-amber-soft hover:text-amber">
+              compare Free, Pro &amp; Studio
+            </Link>
+            .
+          </p>
         </section>
 
         {/* INTEGRATIONS */}
@@ -259,7 +290,10 @@ export default function Landing() {
             />
           </div>
           <p className="mt-8 text-center text-sm text-haze">
-            Built for engineers, creators, and studios.
+            Built for engineers, creators, and studios.{" "}
+            <Link href="/editions" className="text-amber-soft hover:text-amber">
+              See all three editions →
+            </Link>
           </p>
         </section>
       </main>
@@ -271,7 +305,7 @@ export default function Landing() {
           <nav className="flex flex-wrap gap-5 text-sm text-haze">
             <a href="#features" className="hover:text-text">Features</a>
             <a href="#modes" className="hover:text-text">Modes</a>
-            <a href="#integrations" className="hover:text-text">Integrations</a>
+            <Link href="/editions" className="hover:text-text">Editions</Link>
             <a href="#pricing" className="hover:text-text">Pricing</a>
             <Link href="/app" className="hover:text-text">Open App</Link>
           </nav>
