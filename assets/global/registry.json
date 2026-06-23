@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "updated_at": "2026-06-22T04:37:39Z",
+  "updated_at": "2026-06-23T12:00:00Z",
   "description": "Waterfall Claude OS \u2014 canonical catalog of every skill across the Waterfall Technologies platform. Source of truth lives in the Waterfall-Claude-OS repo (assets/global/registry.json), which also holds a full mirror of every skill (.claude/skills + .agents/skills) and the portable waterfall-skills bundle. `installed_in` is where a skill physically ships (loaded by Claude Code from that repo's .claude/skills or .agents/skills); `applies_to` is where it is relevant. OS-core skills ship in every repo. Any app-repo catalog (e.g. cairo-ai-pro/app-assets/global) is a superseded mirror.",
   "agents": [
     {
@@ -860,6 +860,33 @@
       ],
       "integration_notes": "OS-core: installed in every Waterfall repo. Source of truth for the platform contract and the catalog pointer.",
       "recommended_usage": "First skill to consult when landing in any Waterfall repo.",
+      "status": "active"
+    },
+    {
+      "name": "waterfall-super-agent",
+      "type": "skill",
+      "path": ".claude/skills/waterfall-super-agent",
+      "description": "The Waterfall Super Agent \u2014 the one governed LLM gateway every app routes through (superAgent.call), the taskType\u2192tier model routing (OPUS/SONNET/HAIKU) with concrete slugs centralized in TIER_MODELS, the production gateway guarantees (ordered tier fallback + retry, short-TTL result cache, per-call observability telemetry), the budget rails, the brain-contract eval gate, and the composed capability layers (multi-agent orchestration, deterministic workflows, autonomy envelope, knowledge-graph memory). The orchestrator's catalog of the brain; pairs with superagent-conformance (the enforcer).",
+      "source": "cairo-ai-pro",
+      "applies_to": [
+        "cairo-ai-pro",
+        "waterfall-claude-os",
+        "waterfall-nexus",
+        "waterfall-tech-command",
+        "waterfall-technologies"
+      ],
+      "installed_in": [
+        "cairo-ai-pro",
+        "waterfall-claude-os"
+      ],
+      "dependencies": [
+        "superAgent.ts",
+        "roles.ts",
+        "skill:superagent-conformance",
+        "helper:eval-gate.mjs"
+      ],
+      "integration_notes": "Documents the capability surface of the Super Agent (Cairo is the brain). Concrete model slugs live only in TIER_MODELS inside superAgent.functions.ts; app code names a taskType, never a model. Pairs with superagent-conformance (enforcer) and waterfall-os (platform map).",
+      "recommended_usage": "Read before building or reviewing any AI feature in a Waterfall app \u2014 for the single gateway entry point, the tier doctrine, and Patterns E/F/G.",
       "status": "active"
     }
   ],
