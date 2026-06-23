@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "updated_at": "2026-06-23T23:01:46Z",
+  "updated_at": "2026-06-23T23:52:00Z",
   "description": "Waterfall Claude OS \u2014 canonical catalog of every skill across the Waterfall Technologies platform. Source of truth lives in the Waterfall-Claude-OS repo (assets/global/registry.json), which also holds a full mirror of every skill (.claude/skills + .agents/skills) and the portable waterfall-skills bundle. `installed_in` is where a skill physically ships (loaded by Claude Code from that repo's .claude/skills or .agents/skills); `applies_to` is where it is relevant. OS-core skills ship in every repo. Any app-repo catalog (e.g. cairo-ai-pro/app-assets/global) is a superseded mirror.",
   "agents": [
     {
@@ -43,6 +43,26 @@
       ],
       "integration_notes": "Tools: Read, Grep, Glob, Bash. Scoped to RTA Insight Pro. Composes the three Smaart-parity audio skills into a guided live-sound/room measurement session.",
       "recommended_usage": "When a user wants help capturing a real measurement and acting on it \u2014 PA tuning, monitor ring-out, sub/top alignment, or RT60/clarity interpretation.",
+      "status": "active"
+    },
+    {
+      "name": "network-audio-integration-architect",
+      "type": "agent",
+      "path": ".claude/agents/network-audio-integration-architect.md",
+      "description": "Senior audio-systems-engineer agent that designs and reviews the console + network integration of RTA Insight Pro \u2014 validating protocol mappings (OSC addresses, HiQnet/EUCON/UCNET/AHNet semantics), normalized-model fidelity, metering-tap correctness, clocking/fallback/redundancy logic, app\u2194bridge WebSocket contract consistency, and safe control-send patterns (throttle, read-back, user-initiated writes only).",
+      "source": "audio-analyzer",
+      "applies_to": [
+        "audio-analyzer"
+      ],
+      "installed_in": [
+        "waterfall-claude-os"
+      ],
+      "dependencies": [
+        "skill:console-control-integration",
+        "skill:network-audio-transport"
+      ],
+      "integration_notes": "Tools: Read, Grep, Glob, Bash. Scoped to audio-analyzer's integration layer (frontend/src/lib/integration + bridge). Composes the two integration skills' scanners; does not review the DSP core or UI theming.",
+      "recommended_usage": "After editing a console adapter, an OSC address map, the normalized model, transport/discovery/clock code, or the app\u2194bridge WS contract, or before shipping an integration change.",
       "status": "active"
     }
   ],
@@ -209,6 +229,25 @@
       ],
       "integration_notes": "Generation is deterministic templating; parsing an uploaded sample cert routes through idp-intake-agent (Super Agent). Emits certificate.issued on the embedded-insurance-sdk event bus. Diff 3.",
       "recommended_usage": "Building COI generation, proof-of-coverage, real-time certificate issuance, or holder verification.",
+      "status": "active"
+    },
+    {
+      "name": "console-control-integration",
+      "type": "skill",
+      "path": ".claude/skills/console-control-integration",
+      "description": "Map mixing-console control & metering protocols into RTA Insight Pro's normalized model via the RTA Bridge \u2014 per-vendor transport plus channel-list, gain/trim/HPF/EQ/dynamics readout, pre-EQ/post-EQ/post-fader metering taps, and routing for Yamaha CL/QL/RIVAGE (OSC/YOSC), Midas/Behringer (OSC), DiGiCo SD/Quantum (OSC+UB MADI), Allen & Heath dLive/Avantis/SQ (AHNet/TCP), Avid S6L (EUCON), SSL Live (SOLSA), Soundcraft Vi/Si (HiQnet), PreSonus StudioLive (UCNET). Covers safe-send/read-back/console-as-source-of-truth patterns.",
+      "source": "audio-analyzer",
+      "applies_to": [
+        "audio-analyzer"
+      ],
+      "installed_in": [
+        "waterfall-claude-os"
+      ],
+      "dependencies": [
+        "helper:scan-console-integration.sh"
+      ],
+      "integration_notes": "Ships scan-console-integration.sh: flags missing console adapter modules, their tests, and the OSC codec in frontend/src/lib/integration and bridge/src/adapters; no-ops cleanly when absent. Pairs with network-audio-transport and the network-audio-integration-architect agent. App talks to the on-LAN RTA Bridge over the normalized WS contract.",
+      "recommended_usage": "When building or reviewing a console adapter, an OSC address map, the normalized channel-strip readout, a metering-tap selector, or routing readout, or whenever a control value writes to a console.",
       "status": "active"
     },
     {
@@ -532,6 +571,25 @@
       ],
       "integration_notes": "Consumes underwriting-agent appetite eval; emits the selected carrier into the bind path. Enforces max % GWP per carrier (the \u00a76 capacity-concentration risk). Routing is deterministic; appetite-text interpretation routes through the Super Agent. Phase 3 (NEXT Connect). Diff 4.",
       "recommended_usage": "Building a carrier-panel bind engine, appetite matching across capacity partners, or capacity-concentration limits.",
+      "status": "active"
+    },
+    {
+      "name": "network-audio-transport",
+      "type": "skill",
+      "path": ".claude/skills/network-audio-transport",
+      "description": "Integrate digital-audio networks as measurement taps for RTA Insight Pro via the RTA Bridge \u2014 Dante, AES67, AVB (IEEE 1722.1/gPTP), Ravenna, SoundGrid, MADI, AES50. Covers discovery (mDNS/SAP/ATDECC), channel subscription, clocking (PTP/IEEE 1588, gPTP, word clock, 48/96/192k + SRC), packet/latency behavior, and fallback (clock-loss graceful degrade, redundant Dante primary/secondary, SRC on rate mismatch), plus how a network channel becomes a measurement frame.",
+      "source": "audio-analyzer",
+      "applies_to": [
+        "audio-analyzer"
+      ],
+      "installed_in": [
+        "waterfall-claude-os"
+      ],
+      "dependencies": [
+        "helper:check-transport.sh"
+      ],
+      "integration_notes": "Ships check-transport.sh (layout-agnostic): flags missing transport/discovery/clock modules and tests in bridge/src and the app transport lib; no-ops cleanly when absent. Clocking and packet I/O live in the RTA Bridge; the app consumes normalized devices/meters over WS.",
+      "recommended_usage": "When building or reviewing network-audio discovery, a transport subscription, clock/PTP handling, redundancy/fallback, sample-rate/SRC handling, or a measurement tap off a Dante/AES67/AVB/MADI flow.",
       "status": "active"
     },
     {
