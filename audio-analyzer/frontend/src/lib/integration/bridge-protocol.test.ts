@@ -81,6 +81,38 @@ describe("parseServerMsg", () => {
   });
 });
 
+describe("app↔bridge channel contract", () => {
+  // A channel built exactly as the bridge's defaultX32Channel emits it. This
+  // pins the wire contract: if the bridge model and app model drift, this fails.
+  const bridgeChannel = {
+    id: "ch-1",
+    name: "CH 1",
+    gain: 0,
+    trim: 0,
+    hpf: 0,
+    eq: [{ index: 1, type: "peq", freq: 100, gain: 0, q: 2, enabled: false }],
+    dynamics: { compThreshold: 0, compRatio: 1, compEnabled: false, gateThreshold: -80, gateEnabled: false },
+    faderDb: -90,
+    mute: false,
+    routing: { buses: ["main-lr"], directOut: false },
+  };
+
+  it("accepts a bridge-shaped channels message", () => {
+    const msg = parseServerMsg({ t: "channels", consoleId: "sim-m32", channels: [bridgeChannel] });
+    expect(msg).not.toBeNull();
+    expect((msg as ServerMsg & { t: "channels" }).channels[0].dynamics.compRatio).toBe(1);
+  });
+
+  it("rejects the legacy channel shape (routing array / flat dynamics)", () => {
+    const legacy = {
+      ...bridgeChannel,
+      dynamics: { threshold: -18, ratio: 3, attack: 10, release: 120, makeup: 2 },
+      routing: ["LR", "Mix 1"],
+    };
+    expect(parseServerMsg({ t: "channels", consoleId: "c", channels: [legacy] })).toBeNull();
+  });
+});
+
 describe("parseServerJson", () => {
   it("parses a valid JSON string", () => {
     const raw = JSON.stringify({ t: "clock", status: { locked: false, source: "internal", ppm: 0 } });

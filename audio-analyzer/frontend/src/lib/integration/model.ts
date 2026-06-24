@@ -2,11 +2,11 @@
 // integration. Pure TypeScript — no DOM, no Web Audio. Unit-testable headless.
 //
 // UNITS (documented once, used everywhere):
-//   - gain / trim / makeup / faderDb / hpf-tilt        → dB
-//   - threshold (Dynamics)                             → dBFS
+//   - gain / trim / faderDb                            → dB
+//   - compThreshold / gateThreshold (Dynamics)         → dBFS
 //   - freq (EqBand) / hpf (frequency)                  → Hz
 //   - q (EqBand)                                       → dimensionless (Q factor)
-//   - attack / release (Dynamics)                      → ms
+//   - compRatio (Dynamics)                             → n:1 (dimensionless)
 //   - rms / peak (MeterFrame)                          → dBFS
 //   - sampleRate (NetworkDevice)                       → Hz
 //   - ppm (ClockStatus)                                → parts-per-million offset
@@ -63,30 +63,46 @@ export type MeterTap = "pre-eq" | "post-eq" | "post-fader";
 /** All meter taps, for validation / iteration. */
 export const METER_TAPS: MeterTap[] = ["pre-eq", "post-eq", "post-fader"];
 
-/** A single parametric EQ band on a channel. */
+/**
+ * A single parametric EQ band on a channel. Shape is identical to the bridge's
+ * `EqBand` (the bridge is the source of truth for the on-wire contract).
+ */
 export interface EqBand {
+  /** 1-based band index. */
+  index: number;
+  /** Filter type, e.g. "peq" | "lowshelf" | "highshelf" | "lowpass" | "highpass" | "notch". */
+  type: string;
   /** Centre frequency, Hz. */
   freq: number;
   /** Band gain, dB. */
   gain: number;
   /** Q factor (dimensionless). */
   q: number;
-  /** Filter type. */
-  type: "bell" | "lowShelf" | "highShelf" | "lowPass" | "highPass" | "notch";
+  /** Band engaged. */
+  enabled: boolean;
 }
 
-/** A channel dynamics processor (compressor / gate-style). */
+/**
+ * A channel dynamics processor (compressor + gate). Shape mirrors the bridge's
+ * `Dynamics` exactly so a real bridge's `channels` message validates.
+ */
 export interface Dynamics {
-  /** Threshold, dBFS. */
-  threshold: number;
+  /** Compressor threshold, dBFS. */
+  compThreshold: number;
   /** Compression ratio (n:1, dimensionless). */
-  ratio: number;
-  /** Attack time, ms. */
-  attack: number;
-  /** Release time, ms. */
-  release: number;
-  /** Make-up gain, dB. */
-  makeup: number;
+  compRatio: number;
+  compEnabled: boolean;
+  /** Gate threshold, dBFS. */
+  gateThreshold: number;
+  gateEnabled: boolean;
+}
+
+/** Output / bus routing for a channel (mirrors the bridge's `ChannelRouting`). */
+export interface ChannelRouting {
+  /** Output bus ids this channel is assigned to. */
+  buses: string[];
+  /** Direct-out enabled. */
+  directOut: boolean;
 }
 
 /** A normalized input channel strip on a console. */
@@ -109,8 +125,8 @@ export interface ConsoleChannel {
   faderDb: number;
   /** Channel mute state. */
   mute: boolean;
-  /** Routing destinations (bus / mix names). */
-  routing: string[];
+  /** Output / bus routing. */
+  routing: ChannelRouting;
 }
 
 /** Descriptor for a mixing console discovered on the network. */

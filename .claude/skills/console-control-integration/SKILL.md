@@ -10,9 +10,10 @@ description: >-
   S6L (EUCON), SSL Live (SOLSA), Soundcraft Vi/Si (HiQnet), and PreSonus
   StudioLive (UCNET). Covers the vendor→protocol table, the safe-send patterns
   (rate-limit / throttle control sends, never write blindly, read-back verify,
-  treat the console as the source of truth), and how the app's
-  `src/lib/integration/console/*` adapters and the bridge's adapters implement
-  it. Use when building or reviewing a console adapter, an OSC address map, the
+  treat the console as the source of truth), and how the bridge's
+  `bridge/src/adapters/*` implement the vendor wire-protocols while the app stays
+  a pure WS client over the normalized model. Use when building or reviewing a
+  console adapter, an OSC address map, the
   normalized channel-strip readout, a metering-tap selector, or routing readout,
   or whenever a control value writes to a console. Ships a
   `scan-console-integration.sh` scanner that flags missing adapter modules,
@@ -57,10 +58,10 @@ unchanged in any repo.
    bridge/src/model.ts               ── normalizes to ConsoleChannel/MeterFrame
    │  ONE normalized WebSocket JSON API
    ▼
- RTA Insight Pro web app  (browser)
-   frontend/src/lib/integration/console/<vendor>.ts  ── adapter-side helpers
+ RTA Insight Pro web app  (browser, pure WS client — speaks no OSC)
    frontend/src/lib/integration/model.ts             ── the same normalized model
-   frontend/src/lib/integration/osc.ts               ── pure OSC 1.0 codec
+   frontend/src/lib/integration/bridge-protocol.ts   ── WS contract + validators
+   frontend/src/lib/integration/transport.ts         ── WS client + SimulatedTransport
 ```
 
 The app and bridge each carry a copy of the **same** normalized `model.ts`
@@ -81,9 +82,10 @@ above the adapter, a Yamaha CL5 and a Midas M32 are indistinguishable.
 | **Soundcraft** Vi / Si | **HiQnet** (Harman) | HiQnet node/parameter addressing | Harman's device/parameter model; same family as dbx/BSS |
 | **PreSonus** StudioLive | **UCNET** | UCNET parameter messages | PreSonus's network control protocol |
 
-The bridge owns one adapter per family under `bridge/src/adapters/`; the app's
-`frontend/src/lib/integration/console/<vendor>.ts` holds the app-side helpers
-(address builders, value mapping) and shares `osc.ts` for the OSC families.
+The bridge owns one adapter per family under `bridge/src/adapters/` and is the
+single source of truth for all vendor wire-protocol encoding (it carries the OSC
+codec at `bridge/src/osc/`). The app speaks no OSC — it consumes the normalized
+model over the WS contract, so adding a console is purely a bridge change.
 
 ## Normalized channel strip (what every adapter must fill)
 

@@ -39,7 +39,9 @@ export const DEMO_CONSOLES: ConsoleDescriptor[] = [
 ];
 
 function demoChannel(i: number, namePrefix: string): ConsoleChannel {
-  const id = String(i).padStart(2, "0");
+  // Channel-id convention matches the bridge (`ch-N`) so the app exercises the
+  // same id-parsing path the real bridge drives.
+  const id = `ch-${i}`;
   return {
     id,
     name: `${namePrefix} ${i}`,
@@ -47,14 +49,20 @@ function demoChannel(i: number, namePrefix: string): ConsoleChannel {
     trim: (i % 3) - 1,
     hpf: i % 2 === 0 ? 80 : 0,
     eq: [
-      { freq: 100, gain: -2 + (i % 3), q: 1.0, type: "bell" },
-      { freq: 1000, gain: i % 2 === 0 ? 1.5 : -1, q: 1.4, type: "bell" },
-      { freq: 8000, gain: 2, q: 0.7, type: "highShelf" },
+      { index: 1, type: "peq", freq: 100, gain: -2 + (i % 3), q: 1.0, enabled: true },
+      { index: 2, type: "peq", freq: 1000, gain: i % 2 === 0 ? 1.5 : -1, q: 1.4, enabled: true },
+      { index: 3, type: "highshelf", freq: 8000, gain: 2, q: 0.7, enabled: i % 2 === 0 },
     ],
-    dynamics: { threshold: -18 - (i % 4), ratio: 3, attack: 10, release: 120, makeup: 2 },
+    dynamics: {
+      compThreshold: -18 - (i % 4),
+      compRatio: 3,
+      compEnabled: i % 3 !== 0,
+      gateThreshold: -55,
+      gateEnabled: i % 4 === 0,
+    },
     faderDb: -6 + (i % 7),
     mute: i % 8 === 0,
-    routing: ["LR", i % 2 === 0 ? "Mix 1" : "Mix 2"],
+    routing: { buses: ["main-lr", i % 2 === 0 ? "mix-1" : "mix-2"], directOut: i % 5 === 0 },
   };
 }
 

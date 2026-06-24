@@ -31,8 +31,11 @@ describe("SimulatedTransport", () => {
     if (ch && ch.t === "channels") {
       expect(ch.consoleId).toBe("yamaha-cl5");
       expect(ch.channels.length).toBeGreaterThan(0);
-      // deterministic: id padded to 2 digits
-      expect(ch.channels[0].id).toBe("01");
+      // deterministic: channel-id convention matches the bridge (`ch-N`)
+      expect(ch.channels[0].id).toBe("ch-1");
+      // demo channels validate against the (tightened) ServerMsg guards
+      expect(ch.channels[0].dynamics.compRatio).toBeGreaterThan(0);
+      expect(Array.isArray(ch.channels[0].routing.buses)).toBe(true);
     }
   });
 

@@ -23,6 +23,16 @@ interface ConsoleNetworkViewProps {
   onSource?: (source: { consoleId: string; channelId: string; label: string } | null) => void;
 }
 
+/**
+ * Extract the 1-based channel number from a channel id. Handles both the
+ * bridge's `ch-N` convention and bare/zero-padded numeric ids (`01`). Returns
+ * NaN when no digits are present (filtered out by callers).
+ */
+function channelNum(id: string): number {
+  const m = id.match(/(\d+)/);
+  return m ? parseInt(m[1], 10) : NaN;
+}
+
 const STATUS_LABEL: Record<TransportStatus, string> = {
   idle: "idle",
   connecting: "connecting…",
@@ -124,7 +134,7 @@ export function ConsoleNetworkView({ edition = "studio", onSource }: ConsoleNetw
   useEffect(() => {
     const t = transportRef.current;
     if (!t || !selectedConsole || channels.length === 0) return;
-    const chNums = channels.map((c) => parseInt(c.id, 10)).filter((n) => Number.isFinite(n));
+    const chNums = channels.map((c) => channelNum(c.id)).filter((n) => Number.isFinite(n));
     t.send({ t: "meter.subscribe", consoleId: selectedConsole, tap, channels: chNums });
     return () => {
       t.send({ t: "unsubscribe" });
@@ -358,7 +368,7 @@ export function ConsoleNetworkView({ edition = "studio", onSource }: ConsoleNetw
               ) : (
                 <div className="grid gap-2 sm:grid-cols-2">
                   {channels.map((ch) => {
-                    const chNum = parseInt(ch.id, 10);
+                    const chNum = channelNum(ch.id);
                     const m = meters[chNum];
                     const isSource =
                       source?.consoleId === selectedDescriptor.id && source?.channelId === ch.id;
@@ -391,7 +401,7 @@ export function ConsoleNetworkView({ edition = "studio", onSource }: ConsoleNetw
                           />
                           <Readout
                             label="dyn"
-                            value={`${ch.dynamics.ratio.toFixed(0)}:1`}
+                            value={`${ch.dynamics.compRatio.toFixed(0)}:1`}
                           />
                           <Readout
                             label="fader"

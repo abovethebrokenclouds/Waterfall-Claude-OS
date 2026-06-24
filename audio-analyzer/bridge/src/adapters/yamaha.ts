@@ -33,7 +33,7 @@ export class YamahaAdapter implements ConsoleAdapter {
     const channelCount = opts.channelCount ?? 72;
     this.descriptor = {
       id: opts.id ?? 'yamaha-cl5',
-      vendor: 'Yamaha',
+      vendor: 'yamaha',
       model: opts.model ?? 'CL5',
       channelCount,
       transport: 'dante',

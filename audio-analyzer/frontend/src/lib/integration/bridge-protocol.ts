@@ -81,6 +81,33 @@ function isConsoleDescriptor(v: unknown): v is ConsoleDescriptor {
   );
 }
 
+function isEqBand(v: unknown): boolean {
+  return (
+    isObj(v) &&
+    isNum(v.index) &&
+    isStr(v.type) &&
+    isNum(v.freq) &&
+    isNum(v.gain) &&
+    isNum(v.q) &&
+    isBool(v.enabled)
+  );
+}
+
+function isDynamics(v: unknown): boolean {
+  return (
+    isObj(v) &&
+    isNum(v.compThreshold) &&
+    isNum(v.compRatio) &&
+    isBool(v.compEnabled) &&
+    isNum(v.gateThreshold) &&
+    isBool(v.gateEnabled)
+  );
+}
+
+function isChannelRouting(v: unknown): boolean {
+  return isObj(v) && Array.isArray(v.buses) && v.buses.every(isStr) && isBool(v.directOut);
+}
+
 function isConsoleChannel(v: unknown): v is ConsoleChannel {
   return (
     isObj(v) &&
@@ -90,10 +117,11 @@ function isConsoleChannel(v: unknown): v is ConsoleChannel {
     isNum(v.trim) &&
     isNum(v.hpf) &&
     Array.isArray(v.eq) &&
-    isObj(v.dynamics) &&
+    v.eq.every(isEqBand) &&
+    isDynamics(v.dynamics) &&
     isNum(v.faderDb) &&
     isBool(v.mute) &&
-    Array.isArray(v.routing)
+    isChannelRouting(v.routing)
   );
 }
 

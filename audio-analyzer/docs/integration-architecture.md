@@ -175,9 +175,10 @@ Step by step, to add a vendor (or model family):
 4. **Pin the mapping with a test** — `<vendor>.test.ts`: e.g. `fader 0.75 → ~0 dB`,
    `gain step N → +30 dB`, a known OSC message decodes to the expected strip.
    DSP/readout regressions are invisible in the UI; tests are the safety net.
-5. **Add the app-side helper** — `frontend/src/lib/integration/console/<vendor>.ts`
-   for any address builders / value mapping the app needs (OSC families reuse
-   `osc.ts`).
+5. **No app-side vendor code needed** — the app is a pure WS client: it consumes
+   the normalized `ConsoleChannel` / `MeterFrame` over the bridge contract and
+   never speaks OSC itself. All vendor wire-protocol encoding lives in the bridge
+   (the single source of truth), so a new console is purely a bridge change.
 6. **Wire the safe-send path** — writes go through throttle → clamp → bridge `set`
    → read-back verify. Never a blind or non-user-initiated write.
 7. **Tap the meters** — report `MeterFrame`s with the correct `MeterTap`

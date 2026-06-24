@@ -33,7 +33,7 @@ export class MidasAdapter implements ConsoleAdapter {
     const address = opts.address.includes(':') ? opts.address : `${opts.address}:${MIDAS_OSC_PORT}`;
     this.descriptor = {
       id: opts.id ?? 'midas-m32',
-      vendor: 'Midas',
+      vendor: 'midas',
       model: opts.model ?? 'M32',
       channelCount,
       transport: 'aes50',

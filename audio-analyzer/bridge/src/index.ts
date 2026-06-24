@@ -35,7 +35,7 @@ export function buildAdapters(opts: StartOptions): ConsoleAdapter[] {
   adapters.push(new YamahaAdapter({ address: opts.yamahaAddress ?? '127.0.0.1:10024' }));
   adapters.push(new MidasAdapter({ address: opts.midasAddress ?? '127.0.0.1:10023' }));
   // Always provide a simulated console so the bridge is useful with no hardware.
-  adapters.push(new SimulatedConsoleAdapter({ id: 'sim-m32', vendor: 'Midas', model: 'M32', channelCount: 32 }));
+  adapters.push(new SimulatedConsoleAdapter({ id: 'sim-m32', vendor: 'midas', model: 'M32', channelCount: 32 }));
   return adapters;
 }
 

@@ -90,7 +90,7 @@ describe('Yamaha adapter address building', () => {
 describe('Midas adapter', () => {
   it('defaults to M32 identity and port 10023', () => {
     const a = new MidasAdapter({ address: '10.0.0.9' });
-    expect(a.descriptor.vendor).toBe('Midas');
+    expect(a.descriptor.vendor).toBe('midas');
     expect(a.descriptor.model).toBe('M32');
     expect(a.descriptor.address).toBe('10.0.0.9:10023');
   });

@@ -30,10 +30,10 @@ bash .claude/skills/console-control-integration/scan-console-integration.sh
    bridge/src/model.ts               normalizes → ConsoleChannel / MeterFrame
    │  ONE normalized WebSocket JSON API   (the only thing the app sees)
    ▼
- RTA Insight Pro web app  (browser)
-   frontend/src/lib/integration/console/<vendor>.ts   app-side helpers
-   frontend/src/lib/integration/model.ts              the same normalized model
-   frontend/src/lib/integration/osc.ts                pure OSC 1.0 codec
+ RTA Insight Pro web app  (browser, pure WS client — speaks no OSC)
+   frontend/src/lib/integration/model.ts          the same normalized model
+   frontend/src/lib/integration/bridge-protocol.ts the WS contract + validators
+   frontend/src/lib/integration/transport.ts      WS client + SimulatedTransport
 ```
 
 Above the adapter, every console looks the same. A Yamaha CL5 and a Midas M32
