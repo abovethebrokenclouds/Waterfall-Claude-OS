@@ -9,6 +9,7 @@ import { TransferView } from "../components/TransferView";
 import { SplView } from "../components/SplView";
 import { Rt60View } from "../components/Rt60View";
 import { IrView } from "../components/IrView";
+import { ConsoleNetworkView } from "../components/ConsoleNetworkView";
 import { SessionsView } from "../components/SessionsView";
 import { InsightsPanel } from "../components/InsightsPanel";
 import { useAudioState } from "../hooks/useAudioState";
@@ -28,6 +29,7 @@ const TAB_TITLES: Record<AnalyzerTab, string> = {
   spl: "SPL Meter",
   rt60: "RT60 / Room",
   ir: "Impulse Response",
+  console: "Console & Network",
   sessions: "Sessions",
 };
 
@@ -38,6 +40,8 @@ const TAB_INSIGHTS: Record<AnalyzerTab, string> = {
   spl: "Leq is the energy average over your whole log — it's what venue limits are written against.",
   rt60: "RT rises toward the low end in most rooms. Treat the corners first.",
   ir: "C50 / C80 tell you clarity; STI tells you whether speech will be understood.",
+  console:
+    "The console is the source of truth — the app mirrors it through the on-LAN bridge and never writes blindly.",
   sessions: "Tag sessions by room and date so before/after comparisons stay easy to find.",
 };
 
@@ -45,6 +49,11 @@ export default function AnalyzerApp() {
   const audio = useAudioState();
   const [tab, setTab] = useState<AnalyzerTab>("rta");
   const [spectrum, setSpectrum] = useState<SpectrumSnapshot | null>(null);
+  const [consoleSource, setConsoleSource] = useState<{
+    consoleId: string;
+    channelId: string;
+    label: string;
+  } | null>(null);
   // Defaults to Studio so every feature is visible in the demo; persisted.
   const [edition, setEdition] = useState<Edition>("studio");
 
@@ -91,6 +100,10 @@ export default function AnalyzerApp() {
         return <Rt60View />;
       case "ir":
         return <IrView />;
+      case "console":
+        return (
+          <ConsoleNetworkView edition={edition} onSource={setConsoleSource} />
+        );
       case "sessions":
         return <SessionsView />;
     }
@@ -193,6 +206,12 @@ export default function AnalyzerApp() {
                     ? "Live input connected. Measurements are real."
                     : "No live input — modes show demo data until you press Start."}
                 </div>
+                {tab === "console" && consoleSource && (
+                  <div className="mt-3 rounded-xl border border-teal/40 bg-teal/10 p-3 text-xs text-teal">
+                    Measurement source:{" "}
+                    <span className="font-mono">{consoleSource.label}</span>
+                  </div>
+                )}
               </>
             )}
           </aside>

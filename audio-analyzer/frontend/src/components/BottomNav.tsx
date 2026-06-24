@@ -6,11 +6,19 @@ import {
   IconRoom,
   IconList,
   IconPulse,
+  IconChip,
 } from "./icons";
 import { LockChip } from "./LockChip";
 import { hasFeature, type Edition, type FeatureKey } from "../lib/editions";
 
-export type AnalyzerTab = "rta" | "transfer" | "spl" | "rt60" | "ir" | "sessions";
+export type AnalyzerTab =
+  | "rta"
+  | "transfer"
+  | "spl"
+  | "rt60"
+  | "ir"
+  | "console"
+  | "sessions";
 
 interface TabDef {
   id: AnalyzerTab;
@@ -26,6 +34,7 @@ const TABS: TabDef[] = [
   { id: "spl", label: "SPL", icon: <IconGauge width={20} height={20} />, feature: "spl" },
   { id: "rt60", label: "RT60", icon: <IconRoom width={20} height={20} /> },
   { id: "ir", label: "IR", icon: <IconPulse width={20} height={20} />, feature: "ir" },
+  { id: "console", label: "Console", icon: <IconChip width={20} height={20} />, feature: "ir" },
   { id: "sessions", label: "Sessions", icon: <IconList width={20} height={20} />, feature: "sessions" },
 ];
 

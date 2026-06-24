@@ -168,6 +168,46 @@ jobs:
         run: npm test --if-present
 
   # --------------------------------------------------------------------------
+  # RTA Bridge — Node sidecar: OSC/console + network-audio integration
+  # --------------------------------------------------------------------------
+  integration-bridge:
+    name: RTA Bridge (Node)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check for bridge
+        id: check
+        run: |
+          if [ -f audio-analyzer/bridge/package.json ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::audio-analyzer/bridge not scaffolded yet — skipping."
+          fi
+
+      - name: Set up Node.js
+        if: steps.check.outputs.present == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        if: steps.check.outputs.present == 'true'
+        working-directory: audio-analyzer/bridge
+        run: npm install --no-audit --no-fund
+
+      - name: Lint
+        if: steps.check.outputs.present == 'true'
+        working-directory: audio-analyzer/bridge
+        run: npm run lint --if-present
+
+      - name: Test
+        if: steps.check.outputs.present == 'true'
+        working-directory: audio-analyzer/bridge
+        run: npm test --if-present
+
+  # --------------------------------------------------------------------------
   # Render worker — Python: Whisper + FFmpeg/MoviePy
   # --------------------------------------------------------------------------
   render-worker:
@@ -216,7 +256,7 @@ jobs:
   ci:
     name: CI
     runs-on: ubuntu-latest
-    needs: [backend, frontend, audio-analyzer-frontend, render-worker]
+    needs: [backend, frontend, audio-analyzer-frontend, integration-bridge, render-worker]
     if: always()
     steps:
       - name: Verify all legs succeeded
@@ -224,6 +264,7 @@ jobs:
           if [ "${{ needs.backend.result }}" != "success" ] \
             || [ "${{ needs.frontend.result }}" != "success" ] \
             || [ "${{ needs.audio-analyzer-frontend.result }}" != "success" ] \
+            || [ "${{ needs.integration-bridge.result }}" != "success" ] \
             || [ "${{ needs.render-worker.result }}" != "success" ]; then
             echo "One or more CI jobs failed."
             exit 1
