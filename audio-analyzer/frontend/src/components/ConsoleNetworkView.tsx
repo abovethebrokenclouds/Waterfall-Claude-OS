@@ -16,6 +16,30 @@ import type {
 } from "../lib/integration/model";
 import { METER_TAPS } from "../lib/integration/model";
 import { applyParam } from "../lib/integration/applyParam";
+import {
+  isRecent,
+  markUpdated,
+  pruneExpired,
+  RECENT_WINDOW_MS,
+  type RecentMap,
+} from "../lib/integration/recentlyUpdated";
+
+/**
+ * Subscribe to `prefers-reduced-motion`. SSR-safe: returns `false` on the
+ * server / before mount, then syncs to the media query inside an effect.
+ */
+function usePrefersReducedMotion(): boolean {
+  const [reduced, setReduced] = useState(false);
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") return;
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    setReduced(mq.matches);
+    const onChange = (e: MediaQueryListEvent) => setReduced(e.matches);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
+  return reduced;
+}
 
 interface ConsoleNetworkViewProps {
   /** Current edition — the Console view is Studio-gated. */
@@ -68,8 +92,16 @@ export function ConsoleNetworkView({ edition = "studio", onSource }: ConsoleNetw
   const [tap, setTap] = useState<MeterTap>("post-fader");
   const [meters, setMeters] = useState<Record<number, MeterFrame>>({});
   const [source, setSourceState] = useState<{ consoleId: string; channelId: string; label: string } | null>(null);
+  const [scanning, setScanning] = useState(false);
+  const [scannedOnce, setScannedOnce] = useState(false);
+  const [recentlyUpdated, setRecentlyUpdated] = useState<RecentMap>({});
+  // Ticking clock that drives expiry of the live indicator. `0` (never ticked)
+  // on the server / before mount, so SSR renders no live state.
+  const [now, setNow] = useState(0);
 
+  const reducedMotion = usePrefersReducedMotion();
   const transportRef = useRef<IntegrationTransport | null>(null);
+  const scanTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Connect / reconnect whenever the active URL changes.
   useEffect(() => {
@@ -85,6 +117,10 @@ export function ConsoleNetworkView({ edition = "studio", onSource }: ConsoleNetw
           break;
         case "devices":
           setDevices(msg.devices);
+          // A devices frame is the answer to a discover/rescan — clear the
+          // transient scanning state and record that a scan has completed.
+          setScanning(false);
+          setScannedOnce(true);
           break;
         case "consoles":
           setConsoles(msg.consoles);
@@ -92,11 +128,25 @@ export function ConsoleNetworkView({ edition = "studio", onSource }: ConsoleNetw
         case "channels":
           setChannels(msg.channels);
           break;
-        case "param":
+        case "param": {
           // Inbound read-back: a control changed at the console surface — apply
           // it to the matching channel strip so the readouts update live.
-          setChannels((cur) => applyParam(cur, msg));
+          let applied = false;
+          setChannels((cur) => {
+            const next = applyParam(cur, msg);
+            applied = next !== cur;
+            return next;
+          });
+          // Flag the channel as recently updated so its strip shows a brief warm
+          // pulse. `Date.now()` lives inside the handler (an event), never at
+          // module scope — SSR-safe.
+          if (applied) {
+            const ts = Date.now();
+            setRecentlyUpdated((m) => markUpdated(m, msg.channelId, ts));
+            setNow(ts);
+          }
           break;
+        }
         case "clock":
           setClockLocked(msg.status.locked);
           setClockSource(msg.status.source);
@@ -147,7 +197,45 @@ export function ConsoleNetworkView({ edition = "studio", onSource }: ConsoleNetw
     };
   }, [selectedConsole, tap, channels]);
 
+  // Drive expiry of the live read-back indicators. Runs only while at least one
+  // entry exists; ticks `now` so `isRecent` flips off, and prunes stale stamps.
+  // SSR-safe: the interval lives in an effect, cleared on unmount/empty.
+  useEffect(() => {
+    if (Object.keys(recentlyUpdated).length === 0) return;
+    const id = setInterval(() => {
+      const t = Date.now();
+      setNow(t);
+      setRecentlyUpdated((m) => pruneExpired(m, t));
+    }, 200);
+    return () => clearInterval(id);
+  }, [recentlyUpdated]);
+
+  // Clear any pending rescan timer on unmount.
+  useEffect(() => {
+    return () => {
+      if (scanTimerRef.current !== null) clearTimeout(scanTimerRef.current);
+    };
+  }, []);
+
+  const rescan = () => {
+    const t = transportRef.current;
+    if (!t || status !== "connected") return;
+    t.send({ t: "discover" });
+    setScanning(true);
+    if (scanTimerRef.current !== null) clearTimeout(scanTimerRef.current);
+    // Clear the transient state after ~800ms in case no devices frame arrives
+    // (e.g. a bridge that returns an empty set silently).
+    scanTimerRef.current = setTimeout(() => {
+      setScanning(false);
+      setScannedOnce(true);
+      scanTimerRef.current = null;
+    }, 800);
+  };
+
   const connect = () => {
+    setScanning(false);
+    setScannedOnce(false);
+    setRecentlyUpdated({});
     setDevices([]);
     setConsoles([]);
     setChannels([]);
@@ -253,12 +341,38 @@ export function ConsoleNetworkView({ edition = "studio", onSource }: ConsoleNetw
         <>
           {/* Network devices. */}
           <section className="flex flex-col gap-2">
-            <h3 className="flex items-center gap-2 text-sm font-semibold text-text">
-              <IconGrid width={16} height={16} /> Network Devices
-            </h3>
+            <div className="flex flex-wrap items-center gap-2">
+              <h3 className="flex items-center gap-2 text-sm font-semibold text-text">
+                <IconGrid width={16} height={16} /> Network Devices
+                {devices.length > 0 && (
+                  <span className="font-mono text-[11px] font-normal text-haze">
+                    ({devices.length})
+                  </span>
+                )}
+              </h3>
+              <button
+                type="button"
+                onClick={rescan}
+                disabled={status !== "connected" || scanning}
+                aria-busy={scanning}
+                className="ml-auto inline-flex items-center gap-1.5 rounded-lg border border-line bg-panel px-2.5 py-1 text-[11px] font-semibold text-haze transition-colors hover:text-text disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <span
+                  className={`h-2.5 w-2.5 rounded-full border border-amber/60 ${
+                    scanning && !reducedMotion ? "animate-live-ping bg-amber/40" : "bg-transparent"
+                  }`}
+                  aria-hidden
+                />
+                {scanning ? "discovering…" : "Rescan"}
+              </button>
+            </div>
             {devices.length === 0 ? (
               <p className="rounded-lg border border-line bg-panel2/40 px-3 py-2 text-xs text-haze">
-                No devices discovered yet.
+                {scanning
+                  ? "Discovering devices…"
+                  : scannedOnce
+                    ? "No devices found — check the bridge is on the audio LAN."
+                    : "No devices discovered yet."}
               </p>
             ) : (
               <ul className="grid gap-2 sm:grid-cols-2">
@@ -378,16 +492,26 @@ export function ConsoleNetworkView({ edition = "studio", onSource }: ConsoleNetw
                     const m = meters[chNum];
                     const isSource =
                       source?.consoleId === selectedDescriptor.id && source?.channelId === ch.id;
+                    const live = isRecent(recentlyUpdated[ch.id], now, RECENT_WINDOW_MS);
                     return (
                       <div
                         key={ch.id}
-                        className={`flex flex-col gap-2 rounded-xl border p-3 ${
+                        className={`flex flex-col gap-2 rounded-xl border p-3 transition-shadow ${
                           isSource ? "border-teal/60 bg-teal/5" : "border-line bg-panel2/40"
-                        }`}
+                        } ${live ? "ring-1 ring-amber/60 shadow-glow" : ""}`}
                       >
                         <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium text-text">
+                          <span className="flex items-center gap-1.5 text-sm font-medium text-text">
                             {ch.id} · {ch.name}
+                            {live && (
+                              <span
+                                className={`h-1.5 w-1.5 rounded-full bg-amber ${
+                                  reducedMotion ? "" : "animate-live-ping"
+                                }`}
+                                title="Updated from console"
+                                aria-label="live update from console"
+                              />
+                            )}
                           </span>
                           {ch.mute && (
                             <span className="rounded-full border border-rose/40 bg-rose/10 px-2 py-0.5 font-mono text-[10px] text-rose">
