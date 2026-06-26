@@ -15,6 +15,7 @@ import type {
   MeterTap,
 } from "../lib/integration/model";
 import { METER_TAPS } from "../lib/integration/model";
+import { applyParam } from "../lib/integration/applyParam";
 
 interface ConsoleNetworkViewProps {
   /** Current edition — the Console view is Studio-gated. */
@@ -90,6 +91,11 @@ export function ConsoleNetworkView({ edition = "studio", onSource }: ConsoleNetw
           break;
         case "channels":
           setChannels(msg.channels);
+          break;
+        case "param":
+          // Inbound read-back: a control changed at the console surface — apply
+          // it to the matching channel strip so the readouts update live.
+          setChannels((cur) => applyParam(cur, msg));
           break;
         case "clock":
           setClockLocked(msg.status.locked);

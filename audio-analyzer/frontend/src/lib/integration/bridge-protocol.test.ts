@@ -113,6 +113,36 @@ describe("app↔bridge channel contract", () => {
   });
 });
 
+describe("param read-back contract", () => {
+  // Pins the EXACT inbound read-back shape the bridge implements:
+  // { t:"param"; consoleId; channelId; path; value: number | boolean }
+  it("accepts the literal numeric param fixture", () => {
+    const msg = parseServerMsg({ t: "param", consoleId: "sim-m32", channelId: "ch-1", path: "fader", value: -6 });
+    expect(msg).toEqual({ t: "param", consoleId: "sim-m32", channelId: "ch-1", path: "fader", value: -6 });
+  });
+
+  it("accepts the mute (boolean) variant", () => {
+    const msg = parseServerMsg({ t: "param", consoleId: "sim-m32", channelId: "ch-1", path: "mute", value: true });
+    expect(msg).toEqual({ t: "param", consoleId: "sim-m32", channelId: "ch-1", path: "mute", value: true });
+  });
+
+  it("rejects a param whose value is an object", () => {
+    expect(
+      parseServerMsg({ t: "param", consoleId: "sim-m32", channelId: "ch-1", path: "fader", value: {} }),
+    ).toBeNull();
+  });
+
+  it("rejects a param missing channelId", () => {
+    expect(parseServerMsg({ t: "param", consoleId: "sim-m32", path: "fader", value: -6 })).toBeNull();
+  });
+
+  it("rejects a param with a non-finite numeric value", () => {
+    expect(
+      parseServerMsg({ t: "param", consoleId: "sim-m32", channelId: "ch-1", path: "gain", value: NaN }),
+    ).toBeNull();
+  });
+});
+
 describe("parseServerJson", () => {
   it("parses a valid JSON string", () => {
     const raw = JSON.stringify({ t: "clock", status: { locked: false, source: "internal", ppm: 0 } });
