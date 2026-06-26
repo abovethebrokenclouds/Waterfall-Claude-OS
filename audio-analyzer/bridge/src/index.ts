@@ -28,7 +28,7 @@ import type { RunningServer } from './server.js';
 
 /**
  * Vendor → adapter factory registry. Each entry constructs an adapter for a
- * `host:port` control address. Covers all 8 vendor families in the matrix.
+ * `host:port` control address. Covers all 9 vendor ids in the matrix.
  * Constructing an adapter opens NO socket (the server owns the IOs).
  */
 export const ADAPTER_REGISTRY: Record<string, (address: string) => ConsoleAdapter> = {
@@ -63,7 +63,7 @@ export function buildAdapters(opts: StartOptions): ConsoleAdapter[] {
   const adapters: ConsoleAdapter[] = [];
   // Real OSC adapters — addresses default to loopback so a dev box without a
   // console doesn't blast a real network; override via env for live use.
-  // (Any of the 8 vendor families can be added the same way via
+  // (Any of the 9 vendor ids can be added the same way via
   // `createAdapter(vendor, address)` / ADAPTER_REGISTRY.)
   adapters.push(new YamahaAdapter({ address: opts.yamahaAddress ?? '127.0.0.1:10024' }));
   adapters.push(new MidasAdapter({ address: opts.midasAddress ?? '127.0.0.1:10023' }));

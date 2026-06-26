@@ -139,7 +139,6 @@ export class AllenHeathAdapter implements ConsoleAdapter {
     const ch = channelNumberFromId(channelId);
     if (ch === null || ch > this.descriptor.channelCount) return null;
     const ch0 = ch - 1; // A&H notes/NRPN channels are 0-based.
-    const status = 0xb0 | this.midiCh;
 
     switch (path) {
       case 'mute': {
@@ -159,7 +158,6 @@ export class AllenHeathAdapter implements ConsoleAdapter {
         return midiControl(bytes, `gain ch${ch}=${value}dB`);
       }
       default:
-        void status;
         return null; // trim / hpf are not on the A&H MIDI surface.
     }
   }
@@ -173,6 +171,7 @@ export class AllenHeathAdapter implements ConsoleAdapter {
       const muted = (b[2]! & 0x7f) >= 0x40;
       return { kind: 'param', channelId: `ch-${ch}`, path: 'mute', value: muted };
     }
+    // TODO: parse inbound NRPN (CC 99/98/6/38) for fader/gain read-back verify.
     return null;
   }
 }
