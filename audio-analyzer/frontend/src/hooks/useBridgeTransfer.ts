@@ -69,6 +69,18 @@ export function useBridgeTransfer(
     const measAccum = new PcmAccumulator(TRANSFER_FRAME);
     let sampleRate = 48000;
     let dirty = false;
+    // Per-channel last seq, to detect a dropped/reordered frame on a lossy real
+    // WebSocket. A gap on EITHER channel desyncs the two rings (and would inject
+    // a spurious ~block-sized delay into the measured phase), so on any gap we
+    // clear BOTH accumulators and re-align from the next matched pair.
+    let lastRefSeq = -1;
+    let lastMeasSeq = -1;
+    const resync = () => {
+      refAccum.clear();
+      measAccum.clear();
+      lastRefSeq = -1;
+      lastMeasSeq = -1;
+    };
 
     const transport: IntegrationTransport = makeTransport(url);
 
@@ -76,9 +88,13 @@ export function useBridgeTransfer(
       if (msg.t !== "audio") return;
       sampleRate = msg.sampleRate;
       if (msg.consoleId === refConsole && msg.channel === refChannel) {
+        if (lastRefSeq !== -1 && msg.seq !== lastRefSeq + 1) resync();
+        lastRefSeq = msg.seq;
         refAccum.push(msg.samples);
         dirty = true;
       } else if (msg.consoleId === measConsole && msg.channel === measChannel) {
+        if (lastMeasSeq !== -1 && msg.seq !== lastMeasSeq + 1) resync();
+        lastMeasSeq = msg.seq;
         measAccum.push(msg.samples);
         dirty = true;
       }
