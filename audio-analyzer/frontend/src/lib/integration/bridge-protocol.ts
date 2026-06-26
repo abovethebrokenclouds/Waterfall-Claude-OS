@@ -43,7 +43,7 @@ export type ServerMsg =
 // --- Validation ----------------------------------------------------------
 
 function isObj(v: unknown): v is Record<string, unknown> {
-  return typeof v === "object" && v !== null;
+  return typeof v === "object" && v !== null && !Array.isArray(v);
 }
 
 function isStr(v: unknown): v is string {
