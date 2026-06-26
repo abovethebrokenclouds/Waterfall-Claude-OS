@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { AllenHeathAdapter, faderDbToCode, gainDbToCode } from '../src/adapters/allen-heath.js';
+import {
+  AllenHeathAdapter,
+  faderDbToCode,
+  gainDbToCode,
+  faderCodeToDb,
+  gainCodeToDb,
+} from '../src/adapters/allen-heath.js';
 import type { ControlMessage } from '../src/control/types.js';
 import { midiControl } from '../src/control/types.js';
 
@@ -67,6 +73,42 @@ describe('Allen & Heath adapter (MIDI over TCP)', () => {
 
   it('ignores non-MIDI inbound', () => {
     expect(a.parseIncoming({ transport: 'tcp', bytes: new Uint8Array([1]) })).toBeNull();
+  });
+
+  it('fader/gain code↔dB inverses round-trip', () => {
+    for (const db of [-90, -40, -10, 0, 5, 10]) {
+      expect(faderCodeToDb(faderDbToCode(db))).toBeCloseTo(db, 1);
+    }
+    for (const db of [-5, 0, 20, 40, 60]) {
+      expect(gainCodeToDb(gainDbToCode(db))).toBeCloseTo(db, 1);
+    }
+  });
+
+  it('round-trips an inbound NRPN fader read-back to dB', () => {
+    for (const value of [-90, -20, 0, 6, 10]) {
+      const c = a.buildSet('ch-3', 'fader', value)!;
+      const u = a.parseIncoming(c);
+      expect(u?.kind).toBe('param');
+      expect(u).toMatchObject({ kind: 'param', channelId: 'ch-3', path: 'fader' });
+      expect((u as { value: number }).value).toBeCloseTo(value, 1);
+    }
+  });
+
+  it('round-trips an inbound NRPN gain read-back to dB', () => {
+    const c = a.buildSet('ch-12', 'gain', 24)!;
+    const u = a.parseIncoming(c);
+    expect(u).toMatchObject({ kind: 'param', channelId: 'ch-12', path: 'gain' });
+    expect((u as { value: number }).value).toBeCloseTo(24, 1);
+  });
+
+  it('ignores an unknown NRPN parameter and malformed NRPN length', () => {
+    // Param LSB 0x42 is not fader/gain → null.
+    const unknown = midiControl(
+      new Uint8Array([0xb0, 0x63, 0x00, 0xb0, 0x62, 0x42, 0xb0, 0x06, 0x10, 0xb0, 0x26, 0x00]),
+    );
+    expect(a.parseIncoming(unknown)).toBeNull();
+    // Truncated NRPN (11 bytes) → null, no throw.
+    expect(a.parseIncoming(midiControl(new Uint8Array(11)))).toBeNull();
   });
 });
 

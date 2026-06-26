@@ -18,10 +18,13 @@ import {
   devicesMsg,
   errorMsg,
   metersMsg,
+  paramMsg,
   parseClientMsg,
   welcome,
   clockMsg,
 } from './protocol.js';
+import type { OscMessage } from './osc/types.js';
+import { oscControl } from './control/types.js';
 import type { ClientMsg, ServerMsg } from './protocol.js';
 import type { ConsoleDescriptor, MeterTap } from './model.js';
 import type { OscIO } from './osc/udp.js';
@@ -95,11 +98,24 @@ class Session {
     this.tcpIO = deps.tcpIO ?? new MockTcpControlIO();
   }
 
+  /** True once the connection has closed and the session was disposed. */
+  private alive = true;
+
   start(): void {
     this.conn.onMessage((text) => this.handleRaw(text));
     this.conn.onClose(() => this.dispose());
     // Greet immediately on connect.
     this.reply(welcome(CAPABILITIES));
+  }
+
+  isAlive(): boolean {
+    return this.alive;
+  }
+
+  /** Push a server message to this client (used for inbound read-back). */
+  push(msg: ServerMsg): void {
+    if (!this.alive) return;
+    this.reply(msg);
   }
 
   private reply(msg: ServerMsg): void {
@@ -276,24 +292,85 @@ class Session {
   }
 
   private dispose(): void {
+    this.alive = false;
     this.clearSubs();
   }
 }
 
 /**
  * The transport-agnostic core. Call {@link accept} for each new connection.
+ *
+ * Read-back: the core registers a single `onRecv` handler on each injected IO
+ * (OscIO / TcpControlIO). When the console reports a value, every active
+ * adapter's `parseIncoming` is tried; a `kind:'param'` update becomes a `param`
+ * ServerMsg and a `kind:'meters'` update a `meters` ServerMsg, both broadcast to
+ * every live session. This completes the read-back-verify half of safe-send:
+ * the app reflects live console state. Unparseable inbound frames are ignored
+ * (parseIncoming returns null) and never throw.
  */
 export class BridgeCore {
   private readonly deps: BridgeDeps;
+  private readonly sessions = new Set<Session>();
 
   constructor(deps: BridgeDeps) {
     this.deps = deps;
+    this.wireReadBack();
   }
 
   /** Wire up a new connection and greet it. */
   accept(conn: Connection): void {
     const session = new Session(conn, this.deps);
+    this.sessions.add(session);
     session.start();
+  }
+
+  /** Subscribe to inbound traffic on each IO and fan parsed updates to clients. */
+  private wireReadBack(): void {
+    this.deps.oscIO.onRecv((osc: OscMessage) => {
+      this.handleInbound(oscControl(osc));
+    });
+    this.deps.tcpIO?.onRecv((bytes: Uint8Array) => {
+      // Try both byte-stream transports — adapters self-filter by transport.
+      this.handleInbound({ transport: 'tcp', bytes });
+      this.handleInbound({ transport: 'midi', bytes });
+    });
+  }
+
+  /**
+   * Run an inbound control message through every adapter and broadcast the first
+   * normalized update each adapter yields. Pure dispatch; never throws.
+   */
+  private handleInbound(msg: ControlMessage): void {
+    for (const adapter of this.deps.adapters) {
+      let update: ReturnType<ConsoleAdapter['parseIncoming']> = null;
+      try {
+        update = adapter.parseIncoming(msg);
+      } catch (err) {
+        // A malformed inbound frame must never crash the bridge.
+        if (this.deps.onError) {
+          this.deps.onError(err instanceof Error ? err : new Error(String(err)));
+        }
+        update = null;
+      }
+      if (!update) continue;
+      const consoleId = adapter.descriptor.id;
+      const out: ServerMsg =
+        update.kind === 'param'
+          ? paramMsg(consoleId, update.channelId, update.path, update.value)
+          : metersMsg(consoleId, update.tap, update.frames);
+      this.broadcast(out);
+    }
+  }
+
+  /** Send a server message to every live session, pruning dead ones. */
+  private broadcast(msg: ServerMsg): void {
+    for (const s of this.sessions) {
+      if (!s.isAlive()) {
+        this.sessions.delete(s);
+        continue;
+      }
+      s.push(msg);
+    }
   }
 }
 

@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { parseClientMsg, welcome, metersMsg, PROTOCOL_VERSION } from '../src/protocol.js';
+import { parseClientMsg, welcome, metersMsg, paramMsg, PROTOCOL_VERSION } from '../src/protocol.js';
+import type { ParamMsg, ServerMsg } from '../src/protocol.js';
 
 describe('parseClientMsg — valid messages', () => {
   it('accepts hello', () => {
@@ -123,5 +124,49 @@ describe('server message builders', () => {
   it('metersMsg shape', () => {
     const m = metersMsg('m32', 'pre-eq', [{ ch: 1, rms: -20, peak: -10 }]);
     expect(m).toEqual({ t: 'meters', consoleId: 'm32', tap: 'pre-eq', frames: [{ ch: 1, rms: -20, peak: -10 }] });
+  });
+
+  it('paramMsg builds the read-back contract shape', () => {
+    expect(paramMsg('sim-m32', 'ch-1', 'fader', -6)).toEqual({
+      t: 'param',
+      consoleId: 'sim-m32',
+      channelId: 'ch-1',
+      path: 'fader',
+      value: -6,
+    });
+  });
+});
+
+describe('param read-back contract fixture', () => {
+  // The app implements this EXACT type; the literals below are the wire contract.
+  it('the canonical fader param literal builds + matches the fixture', () => {
+    const fixture: ParamMsg = {
+      t: 'param',
+      consoleId: 'sim-m32',
+      channelId: 'ch-1',
+      path: 'fader',
+      value: -6,
+    };
+    // The builder must produce byte-for-byte the same object.
+    expect(paramMsg('sim-m32', 'ch-1', 'fader', -6)).toEqual(fixture);
+    // And it is assignable to the ServerMsg union (type-level validation).
+    const asServer: ServerMsg = fixture;
+    expect(asServer.t).toBe('param');
+    // JSON round-trip is stable (what actually crosses the wire).
+    expect(JSON.parse(JSON.stringify(fixture))).toEqual(fixture);
+  });
+
+  it('the canonical mute param literal builds + matches the fixture', () => {
+    const fixture: ParamMsg = {
+      t: 'param',
+      consoleId: 'sim-m32',
+      channelId: 'ch-1',
+      path: 'mute',
+      value: true,
+    };
+    expect(paramMsg('sim-m32', 'ch-1', 'mute', true)).toEqual(fixture);
+    const asServer: ServerMsg = fixture;
+    expect(asServer.t).toBe('param');
+    expect(JSON.parse(JSON.stringify(fixture))).toEqual(fixture);
   });
 });

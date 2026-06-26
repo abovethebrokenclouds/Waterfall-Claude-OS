@@ -88,6 +88,27 @@ describe('Yamaha adapter address building', () => {
     expect(update).toEqual({ kind: 'param', channelId: 'ch-5', path: 'fader', value: expect.closeTo(0, 4) });
   });
 
+  it('build→parse round-trips fader/gain/trim/mute/hpf', () => {
+    const cases: ReadonlyArray<readonly [string, number | boolean]> = [
+      ['fader', -6],
+      ['gain', 24],
+      ['trim', 6],
+      ['mute', true],
+      ['mute', false],
+      ['hpf', 80],
+    ];
+    for (const [path, value] of cases) {
+      const c = a.buildSet('ch-2', path, value)!;
+      const u = a.parseIncoming(c);
+      expect(u).toMatchObject({ kind: 'param', channelId: 'ch-2', path });
+      if (typeof value === 'number') {
+        expect((u as { value: number }).value).toBeCloseTo(value, 1);
+      } else {
+        expect((u as { value: boolean }).value).toBe(value);
+      }
+    }
+  });
+
   it('parses an inbound meter message', () => {
     const m = oscControl(
       osc.msg('/meters/post-fader', osc.i(1), osc.f(-20), osc.f(-12), osc.i(2), osc.f(-30), osc.f(-22)),

@@ -79,6 +79,31 @@ export function gainDbToCode(db: number): number {
   return Math.round(frac * 0x3fff);
 }
 
+/** Inverse of {@link faderDbToCode}: 14-bit fader code → dB. */
+export function faderCodeToDb(code: number): number {
+  const c = clamp(code, 0, FADER_CODE_MAX);
+  if (c >= FADER_CODE_0DB) {
+    // FADER_CODE_0DB .. FADER_CODE_MAX → 0 dB .. +10 dB (linear in dB).
+    const frac = (c - FADER_CODE_0DB) / (FADER_CODE_MAX - FADER_CODE_0DB);
+    return FADER_DB_0 + frac * (FADER_DB_MAX - FADER_DB_0);
+  }
+  // 0 .. FADER_CODE_0DB → -90 dB .. 0 dB (linear in dB).
+  const frac = c / FADER_CODE_0DB;
+  return FADER_DB_MIN + frac * (FADER_DB_0 - FADER_DB_MIN);
+}
+
+/** Inverse of {@link gainDbToCode}: 14-bit code → gain dB. */
+export function gainCodeToDb(code: number): number {
+  const c = clamp(code, 0, 0x3fff);
+  const frac = c / 0x3fff;
+  return GAIN_DB_MIN + frac * (GAIN_DB_MAX - GAIN_DB_MIN);
+}
+
+/** Join a [MSB, LSB] 7-bit pair into a 14-bit value. */
+function join14(msb: number, lsb: number): number {
+  return ((msb & 0x7f) << 7) | (lsb & 0x7f);
+}
+
 /** Split a 14-bit value into [MSB, LSB], each 7-bit. */
 function split14(code: number): [number, number] {
   const c = code & 0x3fff;
@@ -171,7 +196,37 @@ export class AllenHeathAdapter implements ConsoleAdapter {
       const muted = (b[2]! & 0x7f) >= 0x40;
       return { kind: 'param', channelId: `ch-${ch}`, path: 'mute', value: muted };
     }
-    // TODO: parse inbound NRPN (CC 99/98/6/38) for fader/gain read-back verify.
-    return null;
+    // Inbound NRPN read-back: the documented 12-byte CC sequence
+    //   B0 63 <ch>  B0 62 <paramLsb>  B0 06 <dataMSB>  B0 26 <dataLSB>
+    // (CC 99/98 select the parameter; CC 6/38 carry the 14-bit data entry).
+    // We decode the fader/gain params back to dB — the inverse of buildSet.
+    return this.parseNrpn(b);
+  }
+
+  /** Decode the documented A&H NRPN data-entry sequence into a param update. */
+  private parseNrpn(b: Uint8Array): IncomingUpdate | null {
+    if (b.length !== 12) return null;
+    const status = 0xb0 | (this.midiCh & 0x0f);
+    // All four messages must be CCs on our MIDI channel in the documented order.
+    if (
+      b[0] !== status || b[1] !== 0x63 ||
+      b[3] !== status || b[4] !== 0x62 ||
+      b[6] !== status || b[7] !== 0x06 ||
+      b[9] !== status || b[10] !== 0x26
+    ) {
+      return null;
+    }
+    const ch0 = b[2]! & 0x7f;
+    const paramLsb = b[5]! & 0x7f;
+    const code = join14(b[8]!, b[11]!);
+    const channelId = `ch-${ch0 + 1}`;
+    switch (paramLsb) {
+      case NRPN_PARAM_FADER:
+        return { kind: 'param', channelId, path: 'fader', value: faderCodeToDb(code) };
+      case NRPN_PARAM_GAIN:
+        return { kind: 'param', channelId, path: 'gain', value: gainCodeToDb(code) };
+      default:
+        return null;
+    }
   }
 }
