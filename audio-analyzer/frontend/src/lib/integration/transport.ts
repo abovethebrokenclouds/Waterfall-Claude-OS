@@ -127,8 +127,16 @@ export class SimulatedTransport implements IntegrationTransport {
         }
         break;
       case "set":
-        // Acknowledge by re-emitting the affected console's channels.
-        this.emit({ t: "channels", consoleId: msg.consoleId, channels: demoChannels(msg.consoleId) });
+        // Read-back: echo the changed control as a `param` so the app reflects
+        // live console state (the console is the source of truth). This mirrors
+        // the real bridge, which read-back-verifies after writing to the surface.
+        this.emit({
+          t: "param",
+          consoleId: msg.consoleId,
+          channelId: msg.channelId,
+          path: msg.path,
+          value: msg.value,
+        });
         break;
       case "meter.subscribe":
         this.meterSub = { consoleId: msg.consoleId, tap: msg.tap, channels: msg.channels };

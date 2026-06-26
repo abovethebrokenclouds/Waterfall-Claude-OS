@@ -39,6 +39,34 @@ describe("SimulatedTransport", () => {
     }
   });
 
+  it("echoes a param read-back after a set", () => {
+    const t = new SimulatedTransport();
+    const { msgs } = collect(t);
+    t.send({ t: "set", consoleId: "midas-m32", channelId: "ch-1", path: "fader", value: -12 });
+    const param = msgs.find((m) => m.t === "param");
+    expect(param).toBeDefined();
+    if (param && param.t === "param") {
+      expect(param.consoleId).toBe("midas-m32");
+      expect(param.channelId).toBe("ch-1");
+      expect(param.path).toBe("fader");
+      expect(param.value).toBe(-12);
+    }
+    t.disconnect();
+  });
+
+  it("echoes a boolean param read-back for a mute set", () => {
+    const t = new SimulatedTransport();
+    const { msgs } = collect(t);
+    t.send({ t: "set", consoleId: "midas-m32", channelId: "ch-2", path: "mute", value: true });
+    const param = msgs.find((m) => m.t === "param");
+    expect(param).toBeDefined();
+    if (param && param.t === "param") {
+      expect(param.value).toBe(true);
+      expect(param.path).toBe("mute");
+    }
+    t.disconnect();
+  });
+
   it("emits bounded meter frames after subscribe", () => {
     const t = new SimulatedTransport();
     const { msgs } = collect(t);

@@ -79,6 +79,7 @@ All messages are JSON objects with a `t` (type) discriminator.
 | `consoles` | `consoles: ConsoleDescriptor[]` | Reachable consoles. |
 | `channels` | `consoleId`, `channels: ConsoleChannel[]` | Normalized channel strips. |
 | `meters`   | `consoleId`, `tap`, `frames:{ch,rms,peak}[]` | Live meter frames. |
+| `param`    | `consoleId`, `channelId`, `path`, `value` | **Read-back**: a single normalized parameter the console reported — pushed when the surface changes or a write echoes back. `path ∈ fader\|gain\|trim\|hpf\|mute`; `value` is a number (dB for fader/gain/trim, Hz for hpf) or a boolean (mute), in the **same units** as `set`. |
 | `clock`    | `status:{locked,source,ppm}` | Word-clock / PTP lock status. |
 | `error`    | `code`, `message` | Structured error (bad input, unknown console, send failure). |
 
@@ -143,6 +144,31 @@ mapping (out-of-range values are clamped; out-of-range channels/unsupported
 paths are rejected with an `error`), and every socket send — OSC *or* TCP — is
 wrapped in try/catch so a failure surfaces as a `SEND_FAILED` error rather than
 crashing the bridge. Discovery is read-only and never repatches audio.
+
+### Read-back-verify (inbound `param`)
+
+Safe-send has two halves: **write** (`set` → vendor wire message) and
+**read-back-verify** (the console's reply → a normalized `param` message the app
+reflects). The console — not the app — is the source of truth, so the UI shows
+*live* surface state: turn a gain, pull a fader, or hit mute on the desk and the
+matching `param` lands in the app.
+
+How it works end-to-end:
+
+1. The bridge registers one `onRecv` handler on each IO (`OscIO`, `TcpControlIO`)
+   in `BridgeCore`. Inbound frames open no new state and bind no extra sockets.
+2. Each inbound frame is run through every active adapter's `parseIncoming`,
+   which decodes that vendor's **own** reply back to a normalized
+   `{ kind:'param', channelId, path, value }` (the exact inverse of `buildSet`)
+   or `{ kind:'meters', … }`. Each adapter is build→parse round-trip tested.
+3. A `param` update becomes a `param` ServerMsg and a `meters` update a `meters`
+   ServerMsg, broadcast to every live client session.
+4. **Malformed or irrelevant frames are ignored** — `parseIncoming` returns
+   `null` and the bridge never throws on inbound traffic.
+
+The OSC receive socket binds lazily on the first send to a console (`UdpOscIO`
+opens on `send`), so read-back is live from the moment the app issues its first
+`set` — exactly when a reply is expected.
 
 ## Security note
 

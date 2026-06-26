@@ -102,6 +102,25 @@ export interface MetersMsg {
   frames: MeterFrame[];
 }
 
+/**
+ * A single normalized parameter read-back, pushed bridge→client when the
+ * console reports a value (the surface changed, or our own write echoed back).
+ * This is the inbound half of the safe-send/read-back-verify discipline: the app
+ * reflects live console state from these messages. Bridge→client only — the
+ * client never sends this; it sends `set`.
+ *
+ *   path  ∈ 'fader' | 'gain' | 'trim' | 'hpf' | 'mute'
+ *   value   number for fader/gain/trim (dB) and hpf (Hz); boolean for mute.
+ *           Same units as `set` / `channels`.
+ */
+export interface ParamMsg {
+  t: 'param';
+  consoleId: string;
+  channelId: string;
+  path: string;
+  value: number | boolean;
+}
+
 export interface ClockMsg {
   t: 'clock';
   status: ClockStatus;
@@ -119,6 +138,7 @@ export type ServerMsg =
   | ConsolesMsg
   | ChannelsMsg
   | MetersMsg
+  | ParamMsg
   | ClockMsg
   | ErrorMsg;
 
@@ -280,6 +300,15 @@ export function channelsMsg(consoleId: string, channels: ConsoleChannel[]): Chan
 
 export function metersMsg(consoleId: string, tap: MeterTap, frames: MeterFrame[]): MetersMsg {
   return { t: 'meters', consoleId, tap, frames };
+}
+
+export function paramMsg(
+  consoleId: string,
+  channelId: string,
+  path: string,
+  value: number | boolean,
+): ParamMsg {
+  return { t: 'param', consoleId, channelId, path, value };
 }
 
 export function clockMsg(status: ClockStatus): ClockMsg {

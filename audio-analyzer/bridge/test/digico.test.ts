@@ -58,4 +58,28 @@ describe('DiGiCo adapter (OSC control plane)', () => {
     const u = a.parseIncoming(oscControl(osc.msg('/Input_Channels/9/Fader', osc.f(-3))));
     expect(u).toEqual({ kind: 'param', channelId: 'ch-9', path: 'fader', value: -3 });
   });
+
+  it('build→parse round-trips fader/gain/mute/hpf', () => {
+    const cases: ReadonlyArray<readonly [string, number | boolean]> = [
+      ['fader', -6],
+      ['gain', 24],
+      ['mute', true],
+      ['mute', false],
+      ['hpf', 80],
+    ];
+    for (const [path, value] of cases) {
+      const c = a.buildSet('ch-4', path, value)!;
+      const u = a.parseIncoming(c);
+      expect(u).toMatchObject({ kind: 'param', channelId: 'ch-4', path });
+      if (typeof value === 'number') {
+        expect((u as { value: number }).value).toBeCloseTo(value, 4);
+      } else {
+        expect((u as { value: boolean }).value).toBe(value);
+      }
+    }
+  });
+
+  it('ignores non-OSC inbound', () => {
+    expect(a.parseIncoming({ transport: 'tcp', bytes: new Uint8Array([1]) })).toBeNull();
+  });
 });

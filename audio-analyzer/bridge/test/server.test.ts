@@ -5,9 +5,10 @@ import { MockOscIO } from '../src/osc/udp.js';
 import { SimulatedDiscovery } from '../src/discovery/simulated.js';
 import { MidasAdapter } from '../src/adapters/midas.js';
 import { SimulatedConsoleAdapter } from '../src/adapters/simulated.js';
-import { SoundcraftAdapter } from '../src/adapters/soundcraft.js';
+import { SoundcraftAdapter, buildHiqnetParamSet } from '../src/adapters/soundcraft.js';
 import { AllenHeathAdapter } from '../src/adapters/allen-heath.js';
 import { MockTcpControlIO } from '../src/control/tcp.js';
+import { osc } from '../src/osc/types.js';
 import type { ServerMsg } from '../src/protocol.js';
 
 /** In-memory connection driving BridgeCore with no socket. */
@@ -229,6 +230,128 @@ describe('BridgeCore transport routing (non-OSC)', () => {
     await new Promise((r) => setTimeout(r, 0));
     // No error reply: the set was accepted and routed to the default mock.
     expect(c.byType('error')).toHaveLength(0);
+  });
+});
+
+describe('BridgeCore inbound read-back', () => {
+  function core() {
+    const oscIO = new MockOscIO();
+    const tcpIO = new MockTcpControlIO();
+    const bridge = new BridgeCore({
+      oscIO,
+      tcpIO,
+      discovery: new SimulatedDiscovery(),
+      adapters: [
+        new MidasAdapter({ address: '10.0.0.9:10023', id: 'm32', channelCount: 32 }),
+        new SoundcraftAdapter({ address: '10.0.0.40:3804', id: 'vi', channelCount: 64, deviceAddress: 0x0002 }),
+        new AllenHeathAdapter({ address: '10.0.0.30:51325', id: 'sq', channelCount: 48 }),
+      ],
+      now: () => 1000,
+    });
+    const c = new MockConnection();
+    bridge.accept(c);
+    return { c, oscIO, tcpIO };
+  }
+
+  it('forwards an inbound OSC fader reply as the exact param message', () => {
+    const { c, oscIO } = core();
+    // The surface moved ch-1 to ~0 dB: /ch/01/mix/fader float 0.75.
+    oscIO.inject(osc.msg('/ch/01/mix/fader', osc.f(0.75)));
+    const params = c.byType('param') as Array<{
+      t: string;
+      consoleId: string;
+      channelId: string;
+      path: string;
+      value: number;
+    }>;
+    expect(params).toHaveLength(1);
+    expect(params[0]!.t).toBe('param');
+    expect(params[0]!.consoleId).toBe('m32');
+    expect(params[0]!.channelId).toBe('ch-1');
+    expect(params[0]!.path).toBe('fader');
+    expect(params[0]!.value).toBeCloseTo(0, 4);
+  });
+
+  it('forwards an inbound OSC mute reply (boolean) to the client', () => {
+    const { c, oscIO } = core();
+    // X32 "on" = 0 → muted = true.
+    oscIO.inject(osc.msg('/ch/03/mix/on', osc.i(0)));
+    const params = c.byType('param') as Array<{ channelId: string; path: string; value: boolean }>;
+    expect(params).toContainEqual(
+      expect.objectContaining({ t: 'param', consoleId: 'm32', channelId: 'ch-3', path: 'mute', value: true }),
+    );
+  });
+
+  it('forwards an inbound HiQnet (tcp) reply as a param message', () => {
+    const { c, tcpIO } = core();
+    // ch-5 fader -12 dB → milli-dB -12000 in a HiQnet ParameterSet.
+    const frame = buildHiqnetParamSet(0x0002, 4 * 0x100 + 0, -12000);
+    tcpIO.inject(frame);
+    expect(c.byType('param')).toContainEqual(
+      expect.objectContaining({ t: 'param', consoleId: 'vi', channelId: 'ch-5', path: 'fader', value: -12 }),
+    );
+  });
+
+  it('forwards an inbound A&H (midi) NRPN fader read-back', () => {
+    const { c, tcpIO } = core();
+    // Build the exact NRPN A&H emits for ch-2 fader 0 dB and feed it back.
+    const sq = new AllenHeathAdapter({ address: '10.0.0.30:51325', id: 'sq', channelCount: 48 });
+    const built = sq.buildSet('ch-2', 'fader', 0)!;
+    const bytes = (built as { transport: 'midi'; bytes: Uint8Array }).bytes;
+    tcpIO.inject(bytes);
+    const params = c.byType('param') as Array<{ consoleId: string; channelId: string; path: string; value: number }>;
+    const sqParam = params.find((p) => p.consoleId === 'sq');
+    expect(sqParam).toBeDefined();
+    expect(sqParam!).toMatchObject({ channelId: 'ch-2', path: 'fader' });
+    expect(sqParam!.value).toBeCloseTo(0, 1);
+  });
+
+  it('forwards an inbound meters blob as a meters message', () => {
+    const { c, oscIO } = core();
+    oscIO.inject(osc.msg('/meters/post-fader', osc.i(1), osc.f(-20), osc.f(-12)));
+    const meters = c.byType('meters') as Array<{ consoleId: string; frames: unknown[] }>;
+    expect(meters.length).toBeGreaterThan(0);
+    expect(meters[0]!.frames).toEqual([{ ch: 1, rms: -20, peak: -12 }]);
+  });
+
+  it('ignores an unparseable inbound frame (no param, no crash)', () => {
+    const { c, oscIO, tcpIO } = core();
+    oscIO.inject(osc.msg('/not/a/known/address', osc.f(1)));
+    tcpIO.inject(new Uint8Array([0xde, 0xad, 0xbe, 0xef]));
+    expect(c.byType('param')).toHaveLength(0);
+    expect(c.byType('error')).toHaveLength(0);
+  });
+
+  it('broadcasts a param to every live session', () => {
+    const oscIO = new MockOscIO();
+    const bridge = new BridgeCore({
+      oscIO,
+      discovery: new SimulatedDiscovery(),
+      adapters: [new MidasAdapter({ address: '10.0.0.9:10023', id: 'm32', channelCount: 32 })],
+      now: () => 1000,
+    });
+    const a = new MockConnection();
+    const b = new MockConnection();
+    bridge.accept(a);
+    bridge.accept(b);
+    oscIO.inject(osc.msg('/ch/01/mix/fader', osc.f(0.75)));
+    expect(a.byType('param')).toHaveLength(1);
+    expect(b.byType('param')).toHaveLength(1);
+  });
+
+  it('stops pushing to a closed session', () => {
+    const oscIO = new MockOscIO();
+    const bridge = new BridgeCore({
+      oscIO,
+      discovery: new SimulatedDiscovery(),
+      adapters: [new MidasAdapter({ address: '10.0.0.9:10023', id: 'm32', channelCount: 32 })],
+      now: () => 1000,
+    });
+    const a = new MockConnection();
+    bridge.accept(a);
+    a.close(); // disposes the session
+    oscIO.inject(osc.msg('/ch/01/mix/fader', osc.f(0.75)));
+    expect(a.byType('param')).toHaveLength(0);
   });
 });
 

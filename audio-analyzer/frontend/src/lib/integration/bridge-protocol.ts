@@ -35,6 +35,7 @@ export type ServerMsg =
   | { t: "devices"; devices: NetworkDevice[] }
   | { t: "consoles"; consoles: ConsoleDescriptor[] }
   | { t: "channels"; consoleId: string; channels: ConsoleChannel[] }
+  | { t: "param"; consoleId: string; channelId: string; path: string; value: number | boolean }
   | { t: "meters"; consoleId: string; tap: MeterTap; frames: MeterFrame[] }
   | { t: "clock"; status: ClockStatus }
   | { t: "error"; code: string; message: string };
@@ -42,7 +43,7 @@ export type ServerMsg =
 // --- Validation ----------------------------------------------------------
 
 function isObj(v: unknown): v is Record<string, unknown> {
-  return typeof v === "object" && v !== null;
+  return typeof v === "object" && v !== null && !Array.isArray(v);
 }
 
 function isStr(v: unknown): v is string {
@@ -155,6 +156,19 @@ export function parseServerMsg(json: unknown): ServerMsg | null {
     case "channels":
       return isStr(json.consoleId) && Array.isArray(json.channels) && json.channels.every(isConsoleChannel)
         ? { t: "channels", consoleId: json.consoleId, channels: json.channels as ConsoleChannel[] }
+        : null;
+    case "param":
+      return isStr(json.consoleId) &&
+        isStr(json.channelId) &&
+        isStr(json.path) &&
+        (isNum(json.value) || isBool(json.value))
+        ? {
+            t: "param",
+            consoleId: json.consoleId,
+            channelId: json.channelId,
+            path: json.path,
+            value: json.value as number | boolean,
+          }
         : null;
     case "meters":
       return isStr(json.consoleId) &&
