@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { SimulatedTransport, makeTransport, WebSocketBridgeTransport } from "./transport";
 import type { ServerMsg } from "./bridge-protocol";
+import { computeTransfer } from "../dsp/transferCompute";
 
 function collect(t: SimulatedTransport): { msgs: ServerMsg[]; stop: () => void } {
   const msgs: ServerMsg[] = [];
@@ -158,6 +159,79 @@ describe("SimulatedTransport", () => {
     t.emitAudioFrame();
     expect(msgs.filter((m) => m.t === "audio")).toHaveLength(0);
     t.disconnect();
+  });
+
+  it("streams BOTH channels after two concurrent audio.subscribes", () => {
+    const t = new SimulatedTransport();
+    const { msgs } = collect(t);
+    t.send({ t: "audio.subscribe", consoleId: "midas-m32", channel: 1, blockSize: 256 });
+    t.send({ t: "audio.subscribe", consoleId: "midas-m32", channel: 2, blockSize: 256 });
+    for (let i = 0; i < 4; i++) t.emitAudioFrame();
+    const audioMsgs = msgs.filter((m) => m.t === "audio");
+    const ch1 = audioMsgs.filter((m) => m.t === "audio" && m.channel === 1);
+    const ch2 = audioMsgs.filter((m) => m.t === "audio" && m.channel === 2);
+    expect(ch1.length).toBe(4);
+    expect(ch2.length).toBe(4);
+    // Each channel has its own independent seq.
+    ch1.forEach((m, i) => m.t === "audio" && expect(m.seq).toBe(i));
+    ch2.forEach((m, i) => m.t === "audio" && expect(m.seq).toBe(i));
+    t.disconnect();
+  });
+
+  it("audio.unsubscribe {channel} stops only that channel", () => {
+    const t = new SimulatedTransport();
+    const { msgs } = collect(t);
+    t.send({ t: "audio.subscribe", consoleId: "midas-m32", channel: 1, blockSize: 128 });
+    t.send({ t: "audio.subscribe", consoleId: "midas-m32", channel: 2, blockSize: 128 });
+    t.send({ t: "audio.unsubscribe", channel: 1 });
+    msgs.length = 0; // clear any prior frames
+    for (let i = 0; i < 3; i++) t.emitAudioFrame();
+    const audioMsgs = msgs.filter((m) => m.t === "audio");
+    expect(audioMsgs.every((m) => m.t === "audio" && m.channel === 2)).toBe(true);
+    expect(audioMsgs.length).toBe(3);
+    t.disconnect();
+  });
+
+  it("audio.unsubscribe {} stops all channels", () => {
+    const t = new SimulatedTransport();
+    const { msgs } = collect(t);
+    t.send({ t: "audio.subscribe", consoleId: "midas-m32", channel: 1, blockSize: 128 });
+    t.send({ t: "audio.subscribe", consoleId: "midas-m32", channel: 2, blockSize: 128 });
+    t.send({ t: "audio.unsubscribe" });
+    msgs.length = 0;
+    t.emitAudioFrame();
+    expect(msgs.filter((m) => m.t === "audio")).toHaveLength(0);
+    t.disconnect();
+  });
+
+  it("two concurrent taps are mutually coherent (recoverable transfer function)", () => {
+    // Subscribe two channels, collect aligned PCM, and confirm the dual-FFT
+    // transfer function recovers a high-coherence result — i.e. the simulated
+    // taps share an excitation (the property the Transfer tab depends on).
+    const t = new SimulatedTransport();
+    const refBlocks: number[] = [];
+    const measBlocks: number[] = [];
+    t.onMessage((m) => {
+      if (m.t !== "audio") return;
+      if (m.channel === 1) refBlocks.push(...m.samples);
+      else if (m.channel === 3) measBlocks.push(...m.samples);
+    });
+    t.send({ t: "audio.subscribe", consoleId: "midas-m32", channel: 1, blockSize: 1024 });
+    t.send({ t: "audio.subscribe", consoleId: "midas-m32", channel: 3, blockSize: 1024 });
+    for (let i = 0; i < 16; i++) t.emitAudioFrame();
+    t.disconnect();
+    expect(refBlocks.length).toBeGreaterThanOrEqual(4096);
+    const pts = computeTransfer(refBlocks, measBlocks, 48000, {
+      fftSize: 2048,
+      fMin: 200,
+      fMax: 8000,
+      points: 64,
+    });
+    const mid = pts.filter((p) => p.freq >= 400 && p.freq <= 4000);
+    const avgCoh = mid.reduce((a, p) => a + p.coherence, 0) / mid.length;
+    // Comfortably above the independent-noise floor (<0.5) — the taps share an
+    // excitation, so the dual-FFT recovers a genuine coherent transfer function.
+    expect(avgCoh).toBeGreaterThan(0.6);
   });
 
   it("unsubscribe handler removes the listener", () => {

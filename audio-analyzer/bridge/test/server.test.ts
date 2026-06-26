@@ -403,7 +403,7 @@ describe('BridgeCore audio tap streaming', () => {
     }
   });
 
-  it('audio.unsubscribe stops the stream and clears the timer', () => {
+  it('audio.unsubscribe (no channel) stops all streams and clears the timer', () => {
     const { c, tick, isCleared } = audioCore();
     c.client({ t: 'audio.subscribe', consoleId: 'sim', channel: 2 });
     tick();
@@ -412,17 +412,57 @@ describe('BridgeCore audio tap streaming', () => {
     expect(c.byType('audio')).toHaveLength(1);
   });
 
-  it('a new audio.subscribe replaces the prior stream (one per session)', () => {
-    const { c } = audioCore();
+  it('concurrent subscribe of two channels emits interleaved frames for BOTH on one timer', () => {
+    const { c, tick } = audioCore();
     c.client({ t: 'audio.subscribe', consoleId: 'sim', channel: 1 });
-    // Subscribe again; the prior timer must be cleared before the new one starts.
-    c.client({ t: 'audio.subscribe', consoleId: 'sim', channel: 2 });
+    c.client({ t: 'audio.subscribe', consoleId: 'sim', channel: 3 });
+    tick();
+    tick();
+    const audio = c.byType('audio') as Array<{ channel: number; seq: number }>;
+    // One shared timer → two ticks emit 2 frames per channel = 4 total.
+    expect(audio).toHaveLength(4);
+    const ch1 = audio.filter((a) => a.channel === 1);
+    const ch3 = audio.filter((a) => a.channel === 3);
+    expect(ch1.map((a) => a.seq)).toEqual([0, 1]);
+    expect(ch3.map((a) => a.seq)).toEqual([0, 1]);
     expect(c.byType('error')).toHaveLength(0);
   });
 
-  it('session close stops the audio stream', () => {
+  it('audio.unsubscribe {channel} stops only that channel; the other keeps streaming', () => {
+    const { c, tick, isCleared } = audioCore();
+    c.client({ t: 'audio.subscribe', consoleId: 'sim', channel: 1 });
+    c.client({ t: 'audio.subscribe', consoleId: 'sim', channel: 2 });
+    tick();
+    c.client({ t: 'audio.unsubscribe', channel: 1 });
+    // Timer still runs (channel 2 active).
+    expect(isCleared()).toBe(false);
+    tick();
+    const audio = c.byType('audio') as Array<{ channel: number; seq: number }>;
+    const ch1 = audio.filter((a) => a.channel === 1);
+    const ch2 = audio.filter((a) => a.channel === 2);
+    // ch1: only the first tick before unsubscribe. ch2: both ticks.
+    expect(ch1).toHaveLength(1);
+    expect(ch2).toHaveLength(2);
+    expect(ch2.map((a) => a.seq)).toEqual([0, 1]);
+  });
+
+  it('re-subscribing the same channel replaces that channel (seq resets)', () => {
+    const { c, tick } = audioCore();
+    c.client({ t: 'audio.subscribe', consoleId: 'sim', channel: 1 });
+    tick();
+    tick();
+    // Re-subscribe channel 1: its seq restarts at 0.
+    c.client({ t: 'audio.subscribe', consoleId: 'sim', channel: 1 });
+    tick();
+    const audio = c.byType('audio') as Array<{ channel: number; seq: number }>;
+    expect(audio.map((a) => a.seq)).toEqual([0, 1, 0]);
+    expect(c.byType('error')).toHaveLength(0);
+  });
+
+  it('session close stops all audio streams', () => {
     const { c, isCleared } = audioCore();
     c.client({ t: 'audio.subscribe', consoleId: 'sim', channel: 1 });
+    c.client({ t: 'audio.subscribe', consoleId: 'sim', channel: 2 });
     c.close();
     expect(isCleared()).toBe(true);
   });

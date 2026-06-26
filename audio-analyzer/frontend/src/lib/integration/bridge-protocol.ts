@@ -27,7 +27,7 @@ export type ClientMsg =
   | { t: "set"; consoleId: string; channelId: string; path: string; value: number | boolean }
   | { t: "meter.subscribe"; consoleId: string; tap: MeterTap; channels: number[] }
   | { t: "audio.subscribe"; consoleId: string; channel: number; blockSize?: number }
-  | { t: "audio.unsubscribe" }
+  | { t: "audio.unsubscribe"; channel?: number }
   | { t: "unsubscribe"; id?: string };
 
 // --- Bridge → Client -----------------------------------------------------

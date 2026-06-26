@@ -17,6 +17,7 @@ import { SessionsView } from "../components/SessionsView";
 import { InsightsPanel } from "../components/InsightsPanel";
 import { useAudioState } from "../hooks/useAudioState";
 import { useBridgeAudioSpectrum } from "../hooks/useBridgeAudioSpectrum";
+import { useBridgeTransfer } from "../hooks/useBridgeTransfer";
 import { analyze } from "../lib/diagnostics";
 import {
   EDITIONS,
@@ -54,6 +55,8 @@ export default function AnalyzerApp() {
   const [tab, setTab] = useState<AnalyzerTab>("rta");
   const [spectrum, setSpectrum] = useState<SpectrumSnapshot | null>(null);
   const [consoleSource, setConsoleSource] = useState<BridgeSourceSelection | null>(null);
+  const [transferRef, setTransferRef] = useState<BridgeSourceSelection | null>(null);
+  const [transferMeas, setTransferMeas] = useState<BridgeSourceSelection | null>(null);
 
   // When a console/network channel is wired as the measurement source, tap its
   // streamed PCM off the bridge and compute a live spectrum. Null otherwise.
@@ -67,6 +70,27 @@ export default function AnalyzerApp() {
         }
       : null,
   );
+  // When both a reference and a measurement channel are wired, tap both off the
+  // bridge concurrently and compute a live dual-FFT transfer function. Null
+  // until both are selected.
+  const bridgeTransfer = useBridgeTransfer(
+    transferRef && transferMeas
+      ? {
+          url: transferRef.url,
+          ref: {
+            consoleId: transferRef.consoleId,
+            channel: transferRef.channel,
+            label: transferRef.label,
+          },
+          meas: {
+            consoleId: transferMeas.consoleId,
+            channel: transferMeas.channel,
+            label: transferMeas.label,
+          },
+        }
+      : null,
+  );
+
   // Defaults to Studio so every feature is visible in the demo; persisted.
   const [edition, setEdition] = useState<Edition>("studio");
 
@@ -112,7 +136,14 @@ export default function AnalyzerApp() {
           />
         );
       case "transfer":
-        return <TransferView edition={edition} />;
+        return (
+          <TransferView
+            edition={edition}
+            bridgeTransfer={bridgeTransfer}
+            refLabel={transferRef?.label ?? null}
+            measLabel={transferMeas?.label ?? null}
+          />
+        );
       case "spl":
         return <SplView audio={audio} edition={edition} />;
       case "rt60":
@@ -121,7 +152,14 @@ export default function AnalyzerApp() {
         return <IrView />;
       case "console":
         return (
-          <ConsoleNetworkView edition={edition} onSource={setConsoleSource} />
+          <ConsoleNetworkView
+            edition={edition}
+            onSource={setConsoleSource}
+            onTransferSource={({ ref, meas }) => {
+              setTransferRef(ref);
+              setTransferMeas(meas);
+            }}
+          />
         );
       case "sessions":
         return <SessionsView />;

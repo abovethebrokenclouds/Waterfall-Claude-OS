@@ -105,8 +105,13 @@ interface MeterSubscription {
   handle: NodeJS.Timeout | number;
 }
 
-interface AudioSubscription {
-  handle: NodeJS.Timeout | number;
+/** One concurrent audio tap: a console channel streaming with its own seq. */
+interface AudioChannelStream {
+  consoleId: string;
+  channel: number;
+  blockSize: number;
+  sampleRate: number;
+  seq: number;
 }
 
 /**
@@ -115,8 +120,15 @@ interface AudioSubscription {
 class Session {
   private subs: MeterSubscription[] = [];
 
-  /** At most one audio-tap stream per session (a new subscribe replaces it). */
-  private audioSub: AudioSubscription | null = null;
+  /**
+   * Concurrent audio-tap streams, keyed by channel — a session can tap several
+   * channels at once (e.g. reference + measurement for a live transfer
+   * function). ONE shared timer ({@link audioTimer}) ticks every entry.
+   */
+  private readonly audioStreams = new Map<number, AudioChannelStream>();
+
+  /** The single timer driving all of {@link audioStreams}; null when none. */
+  private audioTimer: NodeJS.Timeout | number | null = null;
 
   /** TCP control transport, defaulted to a no-op mock when none injected. */
   private readonly tcpIO: TcpControlIO;
@@ -258,7 +270,7 @@ class Session {
         return;
 
       case 'audio.unsubscribe':
-        this.clearAudio();
+        this.clearAudio(msg.channel);
         return;
 
       default: {
@@ -334,11 +346,13 @@ class Session {
   }
 
   /**
-   * Start streaming `audio` PCM blocks for one console channel to this session.
-   * Validates the console/channel exists, then ticks the injected timer,
-   * reading a block from the AudioSource and incrementing `seq` each tick. Only
-   * one audio stream per session: a new subscribe replaces the prior one.
-   * Never throws on bad input — replies with the structured error instead.
+   * Start (or replace) an `audio` PCM stream for one console channel. ADDITIVE:
+   * tapping a second channel keeps the first running — both are driven by ONE
+   * shared timer that, each tick, emits an `audio` frame for EVERY active
+   * channel (each with its own incrementing `seq`). Re-subscribing the SAME
+   * channel replaces just that channel's stream (resetting its seq). Validates
+   * the console/channel exists; never throws on bad input — replies with the
+   * structured error instead.
    */
   private subscribeAudio(consoleId: string, channel: number, blockSize?: number): void {
     const adapter = this.findAdapter(consoleId);
@@ -353,35 +367,52 @@ class Session {
       return;
     }
 
-    // Replace any existing audio stream (one per session).
-    this.clearAudio();
-
-    const interval = this.deps.audioIntervalMs ?? 50;
     const size = blockSize ?? this.deps.audioBlockSize ?? 1024;
     const sampleRate = this.deps.audioSampleRate ?? 48000;
-    const setI = this.deps.setInterval ?? ((fn, ms) => setInterval(fn, ms));
 
-    let seq = 0;
-    const tick = (): void => {
+    // Add or replace this channel's stream (its seq restarts at 0).
+    this.audioStreams.set(channel, { consoleId, channel, blockSize: size, sampleRate, seq: 0 });
+    this.ensureAudioTimer();
+  }
+
+  /** Start the single shared audio timer if any streams are active and it isn't. */
+  private ensureAudioTimer(): void {
+    if (this.audioTimer !== null || this.audioStreams.size === 0) return;
+    const interval = this.deps.audioIntervalMs ?? 50;
+    const setI = this.deps.setInterval ?? ((fn, ms) => setInterval(fn, ms));
+    this.audioTimer = setI(() => this.tickAudio(), interval);
+  }
+
+  /** Emit one `audio` frame for every active channel, advancing each seq. */
+  private tickAudio(): void {
+    for (const stream of this.audioStreams.values()) {
       try {
-        const samples = this.audioSource.read(channel, size, seq);
-        this.reply(audioMsg(consoleId, channel, sampleRate, seq, samples));
-        seq++;
+        const samples = this.audioSource.read(stream.channel, stream.blockSize, stream.seq);
+        this.reply(audioMsg(stream.consoleId, stream.channel, stream.sampleRate, stream.seq, samples));
+        stream.seq++;
       } catch (err) {
         this.fail(err);
       }
-    };
-
-    const handle = setI(tick, interval);
-    this.audioSub = { handle };
+    }
   }
 
-  private clearAudio(): void {
-    if (!this.audioSub) return;
-    const clearI =
-      this.deps.clearInterval ?? ((h: NodeJS.Timeout | number) => clearInterval(h as NodeJS.Timeout));
-    clearI(this.audioSub.handle);
-    this.audioSub = null;
+  /**
+   * Stop audio streaming. With `channel`, removes just that channel's stream;
+   * without it, removes ALL streams. The shared timer is cleared once no streams
+   * remain.
+   */
+  private clearAudio(channel?: number): void {
+    if (channel !== undefined) {
+      this.audioStreams.delete(channel);
+    } else {
+      this.audioStreams.clear();
+    }
+    if (this.audioStreams.size === 0 && this.audioTimer !== null) {
+      const clearI =
+        this.deps.clearInterval ?? ((h: NodeJS.Timeout | number) => clearInterval(h as NodeJS.Timeout));
+      clearI(this.audioTimer);
+      this.audioTimer = null;
+    }
   }
 
   private dispose(): void {

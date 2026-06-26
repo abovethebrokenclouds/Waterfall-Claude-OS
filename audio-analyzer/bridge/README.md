@@ -104,8 +104,8 @@ All messages are JSON objects with a `t` (type) discriminator.
 | `set`             | `consoleId`, `channelId`, `path`, `value` | Write a parameter (user-initiated only). |
 | `meter.subscribe` | `consoleId`, `tap:'pre-eq'\|'post-eq'\|'post-fader'`, `channels[]` | Stream `meters` frames. |
 | `unsubscribe`     | `id?` | Stop meter streams for this connection. |
-| `audio.subscribe` | `consoleId`, `channel` (≥1), `blockSize?` | Subscribe an **audio tap**: stream raw PCM `audio` blocks from one channel (the app runs its own FFT on them). |
-| `audio.unsubscribe` | — | Stop this connection's audio-tap stream. |
+| `audio.subscribe` | `consoleId`, `channel` (≥1), `blockSize?` | Subscribe an **audio tap**: stream raw PCM `audio` blocks from one channel (the app runs its own FFT on them). **Additive** — a second channel streams concurrently (keyed by channel); re-subscribing the same channel replaces just that channel's stream. |
+| `audio.unsubscribe` | `channel?` | Stop audio taps: with `channel`, just that channel; without it, **all** of this connection's audio streams. |
 
 ### Bridge → Client
 
@@ -137,15 +137,34 @@ Flow:
 
 1. Client sends `audio.subscribe` with `consoleId`, a 1-based `channel`, and an
    optional `blockSize` (default **1024**).
-2. The bridge validates the console + channel exist, then on a timer (default
-   **~50 ms**) reads one block from its `AudioSource` and pushes an `audio`
-   frame: `{ t:'audio', consoleId, channel, sampleRate, seq, samples }`.
-   `sampleRate` defaults to **48000**; `samples` are **float PCM in [-1, 1]**;
-   `seq` increments per block (0-based) so the client can detect gaps and
-   reassemble in order.
-3. `audio.unsubscribe` (or the connection closing) stops the stream and clears
-   the timer. **One audio stream per session** — a new `audio.subscribe`
-   replaces the prior one.
+2. The bridge validates the console + channel exist, then on **one shared timer**
+   per session (default **~50 ms**) reads a block from its `AudioSource` for
+   **every active channel** and pushes an `audio` frame per channel:
+   `{ t:'audio', consoleId, channel, sampleRate, seq, samples }`. `sampleRate`
+   defaults to **48000**; `samples` are **float PCM in [-1, 1]**; each channel
+   carries **its own** `seq` (0-based, per-block) so the client can detect gaps
+   and reassemble in order.
+3. `audio.unsubscribe` stops audio taps — with a `channel` it removes just that
+   channel's stream, without it removes **all** of the session's streams. The
+   connection closing also clears every stream. The shared timer is cleared once
+   no streams remain.
+
+### Concurrent multi-channel taps (live transfer function)
+
+Subscriptions are **additive and keyed by channel**: tapping a second channel
+does **not** replace the first — both stream concurrently off the single shared
+timer, each with its own `seq`. Re-subscribing the **same** channel replaces just
+that channel's stream (its `seq` restarts at 0). This lets the app stream a
+**reference** + a **measurement** channel at once and compute a live dual-channel
+**transfer function** (magnitude, phase, coherence) between them.
+
+So a real transfer function can actually be measured against the demo device, the
+`SimulatedAudioSource` drives every channel from **one shared broadband
+excitation** through a distinct per-channel gain/delay path — any two channels
+share that excitation (high coherence, real frequency-dependent magnitude/phase),
+with a tiny independent per-channel noise that keeps coherence realistically below
+1. A **real** `DanteAudioSource` needs none of this: it streams genuine,
+independent per-channel PCM off the network.
 
 Bad input never throws: an unknown console replies `error` `NO_CONSOLE`, an
 out-of-range channel replies `NO_CHANNEL`, and malformed messages are rejected
@@ -163,11 +182,14 @@ interface AudioSource {
 ```
 
 - **`SimulatedAudioSource` (shipped, default).** Synthesizes **deterministic**
-  PCM purely from `(channel, seq, blockSize)` — a distinct sine per channel plus
-  a small deterministic pseudo-noise, normalized to ≤ 1.0. No `Date.now`, no
-  `Math.random`, no I/O. Phase is derived from the absolute sample index
-  `seq * blockSize`, so successive blocks are **phase-continuous** and a test can
-  assert exact samples.
+  PCM purely from `(channel, seq, blockSize)` — one **shared broadband
+  excitation** observed through a distinct per-channel **gain/delay** path plus a
+  small independent per-channel noise, hard-clamped to `[-1, 1]`. No `Date.now`,
+  no `Math.random`, no I/O. Because every channel shares the excitation, any two
+  channels are **coherent** (a real transfer function exists between them) while
+  the independent noise keeps coherence below 1. Every term is indexed by the
+  absolute sample index `seq * blockSize + i`, so successive blocks are
+  **phase-continuous** and a test can assert exact samples.
 - **Real PCM (the swap point).** A `DanteAudioSource` subscribing a **Dante
   Virtual Soundcard / DVS** channel, or a **driver-capture** source reading a
   class-compliant USB / MADI / AES67 interface, implements the **same**
