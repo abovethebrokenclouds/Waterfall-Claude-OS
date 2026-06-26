@@ -27,4 +27,13 @@ describe('adapter registry', () => {
     const adapters = buildAdapters({});
     expect(adapters.some((a) => a.descriptor.id === 'sim-m32')).toBe(true);
   });
+
+  it('buildAdapters exposes a DiGiCo console by default (control address overridable)', () => {
+    const adapters = buildAdapters({ digicoAddress: '10.0.0.9:8000' });
+    const digico = adapters.find((a) => a.descriptor.vendor === 'digico');
+    expect(digico).toBeDefined();
+    expect(digico!.descriptor.address).toBe('10.0.0.9:8000');
+    // Channels are the normalized shape, ids on the bridge `ch-N` convention.
+    expect(digico!.listChannels()[0]!.id).toBe('ch-1');
+  });
 });

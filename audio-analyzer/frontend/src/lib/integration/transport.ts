@@ -36,7 +36,14 @@ export const DEMO_DEVICES: NetworkDevice[] = [
 export const DEMO_CONSOLES: ConsoleDescriptor[] = [
   { id: "yamaha-cl5", vendor: "yamaha", model: "CL5", channelCount: 72, transport: "dante", address: "10.0.0.5" },
   { id: "midas-m32", vendor: "midas", model: "M32", channelCount: 32, transport: "aes50", address: "10.0.0.7" },
+  { id: "digico-sd12", vendor: "digico", model: "SD12", channelCount: 64, transport: "madi", address: "10.0.0.9" },
 ];
+
+/** Per-console demo channel naming (DiGiCo SD uses "SD CH", Midas "In", …). */
+const DEMO_CHANNEL_PREFIX: Record<string, string> = {
+  "midas-m32": "In",
+  "digico-sd12": "SD CH",
+};
 
 function demoChannel(i: number, namePrefix: string): ConsoleChannel {
   // Channel-id convention matches the bridge (`ch-N`) so the app exercises the
@@ -67,8 +74,8 @@ function demoChannel(i: number, namePrefix: string): ConsoleChannel {
 }
 
 export function demoChannels(consoleId: string): ConsoleChannel[] {
-  const count = consoleId === "midas-m32" ? 8 : 8;
-  const prefix = consoleId === "midas-m32" ? "In" : "Ch";
+  const count = 8; // a representative bank for the demo
+  const prefix = DEMO_CHANNEL_PREFIX[consoleId] ?? "Ch";
   return Array.from({ length: count }, (_, k) => demoChannel(k + 1, prefix));
 }
 

@@ -22,6 +22,36 @@ describe("SimulatedTransport", () => {
     t.disconnect();
   });
 
+  it("exposes a DiGiCo console with selectable channels (end-to-end support)", () => {
+    const t = new SimulatedTransport();
+    const { msgs } = collect(t);
+    // The DiGiCo SD12 appears in the discovered console list.
+    t.send({ t: "discover" });
+    const consolesMsg = msgs.find((m) => m.t === "consoles");
+    expect(consolesMsg?.t === "consoles" && consolesMsg.consoles.some((c) => c.vendor === "digico")).toBe(true);
+    // Its channels load and validate (so it can be controlled / metered / tapped).
+    t.send({ t: "get", scope: "channels", consoleId: "digico-sd12" });
+    const ch = msgs.find((m) => m.t === "channels");
+    expect(ch?.t === "channels" && ch.consoleId).toBe("digico-sd12");
+    if (ch && ch.t === "channels") {
+      expect(ch.channels.length).toBeGreaterThan(0);
+      expect(ch.channels[0].id).toBe("ch-1");
+      expect(ch.channels[0].name.startsWith("SD CH")).toBe(true);
+    }
+    t.disconnect();
+  });
+
+  it("streams an audio tap for a DiGiCo channel", () => {
+    const t = new SimulatedTransport();
+    const { msgs } = collect(t);
+    t.send({ t: "audio.subscribe", consoleId: "digico-sd12", channel: 3, blockSize: 256 });
+    t.emitAudioFrame();
+    const audio = msgs.find((m) => m.t === "audio");
+    expect(audio?.t === "audio" && audio.consoleId).toBe("digico-sd12");
+    expect(audio?.t === "audio" && audio.channel).toBe(3);
+    t.disconnect();
+  });
+
   it("returns deterministic channels for a get", () => {
     const t = new SimulatedTransport();
     const { msgs } = collect(t);

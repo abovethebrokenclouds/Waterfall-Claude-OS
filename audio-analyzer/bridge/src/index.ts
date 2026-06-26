@@ -59,6 +59,8 @@ export interface StartOptions {
    *  configured at loopback and the simulated console carries the demo. */
   yamahaAddress?: string;
   midasAddress?: string;
+  /** DiGiCo SD/Quantum OSC control address (host:port, default port 8000). */
+  digicoAddress?: string;
 }
 
 /**
@@ -93,6 +95,11 @@ export function buildAdapters(opts: StartOptions): ConsoleAdapter[] {
   // `createAdapter(vendor, address)` / ADAPTER_REGISTRY.)
   adapters.push(new YamahaAdapter({ address: opts.yamahaAddress ?? '127.0.0.1:10024' }));
   adapters.push(new MidasAdapter({ address: opts.midasAddress ?? '127.0.0.1:10023' }));
+  // DiGiCo SD / Quantum (OSC control plane; UB-MADI carries the audio tap).
+  // Address overridable via opts.digicoAddress or the DIGICO_ADDRESS env var.
+  adapters.push(
+    new DigicoAdapter({ address: opts.digicoAddress ?? process.env.DIGICO_ADDRESS ?? '127.0.0.1:8000' }),
+  );
   // Always provide a simulated console so the bridge is useful with no hardware.
   adapters.push(new SimulatedConsoleAdapter({ id: 'sim-m32', vendor: 'midas', model: 'M32', channelCount: 32 }));
   return adapters;
