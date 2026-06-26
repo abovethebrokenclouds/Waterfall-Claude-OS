@@ -67,6 +67,8 @@ export function useBridgeAudioSpectrum(
     });
 
     transport.connect();
+    // Wire block size is independent of the analysis frame size (fftSize): the
+    // PcmAccumulator reassembles streamed blocks into the FFT frame regardless.
     transport.send({ t: "audio.subscribe", consoleId, channel, blockSize: 512 });
 
     // Recompute the spectrum at most once per animation frame, and only when a

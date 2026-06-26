@@ -65,8 +65,11 @@ export class SimulatedAudioSource implements AudioSource {
       // Deterministic pseudo-noise: a hashed sine of the absolute index +
       // channel. Bounded in [-1, 1]; scaled small so the tone dominates.
       const noise = pseudoNoise(n, channel);
-      // 0.85 tone + 0.1 noise keeps the peak comfortably ≤ 0.95 ≤ 1.0.
-      out[i] = 0.85 * tone + 0.1 * noise;
+      // 0.85 tone + 0.1 noise keeps the peak comfortably ≤ 0.95 ≤ 1.0; the final
+      // clamp makes the [-1, 1] PCM contract self-enforcing even if the mix
+      // coefficients above are ever changed.
+      const s = 0.85 * tone + 0.1 * noise;
+      out[i] = s < -1 ? -1 : s > 1 ? 1 : s;
     }
     return out;
   }
