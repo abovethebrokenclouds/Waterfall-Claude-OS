@@ -25,6 +25,9 @@ import {
 import type { ClientMsg, ServerMsg } from './protocol.js';
 import type { ConsoleDescriptor, MeterTap } from './model.js';
 import type { OscIO } from './osc/udp.js';
+import type { TcpControlIO } from './control/tcp.js';
+import { MockTcpControlIO } from './control/tcp.js';
+import type { ControlMessage } from './control/types.js';
 import type { Discovery } from './discovery/types.js';
 import type { ConsoleAdapter } from './adapters/types.js';
 import { SimulatedConsoleAdapter } from './adapters/simulated.js';
@@ -49,6 +52,13 @@ export interface Connection {
 export interface BridgeDeps {
   discovery: Discovery;
   oscIO: OscIO;
+  /**
+   * Byte-stream transport for non-OSC consoles (HiQnet / EUCON / SSL / UCNET
+   * TCP frames and Allen & Heath MIDI-over-TCP). Optional: when omitted, a
+   * MockTcpControlIO is used so OSC-only deployments and tests need not provide
+   * one. `index.ts` injects the real NetTcpControlIO.
+   */
+  tcpIO?: TcpControlIO;
   /** Ordered list of console adapters available on this LAN. */
   adapters: ConsoleAdapter[];
   /** Meter push interval in ms (default 50 = 20 fps). */
@@ -75,10 +85,15 @@ interface MeterSubscription {
 class Session {
   private subs: MeterSubscription[] = [];
 
+  /** TCP control transport, defaulted to a no-op mock when none injected. */
+  private readonly tcpIO: TcpControlIO;
+
   constructor(
     private readonly conn: Connection,
     private readonly deps: Required<Pick<BridgeDeps, 'discovery' | 'oscIO' | 'adapters'>> & BridgeDeps,
-  ) {}
+  ) {
+    this.tcpIO = deps.tcpIO ?? new MockTcpControlIO();
+  }
 
   start(): void {
     this.conn.onMessage((text) => this.handleRaw(text));
@@ -163,15 +178,16 @@ class Session {
           this.reply(errorMsg('NO_CONSOLE', `Unknown consoleId "${msg.consoleId}".`));
           return;
         }
-        const oscMsg = adapter.buildSet(msg.channelId, msg.path, msg.value);
-        if (!oscMsg) {
+        const ctrl = adapter.buildSet(msg.channelId, msg.path, msg.value);
+        if (!ctrl) {
           this.reply(errorMsg('BAD_SET', `Adapter rejected set ${msg.channelId}/${msg.path}.`));
           return;
         }
-        // Safe-send: route to the real OSC transport. host:port from descriptor.
+        // Safe-send: route by transport to the matching IO. host:port from
+        // the console descriptor (user-initiated write only).
         const { host, port } = parseAddress(adapter.descriptor.address);
         try {
-          await this.deps.oscIO.send(host, port, oscMsg);
+          await this.sendControl(host, port, ctrl);
         } catch (err) {
           this.fail(err);
           this.reply(errorMsg('SEND_FAILED', 'Failed to send to console.'));
@@ -195,6 +211,27 @@ class Session {
     }
   }
 
+  /**
+   * Route a built control message to the IO that owns its transport.
+   *   osc        → OscIO (UDP)
+   *   tcp | midi → TcpControlIO (byte stream)
+   * Fire-and-forget shape mirrors OscIO.send so callers handle rejections
+   * uniformly. Centralizes the safe-send seam across all vendor families.
+   */
+  private sendControl(host: string, port: number, ctrl: ControlMessage): Promise<void> {
+    switch (ctrl.transport) {
+      case 'osc':
+        return this.deps.oscIO.send(host, port, ctrl.osc);
+      case 'tcp':
+      case 'midi':
+        return this.tcpIO.send(host, port, ctrl.bytes);
+      default: {
+        const never: never = ctrl;
+        return Promise.reject(new Error(`Unknown transport ${JSON.stringify(never)}.`));
+      }
+    }
+  }
+
   private subscribeMeters(consoleId: string, tap: MeterTap, channels: number[]): void {
     const adapter = this.findAdapter(consoleId);
     if (!adapter) {
@@ -205,7 +242,7 @@ class Session {
     const req = adapter.buildMeterRequest?.(tap, channels);
     if (req) {
       const { host, port } = parseAddress(adapter.descriptor.address);
-      this.deps.oscIO.send(host, port, req).catch((err) => this.fail(err));
+      this.sendControl(host, port, req).catch((err) => this.fail(err));
     }
 
     const interval = this.deps.meterIntervalMs ?? 50;

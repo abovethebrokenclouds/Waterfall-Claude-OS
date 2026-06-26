@@ -2,17 +2,20 @@
  * adapters/types.ts — the vendor ConsoleAdapter contract.
  *
  * An adapter knows how to talk to ONE family of consoles: it can list the
- * console's channels (statically or via an OSC query), translate a normalized
- * "set this path to this value" into the vendor OSC message, and parse inbound
- * OSC (param replies + meters) back into normalized partial updates.
+ * console's channels (statically or via a query), translate a normalized "set
+ * this path to this value" into the vendor wire message, and parse inbound wire
+ * traffic (param replies + meters) back into normalized partial updates.
  *
- * Adapters contain ZERO socket code — they only build/parse OSC. The server
- * owns the OscIO and does the actual sending. This keeps adapters pure and
- * trivially unit-testable.
+ * Adapters are TRANSPORT-NEUTRAL: `buildSet` / `buildMeterRequest` return a
+ * {@link ControlMessage} that names its transport (`osc` | `tcp` | `midi`) and
+ * carries the already-built payload; `parseIncoming` accepts an inbound
+ * {@link ControlMessage}. Adapters contain ZERO socket code — the server owns
+ * the OscIO / TcpControlIO and does the actual sending, routing by transport.
+ * This keeps adapters pure and trivially unit-testable.
  */
 
 import type { ConsoleChannel, ConsoleDescriptor, MeterFrame, MeterTap } from '../model.js';
-import type { OscMessage } from '../osc/types.js';
+import type { ControlMessage } from '../control/types.js';
 
 /** A normalized partial update parsed from an inbound OSC message. */
 export type IncomingUpdate =
@@ -39,25 +42,26 @@ export interface ConsoleAdapter {
   listChannels(): ConsoleChannel[];
 
   /**
-   * Build the vendor OSC message that applies a normalized set.
+   * Build the vendor control message that applies a normalized set.
    * @param channelId normalized channel id (e.g. "ch-1")
    * @param path normalized parameter path (e.g. "fader", "mute", "gain", "hpf")
    * @param value number (dB / Hz / 0..1) or boolean
-   * @returns the OSC message to send, or null if the path is unsupported.
+   * @returns the transport-tagged control message to send, or null if the path
+   *   is unsupported / the channel is out of range.
    */
-  buildSet(channelId: string, path: string, value: number | boolean): OscMessage | null;
+  buildSet(channelId: string, path: string, value: number | boolean): ControlMessage | null;
 
   /**
-   * Build an OSC message that subscribes to / requests meters for the given
+   * Build a control message that subscribes to / requests meters for the given
    * channels and tap, or null if the console needs no explicit request.
    */
-  buildMeterRequest?(tap: MeterTap, channels: number[]): OscMessage | null;
+  buildMeterRequest?(tap: MeterTap, channels: number[]): ControlMessage | null;
 
   /**
-   * Parse an inbound OSC message into a normalized update, or null if it is
+   * Parse an inbound control message into a normalized update, or null if it is
    * not relevant to this adapter. Pure — no I/O.
    */
-  parseIncoming(msg: OscMessage): IncomingUpdate | null;
+  parseIncoming(msg: ControlMessage): IncomingUpdate | null;
 }
 
 /** Map a 1-based channel number to the X32/M32 two-digit segment ("01".."32"). */

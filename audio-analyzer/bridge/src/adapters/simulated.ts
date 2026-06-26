@@ -11,7 +11,8 @@
  */
 
 import type { ConsoleChannel, ConsoleDescriptor, MeterFrame, MeterTap } from '../model.js';
-import type { OscMessage } from '../osc/types.js';
+import type { ControlMessage } from '../control/types.js';
+import { oscControl } from '../control/types.js';
 import type { ConsoleAdapter, IncomingUpdate } from './types.js';
 import { channelNumberFromId } from './types.js';
 import { buildX32Set, defaultX32Channel, parseX32Param } from './x32-shared.js';
@@ -50,22 +51,24 @@ export class SimulatedConsoleAdapter implements ConsoleAdapter {
     return this.channels.map((c) => ({ ...c, eq: c.eq.map((b) => ({ ...b })) }));
   }
 
-  buildSet(channelId: string, path: string, value: number | boolean): OscMessage | null {
+  buildSet(channelId: string, path: string, value: number | boolean): ControlMessage | null {
     const ch = channelNumberFromId(channelId);
     if (ch === null || ch > this.descriptor.channelCount) return null;
     // Apply optimistically to our mirror so subsequent listChannels reflects it.
     this.applyLocal(channelId, path, value);
-    return buildX32Set(ch, path, value);
+    const osc = buildX32Set(ch, path, value);
+    return osc ? oscControl(osc) : null;
   }
 
-  buildMeterRequest(_tap: MeterTap, _channels: number[]): OscMessage | null {
+  buildMeterRequest(_tap: MeterTap, _channels: number[]): ControlMessage | null {
     return null; // simulated meters are generated locally; no request needed.
   }
 
-  parseIncoming(msg: OscMessage): IncomingUpdate | null {
-    const param = parseX32Param(msg);
+  parseIncoming(msg: ControlMessage): IncomingUpdate | null {
+    if (msg.transport !== 'osc') return null;
+    const param = parseX32Param(msg.osc);
     if (param) return { kind: 'param', ...param };
-    const meters = parseMeterBlob(msg);
+    const meters = parseMeterBlob(msg.osc);
     if (meters) return meters;
     return null;
   }
