@@ -61,13 +61,33 @@ export interface UnsubscribeMsg {
   id?: string;
 }
 
+/**
+ * Subscribe to an AUDIO TAP: the bridge captures PCM off the named console
+ * channel and streams float `audio` blocks to this session, which the app feeds
+ * to its own FFT. One audio stream per session — a new subscribe replaces the
+ * prior one. `blockSize` is the number of samples per pushed block.
+ */
+export interface AudioSubscribeMsg {
+  t: 'audio.subscribe';
+  consoleId: string;
+  channel: number;
+  blockSize?: number;
+}
+
+/** Stop the session's audio tap stream (no extra fields). */
+export interface AudioUnsubscribeMsg {
+  t: 'audio.unsubscribe';
+}
+
 export type ClientMsg =
   | HelloMsg
   | DiscoverMsg
   | GetMsg
   | SetMsg
   | MeterSubscribeMsg
-  | UnsubscribeMsg;
+  | UnsubscribeMsg
+  | AudioSubscribeMsg
+  | AudioUnsubscribeMsg;
 
 // ---------------------------------------------------------------------------
 // Bridge → Client
@@ -121,6 +141,20 @@ export interface ParamMsg {
   value: number | boolean;
 }
 
+/**
+ * One block of captured PCM for a subscribed audio tap. `samples` are float PCM
+ * in [-1, 1] (the app runs its FFT on them). `seq` increments per block so the
+ * client can detect gaps and reassemble in order.
+ */
+export interface AudioMsg {
+  t: 'audio';
+  consoleId: string;
+  channel: number;
+  sampleRate: number;
+  seq: number;
+  samples: number[];
+}
+
 export interface ClockMsg {
   t: 'clock';
   status: ClockStatus;
@@ -139,6 +173,7 @@ export type ServerMsg =
   | ChannelsMsg
   | MetersMsg
   | ParamMsg
+  | AudioMsg
   | ClockMsg
   | ErrorMsg;
 
@@ -273,6 +308,27 @@ export function parseClientMsg(json: string): ParseResult {
       return { ok: true, msg };
     }
 
+    case 'audio.subscribe': {
+      if (!isString(raw.consoleId)) {
+        return { ok: false, code: 'BAD_FIELD', message: 'audio.subscribe.consoleId must be a string.' };
+      }
+      if (typeof raw.channel !== 'number' || !Number.isFinite(raw.channel) || raw.channel < 1) {
+        return { ok: false, code: 'BAD_FIELD', message: 'audio.subscribe.channel must be a finite number ≥ 1.' };
+      }
+      if (
+        raw.blockSize !== undefined &&
+        (typeof raw.blockSize !== 'number' || !Number.isInteger(raw.blockSize) || raw.blockSize <= 0)
+      ) {
+        return { ok: false, code: 'BAD_FIELD', message: 'audio.subscribe.blockSize must be a positive integer.' };
+      }
+      const msg: AudioSubscribeMsg = { t: 'audio.subscribe', consoleId: raw.consoleId, channel: raw.channel };
+      if (raw.blockSize !== undefined) msg.blockSize = raw.blockSize as number;
+      return { ok: true, msg };
+    }
+
+    case 'audio.unsubscribe':
+      return { ok: true, msg: { t: 'audio.unsubscribe' } };
+
     default:
       return { ok: false, code: 'UNKNOWN_TYPE', message: `Unknown message type "${raw.t}".` };
   }
@@ -309,6 +365,16 @@ export function paramMsg(
   value: number | boolean,
 ): ParamMsg {
   return { t: 'param', consoleId, channelId, path, value };
+}
+
+export function audioMsg(
+  consoleId: string,
+  channel: number,
+  sampleRate: number,
+  seq: number,
+  samples: number[],
+): AudioMsg {
+  return { t: 'audio', consoleId, channel, sampleRate, seq, samples };
 }
 
 export function clockMsg(status: ClockStatus): ClockMsg {

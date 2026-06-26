@@ -355,6 +355,91 @@ describe('BridgeCore inbound read-back', () => {
   });
 });
 
+describe('BridgeCore audio tap streaming', () => {
+  function audioCore() {
+    let tickFn: (() => void) | null = null;
+    const core = new BridgeCore({
+      oscIO: new MockOscIO(),
+      discovery: new SimulatedDiscovery(),
+      adapters: [new SimulatedConsoleAdapter({ id: 'sim', channelCount: 8 })],
+      now: () => 1000,
+      audioBlockSize: 4,
+      audioSampleRate: 48000,
+      setInterval: ((fn: () => void) => {
+        tickFn = fn;
+        return 7 as unknown as NodeJS.Timeout;
+      }) as typeof setInterval,
+      clearInterval: (() => {
+        tickFn = null;
+      }) as typeof clearInterval,
+    });
+    const c = new MockConnection();
+    core.accept(c);
+    return { c, tick: () => tickFn?.(), isCleared: () => tickFn === null };
+  }
+
+  it('audio.subscribe emits audio frames with incrementing seq and correct shape', () => {
+    const { c, tick } = audioCore();
+    c.client({ t: 'audio.subscribe', consoleId: 'sim', channel: 1 });
+    tick();
+    tick();
+    const audio = c.byType('audio') as Array<{
+      consoleId: string;
+      channel: number;
+      sampleRate: number;
+      seq: number;
+      samples: number[];
+    }>;
+    expect(audio).toHaveLength(2);
+    expect(audio[0]!.consoleId).toBe('sim');
+    expect(audio[0]!.channel).toBe(1);
+    expect(audio[0]!.sampleRate).toBe(48000);
+    expect(audio[0]!.seq).toBe(0);
+    expect(audio[1]!.seq).toBe(1);
+    expect(audio[0]!.samples).toHaveLength(4);
+    for (const s of audio[0]!.samples) {
+      expect(s).toBeGreaterThanOrEqual(-1);
+      expect(s).toBeLessThanOrEqual(1);
+    }
+  });
+
+  it('audio.unsubscribe stops the stream and clears the timer', () => {
+    const { c, tick, isCleared } = audioCore();
+    c.client({ t: 'audio.subscribe', consoleId: 'sim', channel: 2 });
+    tick();
+    c.client({ t: 'audio.unsubscribe' });
+    expect(isCleared()).toBe(true);
+    expect(c.byType('audio')).toHaveLength(1);
+  });
+
+  it('a new audio.subscribe replaces the prior stream (one per session)', () => {
+    const { c } = audioCore();
+    c.client({ t: 'audio.subscribe', consoleId: 'sim', channel: 1 });
+    // Subscribe again; the prior timer must be cleared before the new one starts.
+    c.client({ t: 'audio.subscribe', consoleId: 'sim', channel: 2 });
+    expect(c.byType('error')).toHaveLength(0);
+  });
+
+  it('session close stops the audio stream', () => {
+    const { c, isCleared } = audioCore();
+    c.client({ t: 'audio.subscribe', consoleId: 'sim', channel: 1 });
+    c.close();
+    expect(isCleared()).toBe(true);
+  });
+
+  it('audio.subscribe on unknown console → NO_CONSOLE error', () => {
+    const { c } = audioCore();
+    c.client({ t: 'audio.subscribe', consoleId: 'nope', channel: 1 });
+    expect((c.byType('error')[0] as { code: string }).code).toBe('NO_CONSOLE');
+  });
+
+  it('audio.subscribe on out-of-range channel → NO_CHANNEL error', () => {
+    const { c } = audioCore();
+    c.client({ t: 'audio.subscribe', consoleId: 'sim', channel: 999 });
+    expect((c.byType('error')[0] as { code: string }).code).toBe('NO_CHANNEL');
+  });
+});
+
 describe('parseAddress', () => {
   it('parses host:port', () => {
     expect(parseAddress('10.0.0.9:10023')).toEqual({ host: '10.0.0.9', port: 10023 });
