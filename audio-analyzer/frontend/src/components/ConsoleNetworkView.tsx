@@ -41,11 +41,22 @@ function usePrefersReducedMotion(): boolean {
   return reduced;
 }
 
+/** A channel wired as the analyzer's bridge measurement source. */
+export interface BridgeSourceSelection {
+  /** Bridge URL the source was wired through (blank / "demo" = simulated). */
+  url: string;
+  consoleId: string;
+  channelId: string;
+  /** 1-based channel number parsed from `channelId`. */
+  channel: number;
+  label: string;
+}
+
 interface ConsoleNetworkViewProps {
   /** Current edition — the Console view is Studio-gated. */
   edition?: Edition;
   /** Notified when a channel is wired as the analyzer measurement source. */
-  onSource?: (source: { consoleId: string; channelId: string; label: string } | null) => void;
+  onSource?: (source: BridgeSourceSelection | null) => void;
 }
 
 /**
@@ -249,11 +260,23 @@ export function ConsoleNetworkView({ edition = "studio", onSource }: ConsoleNetw
     setStatus("closed");
     transportRef.current?.disconnect();
     transportRef.current = null;
+    // Wiring a source requires a live bridge — drop it on disconnect.
+    if (source) setSource(null);
   };
 
   const setSource = (s: { consoleId: string; channelId: string; label: string } | null) => {
     setSourceState(s);
-    onSource?.(s);
+    if (s === null) {
+      onSource?.(null);
+      return;
+    }
+    onSource?.({
+      url: activeUrl ?? "",
+      consoleId: s.consoleId,
+      channelId: s.channelId,
+      channel: channelNum(s.channelId),
+      label: s.label,
+    });
   };
 
   const selectedDescriptor = useMemo(

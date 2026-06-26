@@ -9,10 +9,14 @@ import { TransferView } from "../components/TransferView";
 import { SplView } from "../components/SplView";
 import { Rt60View } from "../components/Rt60View";
 import { IrView } from "../components/IrView";
-import { ConsoleNetworkView } from "../components/ConsoleNetworkView";
+import {
+  ConsoleNetworkView,
+  type BridgeSourceSelection,
+} from "../components/ConsoleNetworkView";
 import { SessionsView } from "../components/SessionsView";
 import { InsightsPanel } from "../components/InsightsPanel";
 import { useAudioState } from "../hooks/useAudioState";
+import { useBridgeAudioSpectrum } from "../hooks/useBridgeAudioSpectrum";
 import { analyze } from "../lib/diagnostics";
 import {
   EDITIONS,
@@ -49,11 +53,20 @@ export default function AnalyzerApp() {
   const audio = useAudioState();
   const [tab, setTab] = useState<AnalyzerTab>("rta");
   const [spectrum, setSpectrum] = useState<SpectrumSnapshot | null>(null);
-  const [consoleSource, setConsoleSource] = useState<{
-    consoleId: string;
-    channelId: string;
-    label: string;
-  } | null>(null);
+  const [consoleSource, setConsoleSource] = useState<BridgeSourceSelection | null>(null);
+
+  // When a console/network channel is wired as the measurement source, tap its
+  // streamed PCM off the bridge and compute a live spectrum. Null otherwise.
+  const bridgeSpectrum = useBridgeAudioSpectrum(
+    consoleSource
+      ? {
+          url: consoleSource.url,
+          consoleId: consoleSource.consoleId,
+          channel: consoleSource.channel,
+          label: consoleSource.label,
+        }
+      : null,
+  );
   // Defaults to Studio so every feature is visible in the demo; persisted.
   const [edition, setEdition] = useState<Edition>("studio");
 
@@ -90,7 +103,13 @@ export default function AnalyzerApp() {
     switch (tab) {
       case "rta":
         return (
-          <RtaView audio={audio} onSpectrum={setSpectrum} edition={edition} />
+          <RtaView
+            audio={audio}
+            onSpectrum={setSpectrum}
+            edition={edition}
+            bridgeSpectrum={bridgeSpectrum}
+            bridgeLabel={consoleSource?.label ?? null}
+          />
         );
       case "transfer":
         return <TransferView edition={edition} />;

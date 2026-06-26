@@ -19,10 +19,13 @@ import {
   errorMsg,
   metersMsg,
   paramMsg,
+  audioMsg,
   parseClientMsg,
   welcome,
   clockMsg,
 } from './protocol.js';
+import type { AudioSource } from './audio/source.js';
+import { SimulatedAudioSource } from './audio/source.js';
 import type { OscMessage } from './osc/types.js';
 import { oscControl } from './control/types.js';
 import type { ClientMsg, ServerMsg } from './protocol.js';
@@ -37,7 +40,15 @@ import { SimulatedConsoleAdapter } from './adapters/simulated.js';
 import { deriveClockStatus } from './clock.js';
 
 /** The capabilities the bridge advertises in `welcome`. */
-export const CAPABILITIES = ['discover', 'get', 'set', 'meter.subscribe', 'unsubscribe'];
+export const CAPABILITIES = [
+  'discover',
+  'get',
+  'set',
+  'meter.subscribe',
+  'unsubscribe',
+  'audio.subscribe',
+  'audio.unsubscribe',
+];
 
 /** A single client connection, abstracted from the transport. */
 export interface Connection {
@@ -66,6 +77,18 @@ export interface BridgeDeps {
   adapters: ConsoleAdapter[];
   /** Meter push interval in ms (default 50 = 20 fps). */
   meterIntervalMs?: number;
+  /**
+   * PCM capture source for the audio-tap streaming path. Defaults to a
+   * deterministic {@link SimulatedAudioSource}; a real Dante/driver-capture
+   * source swaps in here behind the same interface. `index.ts` may inject one.
+   */
+  audioSource?: AudioSource;
+  /** Audio block push interval in ms (default 50). Injectable for tests. */
+  audioIntervalMs?: number;
+  /** Samples per audio block (default 1024). */
+  audioBlockSize?: number;
+  /** Sample rate reported in `audio` frames (default 48000). */
+  audioSampleRate?: number;
   /** Injectable clock for deterministic meter generation in tests. */
   now?: () => number;
   /** Injectable timer setter (default global). */
@@ -82,20 +105,31 @@ interface MeterSubscription {
   handle: NodeJS.Timeout | number;
 }
 
+interface AudioSubscription {
+  handle: NodeJS.Timeout | number;
+}
+
 /**
  * Per-connection session: tracks meter subscriptions and routes messages.
  */
 class Session {
   private subs: MeterSubscription[] = [];
 
+  /** At most one audio-tap stream per session (a new subscribe replaces it). */
+  private audioSub: AudioSubscription | null = null;
+
   /** TCP control transport, defaulted to a no-op mock when none injected. */
   private readonly tcpIO: TcpControlIO;
+
+  /** PCM capture source, defaulted to the deterministic simulated source. */
+  private readonly audioSource: AudioSource;
 
   constructor(
     private readonly conn: Connection,
     private readonly deps: Required<Pick<BridgeDeps, 'discovery' | 'oscIO' | 'adapters'>> & BridgeDeps,
   ) {
     this.tcpIO = deps.tcpIO ?? new MockTcpControlIO();
+    this.audioSource = deps.audioSource ?? new SimulatedAudioSource();
   }
 
   /** True once the connection has closed and the session was disposed. */
@@ -219,6 +253,14 @@ class Session {
         this.clearSubs(msg.id);
         return;
 
+      case 'audio.subscribe':
+        this.subscribeAudio(msg.consoleId, msg.channel, msg.blockSize);
+        return;
+
+      case 'audio.unsubscribe':
+        this.clearAudio();
+        return;
+
       default: {
         const never: never = msg;
         this.reply(errorMsg('UNKNOWN_TYPE', `Unhandled message ${JSON.stringify(never)}.`));
@@ -291,9 +333,61 @@ class Session {
     this.subs = [];
   }
 
+  /**
+   * Start streaming `audio` PCM blocks for one console channel to this session.
+   * Validates the console/channel exists, then ticks the injected timer,
+   * reading a block from the AudioSource and incrementing `seq` each tick. Only
+   * one audio stream per session: a new subscribe replaces the prior one.
+   * Never throws on bad input — replies with the structured error instead.
+   */
+  private subscribeAudio(consoleId: string, channel: number, blockSize?: number): void {
+    const adapter = this.findAdapter(consoleId);
+    if (!adapter) {
+      this.reply(errorMsg('NO_CONSOLE', `Unknown consoleId "${consoleId}".`));
+      return;
+    }
+    if (!Number.isInteger(channel) || channel < 1 || channel > adapter.descriptor.channelCount) {
+      this.reply(
+        errorMsg('NO_CHANNEL', `Channel ${channel} out of range for console "${consoleId}".`),
+      );
+      return;
+    }
+
+    // Replace any existing audio stream (one per session).
+    this.clearAudio();
+
+    const interval = this.deps.audioIntervalMs ?? 50;
+    const size = blockSize ?? this.deps.audioBlockSize ?? 1024;
+    const sampleRate = this.deps.audioSampleRate ?? 48000;
+    const setI = this.deps.setInterval ?? ((fn, ms) => setInterval(fn, ms));
+
+    let seq = 0;
+    const tick = (): void => {
+      try {
+        const samples = this.audioSource.read(channel, size, seq);
+        this.reply(audioMsg(consoleId, channel, sampleRate, seq, samples));
+        seq++;
+      } catch (err) {
+        this.fail(err);
+      }
+    };
+
+    const handle = setI(tick, interval);
+    this.audioSub = { handle };
+  }
+
+  private clearAudio(): void {
+    if (!this.audioSub) return;
+    const clearI =
+      this.deps.clearInterval ?? ((h: NodeJS.Timeout | number) => clearInterval(h as NodeJS.Timeout));
+    clearI(this.audioSub.handle);
+    this.audioSub = null;
+  }
+
   private dispose(): void {
     this.alive = false;
     this.clearSubs();
+    this.clearAudio();
   }
 }
 

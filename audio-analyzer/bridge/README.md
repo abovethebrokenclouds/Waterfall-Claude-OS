@@ -104,6 +104,8 @@ All messages are JSON objects with a `t` (type) discriminator.
 | `set`             | `consoleId`, `channelId`, `path`, `value` | Write a parameter (user-initiated only). |
 | `meter.subscribe` | `consoleId`, `tap:'pre-eq'\|'post-eq'\|'post-fader'`, `channels[]` | Stream `meters` frames. |
 | `unsubscribe`     | `id?` | Stop meter streams for this connection. |
+| `audio.subscribe` | `consoleId`, `channel` (≥1), `blockSize?` | Subscribe an **audio tap**: stream raw PCM `audio` blocks from one channel (the app runs its own FFT on them). |
+| `audio.unsubscribe` | — | Stop this connection's audio-tap stream. |
 
 ### Bridge → Client
 
@@ -114,6 +116,7 @@ All messages are JSON objects with a `t` (type) discriminator.
 | `consoles` | `consoles: ConsoleDescriptor[]` | Reachable consoles. |
 | `channels` | `consoleId`, `channels: ConsoleChannel[]` | Normalized channel strips. |
 | `meters`   | `consoleId`, `tap`, `frames:{ch,rms,peak}[]` | Live meter frames. |
+| `audio`    | `consoleId`, `channel`, `sampleRate`, `seq`, `samples:number[]` | One block of captured **float PCM in [-1, 1]** for a subscribed channel. `seq` increments per block (gap detection / ordering). |
 | `param`    | `consoleId`, `channelId`, `path`, `value` | **Read-back**: a single normalized parameter the console reported — pushed when the surface changes or a write echoes back. `path ∈ fader\|gain\|trim\|hpf\|mute`; `value` is a number (dB for fader/gain/trim, Hz for hpf) or a boolean (mute), in the **same units** as `set`. |
 | `clock`    | `status:{locked,source,ppm}` | Word-clock / PTP lock status. |
 | `error`    | `code`, `message` | Structured error (bad input, unknown console, send failure). |
@@ -122,6 +125,55 @@ All messages are JSON objects with a `t` (type) discriminator.
 `gain` (dB), `trim` (dB), `hpf` (Hz, `0` = off). Not every console exposes every
 path on its control surface (e.g. the Allen & Heath MIDI surface has no `hpf`);
 an unsupported path is rejected with a `BAD_SET` error.
+
+## Audio-tap streaming (PCM → app FFT)
+
+Meters give level (rms/peak) per channel; the **audio tap** gives the actual
+**samples** so the app can run its own FFT / measurement DSP on a console or
+network channel. A browser can't natively receive Dante / MADI / AES67 audio, so
+the bridge owns capture and streams blocks over the same WebSocket.
+
+Flow:
+
+1. Client sends `audio.subscribe` with `consoleId`, a 1-based `channel`, and an
+   optional `blockSize` (default **1024**).
+2. The bridge validates the console + channel exist, then on a timer (default
+   **~50 ms**) reads one block from its `AudioSource` and pushes an `audio`
+   frame: `{ t:'audio', consoleId, channel, sampleRate, seq, samples }`.
+   `sampleRate` defaults to **48000**; `samples` are **float PCM in [-1, 1]**;
+   `seq` increments per block (0-based) so the client can detect gaps and
+   reassemble in order.
+3. `audio.unsubscribe` (or the connection closing) stops the stream and clears
+   the timer. **One audio stream per session** — a new `audio.subscribe`
+   replaces the prior one.
+
+Bad input never throws: an unknown console replies `error` `NO_CONSOLE`, an
+out-of-range channel replies `NO_CHANNEL`, and malformed messages are rejected
+by the protocol validator (`BAD_FIELD`).
+
+### The capture seam (`src/audio/source.ts`)
+
+Capture sits behind one interface so the streaming path runs in CI with no audio
+network:
+
+```ts
+interface AudioSource {
+  read(channel: number, blockSize: number, seq: number): number[]; // blockSize floats in [-1,1]
+}
+```
+
+- **`SimulatedAudioSource` (shipped, default).** Synthesizes **deterministic**
+  PCM purely from `(channel, seq, blockSize)` — a distinct sine per channel plus
+  a small deterministic pseudo-noise, normalized to ≤ 1.0. No `Date.now`, no
+  `Math.random`, no I/O. Phase is derived from the absolute sample index
+  `seq * blockSize`, so successive blocks are **phase-continuous** and a test can
+  assert exact samples.
+- **Real PCM (the swap point).** A `DanteAudioSource` subscribing a **Dante
+  Virtual Soundcard / DVS** channel, or a **driver-capture** source reading a
+  class-compliant USB / MADI / AES67 interface, implements the **same**
+  `AudioSource` interface and drops in behind it (inject via `BridgeDeps.audioSource`).
+  The server and the app never change — they only ever see float blocks in
+  `[-1, 1]`.
 
 ## Console adapters & control transports
 

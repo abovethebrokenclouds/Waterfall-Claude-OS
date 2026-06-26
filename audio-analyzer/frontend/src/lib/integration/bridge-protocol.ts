@@ -26,6 +26,8 @@ export type ClientMsg =
   | { t: "get"; scope: "consoles" | "channels" | "routing"; consoleId?: string }
   | { t: "set"; consoleId: string; channelId: string; path: string; value: number | boolean }
   | { t: "meter.subscribe"; consoleId: string; tap: MeterTap; channels: number[] }
+  | { t: "audio.subscribe"; consoleId: string; channel: number; blockSize?: number }
+  | { t: "audio.unsubscribe" }
   | { t: "unsubscribe"; id?: string };
 
 // --- Bridge → Client -----------------------------------------------------
@@ -37,6 +39,15 @@ export type ServerMsg =
   | { t: "channels"; consoleId: string; channels: ConsoleChannel[] }
   | { t: "param"; consoleId: string; channelId: string; path: string; value: number | boolean }
   | { t: "meters"; consoleId: string; tap: MeterTap; frames: MeterFrame[] }
+  | {
+      t: "audio";
+      consoleId: string;
+      channel: number;
+      sampleRate: number;
+      seq: number;
+      /** Float PCM in [-1, 1]. */
+      samples: number[];
+    }
   | { t: "clock"; status: ClockStatus }
   | { t: "error"; code: string; message: string };
 
@@ -176,6 +187,24 @@ export function parseServerMsg(json: unknown): ServerMsg | null {
         Array.isArray(json.frames) &&
         json.frames.every(isMeterFrame)
         ? { t: "meters", consoleId: json.consoleId, tap: json.tap, frames: json.frames as MeterFrame[] }
+        : null;
+    case "audio":
+      return isStr(json.consoleId) &&
+        isNum(json.channel) &&
+        isNum(json.sampleRate) &&
+        json.sampleRate > 0 &&
+        isNum(json.seq) &&
+        json.seq >= 0 &&
+        Array.isArray(json.samples) &&
+        json.samples.every(isNum)
+        ? {
+            t: "audio",
+            consoleId: json.consoleId,
+            channel: json.channel,
+            sampleRate: json.sampleRate,
+            seq: json.seq,
+            samples: json.samples as number[],
+          }
         : null;
     case "clock":
       return isClockStatus(json.status) ? { t: "clock", status: json.status } : null;

@@ -12,3 +12,4 @@ export * from "./reference";
 export * from "./ir-metrics";
 export * from "./noise";
 export * from "./delay";
+export * from "./pcmSpectrum";

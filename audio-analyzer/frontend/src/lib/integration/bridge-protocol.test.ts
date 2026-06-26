@@ -143,6 +143,65 @@ describe("param read-back contract", () => {
   });
 });
 
+describe("audio frame contract", () => {
+  // Pins the EXACT inbound audio shape the bridge implements:
+  // { t:"audio"; consoleId; channel; sampleRate; seq; samples: number[] }
+  it("accepts the literal audio fixture", () => {
+    const msg = parseServerMsg({
+      t: "audio",
+      consoleId: "sim-m32",
+      channel: 1,
+      sampleRate: 48000,
+      seq: 0,
+      samples: [0, 0.5, -0.5],
+    });
+    expect(msg).toEqual({
+      t: "audio",
+      consoleId: "sim-m32",
+      channel: 1,
+      sampleRate: 48000,
+      seq: 0,
+      samples: [0, 0.5, -0.5],
+    });
+  });
+
+  it("rejects an audio frame whose samples is not an array", () => {
+    expect(
+      parseServerMsg({ t: "audio", consoleId: "sim-m32", channel: 1, sampleRate: 48000, seq: 0, samples: 0.5 }),
+    ).toBeNull();
+  });
+
+  it("rejects an audio frame with a non-finite sample", () => {
+    expect(
+      parseServerMsg({ t: "audio", consoleId: "sim-m32", channel: 1, sampleRate: 48000, seq: 0, samples: [0, NaN] }),
+    ).toBeNull();
+  });
+
+  it("rejects an audio frame missing sampleRate", () => {
+    expect(
+      parseServerMsg({ t: "audio", consoleId: "sim-m32", channel: 1, seq: 0, samples: [0, 0.5] }),
+    ).toBeNull();
+  });
+
+  it("rejects an audio frame with a non-positive sampleRate", () => {
+    expect(
+      parseServerMsg({ t: "audio", consoleId: "sim-m32", channel: 1, sampleRate: 0, seq: 0, samples: [0] }),
+    ).toBeNull();
+  });
+
+  it("rejects an audio frame with a negative seq", () => {
+    expect(
+      parseServerMsg({ t: "audio", consoleId: "sim-m32", channel: 1, sampleRate: 48000, seq: -1, samples: [0] }),
+    ).toBeNull();
+  });
+
+  it("rejects an audio frame with a non-string consoleId", () => {
+    expect(
+      parseServerMsg({ t: "audio", consoleId: 7, channel: 1, sampleRate: 48000, seq: 0, samples: [0] }),
+    ).toBeNull();
+  });
+});
+
 describe("parseServerJson", () => {
   it("parses a valid JSON string", () => {
     const raw = JSON.stringify({ t: "clock", status: { locked: false, source: "internal", ppm: 0 } });
