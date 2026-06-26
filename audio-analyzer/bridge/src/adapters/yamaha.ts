@@ -11,6 +11,8 @@
 
 import type { ConsoleChannel, ConsoleDescriptor, MeterFrame, MeterTap } from '../model.js';
 import type { OscMessage } from '../osc/types.js';
+import type { ControlMessage } from '../control/types.js';
+import { oscControl } from '../control/types.js';
 import type { ConsoleAdapter, IncomingUpdate } from './types.js';
 import { channelNumberFromId } from './types.js';
 import {
@@ -49,23 +51,25 @@ export class YamahaAdapter implements ConsoleAdapter {
     return out;
   }
 
-  buildSet(channelId: string, path: string, value: number | boolean): OscMessage | null {
+  buildSet(channelId: string, path: string, value: number | boolean): ControlMessage | null {
     const ch = channelNumberFromId(channelId);
     if (ch === null || ch > this.descriptor.channelCount) return null;
-    return buildX32Set(ch, path, value);
+    const osc = buildX32Set(ch, path, value);
+    return osc ? oscControl(osc) : null;
   }
 
-  buildMeterRequest(_tap: MeterTap, _channels: number[]): OscMessage | null {
+  buildMeterRequest(_tap: MeterTap, _channels: number[]): ControlMessage | null {
     // X32-tree consoles use /xremote to begin a meter/param subscription.
-    return { address: '/xremote', args: [] };
+    return oscControl({ address: '/xremote', args: [] });
   }
 
-  parseIncoming(msg: OscMessage): IncomingUpdate | null {
-    const param = parseX32Param(msg);
+  parseIncoming(msg: ControlMessage): IncomingUpdate | null {
+    if (msg.transport !== 'osc') return null;
+    const param = parseX32Param(msg.osc);
     if (param) {
       return { kind: 'param', channelId: param.channelId, path: param.path, value: param.value };
     }
-    const meters = parseMeterBlob(msg);
+    const meters = parseMeterBlob(msg.osc);
     if (meters) return meters;
     return null;
   }

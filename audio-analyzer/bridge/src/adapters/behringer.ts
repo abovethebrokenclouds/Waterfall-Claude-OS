@@ -1,10 +1,16 @@
 /**
- * adapters/midas.ts — Midas/Behringer M32/X32-family adapter.
+ * adapters/behringer.ts — Behringer X32/X-family adapter.
  *
- * The M32/X32/Wing family speaks OSC over UDP (M32/X32 port 10023) using an
- * identical tree, e.g. `/ch/01/mix/fader`, `/ch/01/preamp/gain`. This adapter
- * is the canonical X32-tree implementation; it reuses the shared builders and
- * sets vendor identity + the default UDP control port.
+ * Behringer's X32 / X-family shares the SAME OSC tree as the Midas M32 (the two
+ * lines are sibling products built on the same DSP platform), e.g.
+ * `/ch/01/mix/fader`, `/ch/01/preamp/gain`, OSC over UDP on port 10023. So this
+ * adapter reuses the shared X32-tree builders verbatim and differs only in
+ * vendor identity. Control transport: OSC (`{ transport: 'osc' }`).
+ *
+ * NOTE — the Behringer **Wing** is a DIFFERENT, larger console with a different
+ * OSC tree (e.g. `/ch/1/fdr`, no zero-pad, different node names) and is NOT
+ * covered by this adapter; a Wing needs its own adapter. This adapter targets
+ * the X32 / X-family OSC tree only.
  */
 
 import type { ConsoleChannel, ConsoleDescriptor, MeterTap } from '../model.js';
@@ -15,10 +21,10 @@ import { channelNumberFromId } from './types.js';
 import { buildX32Set, defaultX32Channel, parseX32Param } from './x32-shared.js';
 import { parseMeterBlob } from './yamaha.js';
 
-/** Default OSC control port for the M32/X32 family. */
-export const MIDAS_OSC_PORT = 10023;
+/** Default OSC control port for the Behringer X32 family. */
+export const BEHRINGER_OSC_PORT = 10023;
 
-export interface MidasOptions {
+export interface BehringerOptions {
   id?: string;
   model?: string;
   channelCount?: number;
@@ -26,16 +32,18 @@ export interface MidasOptions {
   address: string;
 }
 
-export class MidasAdapter implements ConsoleAdapter {
+export class BehringerAdapter implements ConsoleAdapter {
   readonly descriptor: ConsoleDescriptor;
 
-  constructor(opts: MidasOptions) {
+  constructor(opts: BehringerOptions) {
     const channelCount = opts.channelCount ?? 32;
-    const address = opts.address.includes(':') ? opts.address : `${opts.address}:${MIDAS_OSC_PORT}`;
+    const address = opts.address.includes(':')
+      ? opts.address
+      : `${opts.address}:${BEHRINGER_OSC_PORT}`;
     this.descriptor = {
-      id: opts.id ?? 'midas-m32',
-      vendor: 'midas',
-      model: opts.model ?? 'M32',
+      id: opts.id ?? 'behringer-x32',
+      vendor: 'behringer',
+      model: opts.model ?? 'X32',
       channelCount,
       transport: 'aes50',
       address,
@@ -45,7 +53,7 @@ export class MidasAdapter implements ConsoleAdapter {
   listChannels(): ConsoleChannel[] {
     const out: ConsoleChannel[] = [];
     for (let ch = 1; ch <= this.descriptor.channelCount; ch++) {
-      out.push(defaultX32Channel(ch, `M32 CH ${ch}`));
+      out.push(defaultX32Channel(ch, `X32 CH ${ch}`));
     }
     return out;
   }

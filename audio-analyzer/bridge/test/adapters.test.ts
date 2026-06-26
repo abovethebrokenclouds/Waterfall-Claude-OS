@@ -10,6 +10,16 @@ import {
   hpfFloatToHz,
 } from '../src/adapters/x32-shared.js';
 import { osc } from '../src/osc/types.js';
+import type { OscMessage } from '../src/osc/types.js';
+import type { ControlMessage } from '../src/control/types.js';
+import { oscControl } from '../src/control/types.js';
+
+/** Unwrap a ControlMessage we expect to be OSC, asserting the transport. */
+function oscOf(c: ControlMessage | null): OscMessage {
+  expect(c).not.toBeNull();
+  expect(c!.transport).toBe('osc');
+  return (c as { transport: 'osc'; osc: OscMessage }).osc;
+}
 
 describe('X32 unit mappings', () => {
   it('fader float↔dB is invertible around unity', () => {
@@ -45,23 +55,25 @@ describe('Yamaha adapter address building', () => {
   const a = new YamahaAdapter({ address: '10.0.0.5:10024', model: 'CL5', channelCount: 16 });
 
   it('builds /ch/NN/mix/fader for a fader set', () => {
-    const m = a.buildSet('ch-1', 'fader', 0)!;
+    const c = a.buildSet('ch-1', 'fader', 0)!;
+    expect(c.transport).toBe('osc');
+    const m = (c as { transport: 'osc'; osc: OscMessage }).osc;
     expect(m.address).toBe('/ch/01/mix/fader');
     expect(m.args[0]?.type).toBe('f');
     expect((m.args[0] as { value: number }).value).toBeCloseTo(0.75, 5);
   });
 
   it('builds /ch/NN/preamp/gain', () => {
-    const m = a.buildSet('ch-12', 'gain', 60)!;
+    const m = oscOf(a.buildSet('ch-12', 'gain', 60));
     expect(m.address).toBe('/ch/12/preamp/gain');
     expect((m.args[0] as { value: number }).value).toBeCloseTo(1, 5);
   });
 
   it('inverts mute → /ch/NN/mix/on', () => {
-    const muted = a.buildSet('ch-3', 'mute', true)!;
+    const muted = oscOf(a.buildSet('ch-3', 'mute', true));
     expect(muted.address).toBe('/ch/03/mix/on');
     expect(muted.args[0]).toEqual({ type: 'i', value: 0 }); // mute=on=0
-    const unmuted = a.buildSet('ch-3', 'mute', false)!;
+    const unmuted = oscOf(a.buildSet('ch-3', 'mute', false));
     expect(unmuted.args[0]).toEqual({ type: 'i', value: 1 });
   });
 
@@ -72,12 +84,14 @@ describe('Yamaha adapter address building', () => {
   });
 
   it('parses an inbound fader param reply', () => {
-    const update = a.parseIncoming(osc.msg('/ch/05/mix/fader', osc.f(0.75)));
+    const update = a.parseIncoming(oscControl(osc.msg('/ch/05/mix/fader', osc.f(0.75))));
     expect(update).toEqual({ kind: 'param', channelId: 'ch-5', path: 'fader', value: expect.closeTo(0, 4) });
   });
 
   it('parses an inbound meter message', () => {
-    const m = osc.msg('/meters/post-fader', osc.i(1), osc.f(-20), osc.f(-12), osc.i(2), osc.f(-30), osc.f(-22));
+    const m = oscControl(
+      osc.msg('/meters/post-fader', osc.i(1), osc.f(-20), osc.f(-12), osc.i(2), osc.f(-30), osc.f(-22)),
+    );
     const u = a.parseIncoming(m);
     expect(u?.kind).toBe('meters');
     expect(u?.kind === 'meters' && u.frames).toEqual([
@@ -97,8 +111,8 @@ describe('Midas adapter', () => {
 
   it('builds the same X32 tree address', () => {
     const a = new MidasAdapter({ address: '10.0.0.9', channelCount: 32 });
-    expect(a.buildSet('ch-1', 'fader', 0)!.address).toBe('/ch/01/mix/fader');
-    expect(a.buildSet('ch-32', 'trim', 0)!.address).toBe('/ch/32/preamp/trim');
+    expect(oscOf(a.buildSet('ch-1', 'fader', 0)).address).toBe('/ch/01/mix/fader');
+    expect(oscOf(a.buildSet('ch-32', 'trim', 0)).address).toBe('/ch/32/preamp/trim');
   });
 });
 

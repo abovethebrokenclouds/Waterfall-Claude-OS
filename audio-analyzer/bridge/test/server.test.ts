@@ -5,6 +5,9 @@ import { MockOscIO } from '../src/osc/udp.js';
 import { SimulatedDiscovery } from '../src/discovery/simulated.js';
 import { MidasAdapter } from '../src/adapters/midas.js';
 import { SimulatedConsoleAdapter } from '../src/adapters/simulated.js';
+import { SoundcraftAdapter } from '../src/adapters/soundcraft.js';
+import { AllenHeathAdapter } from '../src/adapters/allen-heath.js';
+import { MockTcpControlIO } from '../src/control/tcp.js';
 import type { ServerMsg } from '../src/protocol.js';
 
 /** In-memory connection driving BridgeCore with no socket. */
@@ -169,6 +172,63 @@ describe('BridgeCore', () => {
 
   it('never opens a real socket (MockOscIO only)', () => {
     expect(oscIO).toBeInstanceOf(MockOscIO);
+  });
+});
+
+describe('BridgeCore transport routing (non-OSC)', () => {
+  function core() {
+    const oscIO = new MockOscIO();
+    const tcpIO = new MockTcpControlIO();
+    const bridge = new BridgeCore({
+      oscIO,
+      tcpIO,
+      discovery: new SimulatedDiscovery(),
+      adapters: [
+        new SoundcraftAdapter({ address: '10.0.0.40:3804', id: 'vi', channelCount: 64, deviceAddress: 0x0002 }),
+        new AllenHeathAdapter({ address: '10.0.0.30:51325', id: 'sq', channelCount: 48 }),
+      ],
+      now: () => 1000,
+    });
+    const c = new MockConnection();
+    bridge.accept(c);
+    return { c, oscIO, tcpIO };
+  }
+
+  it('routes a HiQnet (tcp) set to the TcpControlIO, not the OscIO', async () => {
+    const { c, oscIO, tcpIO } = core();
+    c.client({ t: 'set', consoleId: 'vi', channelId: 'ch-1', path: 'fader', value: -10 });
+    await new Promise((r) => setTimeout(r, 0));
+    expect(oscIO.sent).toHaveLength(0);
+    expect(tcpIO.sent).toHaveLength(1);
+    expect(tcpIO.sent[0]!.host).toBe('10.0.0.40');
+    expect(tcpIO.sent[0]!.port).toBe(3804);
+    // HiQnet envelope: version 0x02, dataType LONG, -10000 milli-dB.
+    expect(Buffer.from(tcpIO.sent[0]!.bytes).readUInt8(0)).toBe(0x02);
+    expect(Buffer.from(tcpIO.sent[0]!.bytes).readInt32BE(28)).toBe(-10000);
+  });
+
+  it('routes an A&H (midi) mute to the TcpControlIO', async () => {
+    const { c, oscIO, tcpIO } = core();
+    c.client({ t: 'set', consoleId: 'sq', channelId: 'ch-1', path: 'mute', value: true });
+    await new Promise((r) => setTimeout(r, 0));
+    expect(oscIO.sent).toHaveLength(0);
+    expect(tcpIO.sent).toHaveLength(1);
+    expect(Array.from(tcpIO.sent[0]!.bytes)).toEqual([0x90, 0x00, 0x7f]);
+  });
+
+  it('defaults to a no-op MockTcpControlIO when no tcpIO injected (no crash)', async () => {
+    const oscIO = new MockOscIO();
+    const bridge = new BridgeCore({
+      oscIO,
+      discovery: new SimulatedDiscovery(),
+      adapters: [new SoundcraftAdapter({ address: '10.0.0.40:3804', id: 'vi', channelCount: 8 })],
+    });
+    const c = new MockConnection();
+    bridge.accept(c);
+    c.client({ t: 'set', consoleId: 'vi', channelId: 'ch-1', path: 'fader', value: 0 });
+    await new Promise((r) => setTimeout(r, 0));
+    // No error reply: the set was accepted and routed to the default mock.
+    expect(c.byType('error')).toHaveLength(0);
   });
 });
 

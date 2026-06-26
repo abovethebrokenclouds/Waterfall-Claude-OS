@@ -82,32 +82,67 @@ All messages are JSON objects with a `t` (type) discriminator.
 | `clock`    | `status:{locked,source,ppm}` | Word-clock / PTP lock status. |
 | `error`    | `code`, `message` | Structured error (bad input, unknown console, send failure). |
 
-`set.path` values supported by the OSC adapters: `fader` (dB), `mute` (bool),
-`gain` (dB), `trim` (dB), `hpf` (Hz, `0` = off).
+`set.path` values supported by the adapters: `fader` (dB), `mute` (bool),
+`gain` (dB), `trim` (dB), `hpf` (Hz, `0` = off). Not every console exposes every
+path on its control surface (e.g. the Allen & Heath MIDI surface has no `hpf`);
+an unsupported path is rejected with a `BAD_SET` error.
+
+## Console adapters & control transports
+
+Every vendor surfaces as the same normalized `ConsoleChannel` / `MeterFrame`, so
+the app is a pure WS client and needs zero per-vendor code. Adapters are
+**transport-neutral**: `buildSet` returns a `ControlMessage` tagged with its
+transport (`osc` | `tcp` | `midi`), and the server routes it to the matching IO
+(`OscIO` over UDP for `osc`; `TcpControlIO` over TCP for `tcp` and `midi`).
+Adapters open no sockets — `node:dgram` / `node:net` are lazily required at the
+IO boundary only.
+
+| Vendor (`ConsoleVendor`) | Adapter | Control transport | Notes |
+|--------------------------|---------|-------------------|-------|
+| `yamaha`      | `yamaha.ts`      | **OSC** (UDP)        | CL/QL/RIVAGE abstracted onto the X32-compatible OSC tree. |
+| `midas`       | `midas.ts`       | **OSC** (UDP)        | M32/X32 OSC tree (`/ch/01/mix/fader`), port 10023. |
+| `behringer`   | `behringer.ts`   | **OSC** (UDP)        | X32 / X-family — identical tree to Midas (reuses `x32-shared`). **Behringer Wing differs** (different OSC tree) and needs its own adapter. |
+| `digico`      | `digico.ts`      | **OSC** (UDP)        | SD/Quantum OSC control plane (`/Input_Channels/<n>/Fader`), engineering units (dB/Hz) on the wire, port 8000. |
+| `allen-heath` | `allen-heath.ts` | **MIDI over TCP**    | dLive/SQ — real **documented** A&H MIDI: Note-On mute + NRPN (CC 99/98/6/38) fader/gain, port 51325. |
+| `soundcraft`  | `soundcraft.ts`  | **HiQnet over TCP**  | Vi/Si — real Harman **HiQnet** ParameterSet envelope (documented header), port 3804. |
+| `avid`        | `avid.ts`        | **representative TCP** | S6L / EUCON. **Honesty note:** EUCON is proprietary with no public byte-level spec — the framing is a clearly-labeled *representative* model (`representative-frame.ts`); the channel→`Mc/Strip/<n>/<control>` address and dB→milli-dB **mapping** is correct/deterministic and swaps to the official EuControl SDK at the same seam. |
+| `ssl`         | `ssl.ts`         | **representative TCP** | SSL Live (SOLSA). **Honesty note:** the SSL Live remote protocol is proprietary/unpublished — framing is a *representative* model; the channel→`/live/ch/<n>/<control>` mapping is deterministic and swaps to SSL's official SDK at the same seam. |
+| `presonus`    | `presonus.ts`    | **representative TCP** | StudioLive (UCNET). **Honesty note:** UCNET is proprietary (only partially reverse-engineered) — framing is a *representative* model; the channel→`line/ch<n>/<control>` mapping (dB→0..1 normalized) is deterministic and swaps to PreSonus's official SDK at the same seam. |
+
+The three proprietary adapters do **not** fabricate false on-wire precision: they
+emit a `magic`-prefixed, length-delimited JSON control frame
+(`adapters/representative-frame.ts`) that self-identifies as a stand-in, while
+keeping the normalized→native mapping exact so the real SDK drops in behind the
+unchanged `ConsoleAdapter` interface.
 
 ## Hardware vs. simulated
 
 | Part | Status |
 |------|--------|
 | OSC 1.0 codec (`src/osc/encode.ts`, `decode.ts`) | Pure TS, no native deps, fully tested. |
-| OSC-over-UDP (`src/osc/udp.ts` `UdpOscIO`) | **Real** dgram socket — the one hardware seam. `dgram` is lazy-required so importing the module binds nothing. Tests use `MockOscIO`. |
-| Yamaha / Midas adapters (`src/adapters/*`) | Real X32/M32 OSC tree address building + parsing (e.g. `/ch/01/mix/fader`). |
+| OSC-over-UDP (`src/osc/udp.ts` `UdpOscIO`) | **Real** dgram socket — an OSC hardware seam. `dgram` is lazy-required so importing the module binds nothing. Tests use `MockOscIO`. |
+| TCP control transport (`src/control/tcp.ts` `NetTcpControlIO`) | **Real** TCP socket — the byte-stream hardware seam (HiQnet / MIDI / representative TCP). `node:net` is lazy-required so importing binds nothing. Tests use `MockTcpControlIO`. |
+| Yamaha / Midas / Behringer / DiGiCo adapters | Real OSC address building + parsing (X32 tree `/ch/01/mix/fader`; DiGiCo `/Input_Channels/<n>/Fader`). |
+| Allen & Heath / Soundcraft adapters | Real documented wire bytes — A&H MIDI (NRPN/Note-On), Soundcraft HiQnet ParameterSet envelope. |
+| Avid / SSL / PreSonus adapters | Representative TCP frame with deterministic mapping; on-wire framing is a clearly-labeled stand-in pending the official SDK (see the adapter table above). |
 | Simulated console (`src/adapters/simulated.ts`) | Synthesizes a CL5/M32 with moving meters — **runs with no hardware**. |
 | `SimulatedDiscovery` | Deterministic Dante/AES67/MADI device list — **no hardware**. |
 | `MdnsDiscovery` (`src/discovery/mdns.ts`) | **Stub** — requires real mDNS/Bonjour on the host and an mDNS backend; not built into this dependency-free bridge. |
 
-By default `npm start` wires the real UDP transport + the real Yamaha/Midas
-adapters (pointed at loopback so a dev box doesn't blast a live network) **plus**
-a simulated console, so the app has something to talk to immediately.
+By default `npm start` wires the real UDP + TCP transports + the real
+Yamaha/Midas adapters (pointed at loopback so a dev box doesn't blast a live
+network) **plus** a simulated console, so the app has something to talk to
+immediately. Any of the 8 vendor families can be added via
+`createAdapter(vendor, address)` / `ADAPTER_REGISTRY` in `src/index.ts`.
 
 ## Safe-send discipline
 
 The bridge is the only thing on the LAN, so it enforces the write rules: writes
 happen only on an explicit client `set`, values are bounded by the adapter
-mapping (out-of-range channels/paths are rejected with an `error`), and every
-socket send is wrapped in try/catch so a failure surfaces as a `SEND_FAILED`
-error rather than crashing the bridge. Discovery is read-only and never
-repatches audio.
+mapping (out-of-range values are clamped; out-of-range channels/unsupported
+paths are rejected with an `error`), and every socket send — OSC *or* TCP — is
+wrapped in try/catch so a failure surfaces as a `SEND_FAILED` error rather than
+crashing the bridge. Discovery is read-only and never repatches audio.
 
 ## Security note
 
