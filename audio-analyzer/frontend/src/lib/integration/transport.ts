@@ -85,16 +85,23 @@ export function demoChannels(consoleId: string): ConsoleChannel[] {
  * A fully in-process transport with deterministic demo data and moving meter
  * frames driven by a timer. No real sockets — SSR-safe and headless-testable.
  */
+interface AudioStream {
+  consoleId: string;
+  channel: number;
+  blockSize: number;
+  /** Per-channel sequence counter (independent per concurrent stream). */
+  seq: number;
+}
+
 export class SimulatedTransport implements IntegrationTransport {
   private listeners = new Set<(msg: ServerMsg) => void>();
   private timer: ReturnType<typeof setInterval> | null = null;
   private audioTimer: ReturnType<typeof setInterval> | null = null;
   private meterSub: { consoleId: string; tap: MeterTap; channels: number[] } | null = null;
-  private audioSub: { consoleId: string; channel: number; blockSize: number } | null = null;
+  // Audio subscriptions are ADDITIVE/concurrent: each subscribed channel gets
+  // its own stream (and its own seq) so two channels both emit `audio` frames.
+  private audioStreams = new Map<number, AudioStream>();
   private tick = 0;
-  // Phase-continuous synthesis state for the simulated audio tap.
-  private audioSeq = 0;
-  private audioPhase = 0;
   private readonly audioSampleRate = 48000;
   status: TransportStatus = "idle";
 
@@ -128,7 +135,7 @@ export class SimulatedTransport implements IntegrationTransport {
       this.audioTimer = null;
     }
     this.meterSub = null;
-    this.audioSub = null;
+    this.audioStreams.clear();
   }
 
   send(msg: ClientMsg): void {
@@ -164,19 +171,25 @@ export class SimulatedTransport implements IntegrationTransport {
         this.startMeters();
         break;
       case "audio.subscribe":
-        this.audioSub = {
+        // Additive: subscribing a second channel streams BOTH. A fresh
+        // subscription for a channel resets that channel's seq only.
+        this.audioStreams.set(msg.channel, {
           consoleId: msg.consoleId,
           channel: msg.channel,
           blockSize: msg.blockSize && msg.blockSize > 0 ? Math.floor(msg.blockSize) : 512,
-        };
-        // Reset phase/seq so a fresh subscription starts clean.
-        this.audioSeq = 0;
-        this.audioPhase = 0;
+          seq: 0,
+        });
         this.startAudio();
         break;
       case "audio.unsubscribe":
-        this.audioSub = null;
-        if (this.audioTimer !== null) {
+        if (typeof msg.channel === "number") {
+          // Stop one channel; leave any other concurrent streams running.
+          this.audioStreams.delete(msg.channel);
+        } else {
+          // Stop all audio streams.
+          this.audioStreams.clear();
+        }
+        if (this.audioStreams.size === 0 && this.audioTimer !== null) {
           clearInterval(this.audioTimer);
           this.audioTimer = null;
         }
@@ -219,33 +232,40 @@ export class SimulatedTransport implements IntegrationTransport {
   }
 
   /**
-   * Emit a single block of deterministic float PCM for the active audio
-   * subscription (also used by tests). A per-channel sine tone plus a little
-   * noise, phase-continuous across blocks via a running phase + incrementing
-   * `seq`. Samples are float in [-1, 1].
+   * Emit one block of deterministic float PCM for every active audio stream
+   * (also used by tests). Streams are concurrent: each subscribed channel emits
+   * its own block with its own incrementing `seq`.
+   *
+   * Synthesis uses a SHARED EXCITATION (a deterministic broadband source indexed
+   * by absolute sample number) so any two channels are mutually COHERENT — each
+   * channel is `gain(ch)·excitation(n − delay(ch))` plus a small per-channel
+   * noise. This mirrors the bridge's coherent simulated-tap model and lets the
+   * dual-FFT transfer function recover a real magnitude/phase/coherence between
+   * any two taps. Samples are float, clamped to [-1, 1], index-continuous.
    */
   emitAudioFrame(): void {
-    if (!this.audioSub) return;
-    const { consoleId, channel, blockSize } = this.audioSub;
+    if (this.audioStreams.size === 0) return;
     const sr = this.audioSampleRate;
-    // A distinct tone per channel so different taps look different.
-    const freq = 220 * Math.pow(2, (channel % 12) / 12); // ~A3 up a chromatic scale
-    const dPhase = (2 * Math.PI * freq) / sr;
-    const samples = new Array<number>(blockSize);
-    for (let i = 0; i < blockSize; i++) {
-      // Deterministic pseudo-noise from the global sample index (seq*block + i).
-      const idx = this.audioSeq * blockSize + i;
-      const noise = (Math.sin(idx * 12.9898) * 43758.5453) % 1; // hash-ish in [-1,1)
-      let v = 0.6 * Math.sin(this.audioPhase) + 0.03 * noise;
-      this.audioPhase += dPhase;
-      if (this.audioPhase > Math.PI) this.audioPhase -= 2 * Math.PI;
-      // Clamp to the [-1, 1] contract.
-      if (v > 1) v = 1;
-      else if (v < -1) v = -1;
-      samples[i] = v;
+    for (const stream of this.audioStreams.values()) {
+      const { consoleId, channel, blockSize } = stream;
+      const gain = simGain(channel);
+      const delay = simDelay(channel);
+      const samples = new Array<number>(blockSize);
+      for (let i = 0; i < blockSize; i++) {
+        // Absolute sample index for this channel's stream (index-continuous).
+        const n = stream.seq * blockSize + i;
+        // Shared coherent excitation, delayed and scaled per channel.
+        const exc = sharedExcitation(n - delay);
+        // Tiny per-channel incoherent noise (keeps coherence < 1 but high).
+        const noise = 0.004 * hashNoise(n * 31 + channel * 7919);
+        let v = gain * exc + noise;
+        if (v > 1) v = 1;
+        else if (v < -1) v = -1;
+        samples[i] = v;
+      }
+      this.emit({ t: "audio", consoleId, channel, sampleRate: sr, seq: stream.seq, samples });
+      stream.seq++;
     }
-    this.emit({ t: "audio", consoleId, channel, sampleRate: sr, seq: this.audioSeq, samples });
-    this.audioSeq++;
   }
 
   private startAudio(): void {
@@ -263,6 +283,48 @@ function clampDb(v: number): number {
   if (v > 0) return 0;
   if (v < -60) return -60;
   return Math.round(v * 10) / 10;
+}
+
+// --- Coherent simulated-tap synthesis ------------------------------------
+//
+// A single deterministic broadband excitation shared by every channel. Because
+// all taps derive from the SAME source (scaled + delayed), any pair is mutually
+// coherent — exactly the dual-FFT measurement the Transfer tab performs.
+
+/** Deterministic hash-noise in [-1, 1) for an integer index. */
+function hashNoise(idx: number): number {
+  const s = Math.sin(idx * 12.9898) * 43758.5453;
+  return 2 * (s - Math.floor(s)) - 1;
+}
+
+/**
+ * Shared broadband excitation as a function of absolute sample index. A sum of
+ * a few incommensurate sinusoids plus low-level hash noise — deterministic,
+ * smooth (so fractional/delayed reads stay coherent), bounded well within
+ * [-1, 1] before per-channel gain.
+ */
+function sharedExcitation(n: number): number {
+  const sr = 48000;
+  // Incommensurate partials spread across the band.
+  const a = Math.sin((2 * Math.PI * 110 * n) / sr);
+  const b = Math.sin((2 * Math.PI * 437 * n) / sr + 0.6);
+  const c = Math.sin((2 * Math.PI * 1303 * n) / sr + 1.1);
+  const d = Math.sin((2 * Math.PI * 5011 * n) / sr + 2.2);
+  // Floor n for the noise term so a small integer delay stays deterministic.
+  const noise = 0.15 * hashNoise(Math.round(n));
+  return 0.28 * (a + b + c + d) + noise * 0.2;
+}
+
+/** Per-channel excitation gain (linear, < 1). Deterministic, channel-stable. */
+function simGain(channel: number): number {
+  // ~0.5..0.9 across channels; channel 1 is the natural "reference".
+  return 0.55 + 0.06 * (channel % 6);
+}
+
+/** Per-channel propagation delay in whole samples. Deterministic. */
+function simDelay(channel: number): number {
+  // 0 samples on ch 1, growing modestly so taps differ but stay aligned-ish.
+  return (channel % 8) * 5;
 }
 
 // --- WebSocketBridgeTransport --------------------------------------------

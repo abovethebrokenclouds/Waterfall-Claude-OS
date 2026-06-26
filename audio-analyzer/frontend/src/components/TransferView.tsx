@@ -21,13 +21,28 @@ const DEMO_DELAY_SAMPLES = 41; // the "true" inter-channel delay to recover
 
 interface TransferViewProps {
   edition?: Edition;
+  /**
+   * A live transfer function measured from two bridge taps (ref + meas). When
+   * present, the view renders THIS instead of the synthetic demo curve.
+   */
+  bridgeTransfer?: TransferPoint[] | null;
+  /** Label of the reference tap, for the live banner. */
+  refLabel?: string | null;
+  /** Label of the measurement tap, for the live banner. */
+  measLabel?: string | null;
 }
 
 /**
- * Dual-channel transfer-function view driven by deterministic synthetic data.
- * Clearly labelled as demo data; includes the pink-noise measurement hint.
+ * Dual-channel transfer-function view. Renders a live dual-FFT measurement from
+ * two bridge taps when one is wired (`bridgeTransfer`), otherwise a deterministic
+ * synthetic demo curve. Includes the pink-noise measurement hint.
  */
-export function TransferView({ edition = "studio" }: TransferViewProps) {
+export function TransferView({
+  edition = "studio",
+  bridgeTransfer = null,
+  refLabel = null,
+  measLabel = null,
+}: TransferViewProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [trace, setTrace] = useState<TransferTrace>("magnitude");
   const [delaySamples, setDelaySamples] = useState<number | null>(null);
@@ -36,16 +51,20 @@ export function TransferView({ edition = "studio" }: TransferViewProps) {
   const canDelay = hasFeature(edition, "delayFinder");
   const canGen = hasFeature(edition, "signalGenerator");
 
+  const isLive = bridgeTransfer !== null && bridgeTransfer.length > 0;
+
   const baseData = useMemo(() => syntheticTransfer(F_MIN, F_MAX, 256), []);
 
-  // The displayed data has its phase trace delay-compensated once aligned.
+  // The displayed data: a live bridge measurement when wired, otherwise the
+  // synthetic demo curve (optionally phase-compensated once a delay is found).
   const data = useMemo<TransferPoint[]>(() => {
+    if (isLive && bridgeTransfer) return bridgeTransfer;
     if (!compensated || delaySamples === null) return baseData;
     return baseData.map((p) => ({
       ...p,
       phaseDeg: compensatePhase(p.phaseDeg, p.freq, delaySamples, SR),
     }));
-  }, [baseData, compensated, delaySamples]);
+  }, [isLive, bridgeTransfer, baseData, compensated, delaySamples]);
 
   const dataRef = useRef<TransferPoint[]>(data);
   dataRef.current = data;
@@ -181,10 +200,26 @@ export function TransferView({ edition = "studio" }: TransferViewProps) {
             </button>
           ))}
         </div>
-        <span className="ml-auto rounded-full border border-rose/40 bg-rose/10 px-2.5 py-1 font-mono text-xs text-rose">
-          demo data
-        </span>
+        {isLive ? (
+          <span className="ml-auto rounded-full border border-teal/40 bg-teal/10 px-2.5 py-1 font-mono text-xs text-teal">
+            live · bridge taps
+          </span>
+        ) : (
+          <span className="ml-auto rounded-full border border-rose/40 bg-rose/10 px-2.5 py-1 font-mono text-xs text-rose">
+            demo data
+          </span>
+        )}
       </div>
+
+      {isLive && (
+        <p className="rounded-lg border border-violet/40 bg-violet/10 px-3 py-2 text-xs text-text">
+          Source: Bridge taps — <span className="text-amber">ref</span>{" "}
+          <span className="font-mono">{refLabel ?? "—"}</span>{" "}
+          <span className="text-haze">/</span>{" "}
+          <span className="text-rose">meas</span>{" "}
+          <span className="font-mono">{measLabel ?? "—"}</span>
+        </p>
+      )}
 
       <canvas
         ref={canvasRef}

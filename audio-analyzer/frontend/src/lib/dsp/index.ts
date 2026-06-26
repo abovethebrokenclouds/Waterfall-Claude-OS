@@ -8,6 +8,7 @@ export * from "./weighting";
 export * from "./spl";
 export * from "./rt60";
 export * from "./transfer";
+export * from "./transferCompute";
 export * from "./reference";
 export * from "./ir-metrics";
 export * from "./noise";

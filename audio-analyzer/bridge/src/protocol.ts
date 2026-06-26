@@ -64,8 +64,11 @@ export interface UnsubscribeMsg {
 /**
  * Subscribe to an AUDIO TAP: the bridge captures PCM off the named console
  * channel and streams float `audio` blocks to this session, which the app feeds
- * to its own FFT. One audio stream per session — a new subscribe replaces the
- * prior one. `blockSize` is the number of samples per pushed block.
+ * to its own FFT. ADDITIVE and keyed by `channel`: subscribing a second channel
+ * does NOT replace the first — both stream concurrently (so the app can run a
+ * live dual-channel transfer function over a reference + a measurement tap).
+ * Re-subscribing the SAME channel replaces just that channel's stream.
+ * `blockSize` is the number of samples per pushed block.
  */
 export interface AudioSubscribeMsg {
   t: 'audio.subscribe';
@@ -74,9 +77,13 @@ export interface AudioSubscribeMsg {
   blockSize?: number;
 }
 
-/** Stop the session's audio tap stream (no extra fields). */
+/**
+ * Stop audio tap streaming. With `channel`, removes just that channel's stream;
+ * without it, removes ALL audio streams for the session.
+ */
 export interface AudioUnsubscribeMsg {
   t: 'audio.unsubscribe';
+  channel?: number;
 }
 
 export type ClientMsg =
@@ -326,8 +333,17 @@ export function parseClientMsg(json: string): ParseResult {
       return { ok: true, msg };
     }
 
-    case 'audio.unsubscribe':
-      return { ok: true, msg: { t: 'audio.unsubscribe' } };
+    case 'audio.unsubscribe': {
+      if (
+        raw.channel !== undefined &&
+        (typeof raw.channel !== 'number' || !Number.isFinite(raw.channel) || raw.channel < 1)
+      ) {
+        return { ok: false, code: 'BAD_FIELD', message: 'audio.unsubscribe.channel must be a finite number ≥ 1.' };
+      }
+      const msg: AudioUnsubscribeMsg = { t: 'audio.unsubscribe' };
+      if (raw.channel !== undefined) msg.channel = raw.channel as number;
+      return { ok: true, msg };
+    }
 
     default:
       return { ok: false, code: 'UNKNOWN_TYPE', message: `Unknown message type "${raw.t}".` };

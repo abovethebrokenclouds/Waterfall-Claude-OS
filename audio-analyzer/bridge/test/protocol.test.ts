@@ -57,8 +57,10 @@ describe('parseClientMsg — valid messages', () => {
     expect(r.ok && r.msg.t === 'audio.subscribe' && r.msg.blockSize).toBe(512);
   });
 
-  it('accepts audio.unsubscribe', () => {
+  it('accepts audio.unsubscribe with and without channel', () => {
     expect(parseClientMsg(JSON.stringify({ t: 'audio.unsubscribe' })).ok).toBe(true);
+    const r = parseClientMsg(JSON.stringify({ t: 'audio.unsubscribe', channel: 2 }));
+    expect(r.ok && r.msg.t === 'audio.unsubscribe' && r.msg.channel).toBe(2);
   });
 });
 
@@ -143,6 +145,14 @@ describe('parseClientMsg — rejects malformed', () => {
   it('rejects audio.subscribe with non-positive / non-integer blockSize', () => {
     expect(parseClientMsg(JSON.stringify({ t: 'audio.subscribe', consoleId: 'sim', channel: 1, blockSize: 0 })).ok).toBe(false);
     expect(parseClientMsg(JSON.stringify({ t: 'audio.subscribe', consoleId: 'sim', channel: 1, blockSize: 1.5 })).ok).toBe(false);
+  });
+
+  it('rejects audio.unsubscribe with bad channel (< 1)', () => {
+    expect(parseClientMsg(JSON.stringify({ t: 'audio.unsubscribe', channel: 0 })).ok).toBe(false);
+  });
+
+  it('rejects audio.unsubscribe with non-finite channel', () => {
+    expect(parseClientMsg('{"t":"audio.unsubscribe","channel":1e999}').ok).toBe(false);
   });
 });
 

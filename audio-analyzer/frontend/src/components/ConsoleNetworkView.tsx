@@ -55,8 +55,16 @@ export interface BridgeSourceSelection {
 interface ConsoleNetworkViewProps {
   /** Current edition — the Console view is Studio-gated. */
   edition?: Edition;
-  /** Notified when a channel is wired as the analyzer measurement source. */
+  /** Notified when a channel is wired as the analyzer (spectrum) source. */
   onSource?: (source: BridgeSourceSelection | null) => void;
+  /**
+   * Notified when the transfer-function reference / measurement pair changes.
+   * Both must be set for a live dual-channel transfer measurement.
+   */
+  onTransferSource?: (sel: {
+    ref: BridgeSourceSelection | null;
+    meas: BridgeSourceSelection | null;
+  }) => void;
 }
 
 /**
@@ -88,7 +96,7 @@ const TAP_LABEL: Record<MeterTap, string> = {
  * normalized WebSocket protocol, or falls back to the built-in SimulatedTransport
  * (blank URL / "Demo"). SSR-safe: all browser globals live inside effects.
  */
-export function ConsoleNetworkView({ edition = "studio", onSource }: ConsoleNetworkViewProps) {
+export function ConsoleNetworkView({ edition = "studio", onSource, onTransferSource }: ConsoleNetworkViewProps) {
   const unlocked = hasFeature(edition, "ir"); // Studio gate (IR is Studio-min)
 
   const [urlInput, setUrlInput] = useState("");
@@ -103,6 +111,9 @@ export function ConsoleNetworkView({ edition = "studio", onSource }: ConsoleNetw
   const [tap, setTap] = useState<MeterTap>("post-fader");
   const [meters, setMeters] = useState<Record<number, MeterFrame>>({});
   const [source, setSourceState] = useState<{ consoleId: string; channelId: string; label: string } | null>(null);
+  // Transfer-function reference / measurement channel selections.
+  const [refSel, setRefSelState] = useState<{ consoleId: string; channelId: string; label: string } | null>(null);
+  const [measSel, setMeasSelState] = useState<{ consoleId: string; channelId: string; label: string } | null>(null);
   const [scanning, setScanning] = useState(false);
   const [scannedOnce, setScannedOnce] = useState(false);
   const [recentlyUpdated, setRecentlyUpdated] = useState<RecentMap>({});
@@ -262,6 +273,12 @@ export function ConsoleNetworkView({ edition = "studio", onSource }: ConsoleNetw
     transportRef.current = null;
     // Wiring a source requires a live bridge — drop it on disconnect.
     if (source) setSource(null);
+    // Drop any transfer ref/meas pair too.
+    if (refSel || measSel) {
+      setRefSelState(null);
+      setMeasSelState(null);
+      onTransferSource?.({ ref: null, meas: null });
+    }
   };
 
   const setSource = (s: { consoleId: string; channelId: string; label: string } | null) => {
@@ -277,6 +294,36 @@ export function ConsoleNetworkView({ edition = "studio", onSource }: ConsoleNetw
       channel: channelNum(s.channelId),
       label: s.label,
     });
+  };
+
+  const toSelection = (
+    s: { consoleId: string; channelId: string; label: string } | null,
+  ): BridgeSourceSelection | null =>
+    s === null
+      ? null
+      : {
+          url: activeUrl ?? "",
+          consoleId: s.consoleId,
+          channelId: s.channelId,
+          channel: channelNum(s.channelId),
+          label: s.label,
+        };
+
+  const emitTransfer = (
+    nextRef: { consoleId: string; channelId: string; label: string } | null,
+    nextMeas: { consoleId: string; channelId: string; label: string } | null,
+  ) => {
+    onTransferSource?.({ ref: toSelection(nextRef), meas: toSelection(nextMeas) });
+  };
+
+  const setRefSel = (s: { consoleId: string; channelId: string; label: string } | null) => {
+    setRefSelState(s);
+    emitTransfer(s, measSel);
+  };
+
+  const setMeasSel = (s: { consoleId: string; channelId: string; label: string } | null) => {
+    setMeasSelState(s);
+    emitTransfer(refSel, s);
   };
 
   const selectedDescriptor = useMemo(
@@ -515,12 +562,23 @@ export function ConsoleNetworkView({ edition = "studio", onSource }: ConsoleNetw
                     const m = meters[chNum];
                     const isSource =
                       source?.consoleId === selectedDescriptor.id && source?.channelId === ch.id;
+                    const isRef =
+                      refSel?.consoleId === selectedDescriptor.id && refSel?.channelId === ch.id;
+                    const isMeas =
+                      measSel?.consoleId === selectedDescriptor.id && measSel?.channelId === ch.id;
+                    const chLabel = `${selectedDescriptor.vendor} ${selectedDescriptor.model} · ${ch.name}`;
                     const live = isRecent(recentlyUpdated[ch.id], now, RECENT_WINDOW_MS);
                     return (
                       <div
                         key={ch.id}
                         className={`flex flex-col gap-2 rounded-xl border p-3 transition-shadow ${
-                          isSource ? "border-teal/60 bg-teal/5" : "border-line bg-panel2/40"
+                          isSource
+                            ? "border-teal/60 bg-teal/5"
+                            : isRef
+                              ? "border-amber/60 bg-amber/5"
+                              : isMeas
+                                ? "border-rose/60 bg-rose/5"
+                                : "border-line bg-panel2/40"
                         } ${live ? "ring-1 ring-amber/60 shadow-glow" : ""}`}
                       >
                         <div className="flex items-center justify-between">
@@ -575,27 +633,65 @@ export function ConsoleNetworkView({ edition = "studio", onSource }: ConsoleNetw
                           </span>
                         </div>
 
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setSource(
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setSource(
+                                isSource
+                                  ? null
+                                  : {
+                                      consoleId: selectedDescriptor.id,
+                                      channelId: ch.id,
+                                      label: chLabel,
+                                    },
+                              )
+                            }
+                            className={`rounded-lg px-2.5 py-1 text-[11px] font-semibold transition-colors ${
                               isSource
-                                ? null
-                                : {
-                                    consoleId: selectedDescriptor.id,
-                                    channelId: ch.id,
-                                    label: `${selectedDescriptor.vendor} ${selectedDescriptor.model} · ${ch.name}`,
-                                  },
-                            )
-                          }
-                          className={`self-start rounded-lg px-2.5 py-1 text-[11px] font-semibold transition-colors ${
-                            isSource
-                              ? "border border-teal/50 bg-teal/10 text-teal"
-                              : "border border-line bg-panel text-haze hover:text-text"
-                          }`}
-                        >
-                          {isSource ? "Measuring this channel" : "Send to analyzer"}
-                        </button>
+                                ? "border border-teal/50 bg-teal/10 text-teal"
+                                : "border border-line bg-panel text-haze hover:text-text"
+                            }`}
+                          >
+                            {isSource ? "Measuring this channel" : "Send to analyzer"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setRefSel(
+                                isRef
+                                  ? null
+                                  : { consoleId: selectedDescriptor.id, channelId: ch.id, label: chLabel },
+                              )
+                            }
+                            title="Use as transfer-function reference channel"
+                            className={`rounded-lg px-2.5 py-1 text-[11px] font-semibold transition-colors ${
+                              isRef
+                                ? "border border-amber/60 bg-amber/15 text-amber"
+                                : "border border-line bg-panel text-haze hover:text-text"
+                            }`}
+                          >
+                            {isRef ? "Reference ✓" : "Ref"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setMeasSel(
+                                isMeas
+                                  ? null
+                                  : { consoleId: selectedDescriptor.id, channelId: ch.id, label: chLabel },
+                              )
+                            }
+                            title="Use as transfer-function measurement channel"
+                            className={`rounded-lg px-2.5 py-1 text-[11px] font-semibold transition-colors ${
+                              isMeas
+                                ? "border border-rose/60 bg-rose/15 text-rose"
+                                : "border border-line bg-panel text-haze hover:text-text"
+                            }`}
+                          >
+                            {isMeas ? "Measure ✓" : "Meas"}
+                          </button>
+                        </div>
                       </div>
                     );
                   })}
@@ -605,6 +701,22 @@ export function ConsoleNetworkView({ edition = "studio", onSource }: ConsoleNetw
               {source && (
                 <p className="rounded-lg border border-teal/40 bg-teal/10 px-3 py-2 text-xs text-teal">
                   Analyzer source: <span className="font-mono">{source.label}</span> ({TAP_LABEL[tap]})
+                </p>
+              )}
+
+              {(refSel || measSel) && (
+                <p className="rounded-lg border border-violet/40 bg-violet/10 px-3 py-2 text-xs text-text">
+                  Transfer taps —{" "}
+                  <span className="text-amber">ref</span>{" "}
+                  <span className="font-mono">{refSel?.label ?? "—"}</span>{" "}
+                  <span className="text-haze">/</span>{" "}
+                  <span className="text-rose">meas</span>{" "}
+                  <span className="font-mono">{measSel?.label ?? "—"}</span>
+                  {refSel && measSel ? (
+                    <span className="ml-1 text-haze">· live on the Transfer tab</span>
+                  ) : (
+                    <span className="ml-1 text-haze">· pick both to measure</span>
+                  )}
                 </p>
               )}
             </section>
