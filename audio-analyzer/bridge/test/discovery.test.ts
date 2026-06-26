@@ -27,15 +27,19 @@ describe('SimulatedDiscovery', () => {
   });
 });
 
-describe('MdnsDiscovery stub', () => {
-  it('returns no devices when disabled (default)', async () => {
-    const d = await new MdnsDiscovery({ log: () => {} }).scan();
-    expect(d).toEqual([]);
-  });
-
-  it('returns no devices even when enabled (not implemented)', async () => {
-    const d = await new MdnsDiscovery({ enabled: true, log: () => {} }).scan();
-    expect(d).toEqual([]);
+describe('MdnsDiscovery (real, injected fake mdns)', () => {
+  it('returns [] for transports that are not mDNS-discoverable', async () => {
+    // avb/madi/aes50/soundgrid are not on the mDNS seam — no factory invoked.
+    let made = false;
+    const d = new MdnsDiscovery({
+      log: () => {},
+      mdnsFactory: () => {
+        made = true;
+        throw new Error('should not be constructed');
+      },
+    });
+    expect(await d.scan(['avb', 'madi'])).toEqual([]);
+    expect(made).toBe(false);
   });
 });
 

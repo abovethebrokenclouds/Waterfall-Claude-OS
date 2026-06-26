@@ -50,10 +50,45 @@ npm test           # vitest run (no sockets opened)
 
 Environment:
 
-| Var    | Default | Meaning                          |
-|--------|---------|----------------------------------|
-| `PORT` | `8088`  | WebSocket listen port            |
-| `HOST` | all     | Bind address (set to a LAN IP)   |
+| Var             | Default     | Meaning                                                        |
+|-----------------|-------------|----------------------------------------------------------------|
+| `PORT`          | `8088`      | WebSocket listen port                                          |
+| `HOST`          | all         | Bind address (set to a LAN IP)                                |
+| `RTA_DISCOVERY` | `simulated` | Discovery backend: `simulated`, `mdns`, or `both` (see below)  |
+
+### Device discovery (`RTA_DISCOVERY`)
+
+The bridge enumerates network-audio devices through the read-only `Discovery`
+interface. The backend is chosen by `RTA_DISCOVERY`:
+
+| Value       | Backend                | Behaviour                                                                 |
+|-------------|------------------------|---------------------------------------------------------------------------|
+| `simulated` | `SimulatedDiscovery`   | **Default.** Deterministic, hardware-free device catalog. Opens no socket. |
+| `mdns`      | `MdnsDiscovery`        | **Real mDNS / Bonjour.** Opt-in; binds a multicast socket *only during a scan*. |
+| `both`      | `CompositeDiscovery`   | Union of simulated + mDNS, deduped by device id.                           |
+
+The default stays `simulated` so CI and a dev box without an audio network are
+deterministic and never open a multicast socket.
+
+**What the mDNS path covers** (real multicast-DNS service types only):
+
+| Transport | mDNS service type(s)                                                   |
+|-----------|-----------------------------------------------------------------------|
+| `dante`   | `_netaudio-arc._udp`, `_netaudio-cmc._udp`, `_netaudio-dbc._udp`, `_netaudio-chan._udp` |
+| `ravenna` | `_rtsp._tcp` (incl. the `_ravenna_session._sub` subtype)              |
+| `aes67`   | `_aes67._udp` — **only if a device actually announces it over mDNS**   |
+
+**What stays on the SAP / ATDECC seam (NOT mDNS, out of scope here):** pure
+AES67 streams are normally announced via **SAP/SDP**, and **AVB** via
+**IEEE 1722.1 / ATDECC** — neither is multicast DNS, so this mDNS path does not
+discover them. Likewise MADI / AES50 / SoundGrid are not mDNS-advertised.
+
+Discovery is **read-only and non-disruptive**: a scan only browses service
+advertisements (PTR queries) and resolves SRV/TXT/A records into the normalized
+`NetworkDevice` shape. It never subscribes channels, repatches, or steals audio.
+The socket-touching part is thin; all record→device assembly is the pure,
+unit-tested `recordsToDevices` in `src/discovery/mdns-parse.ts`. Adds one
+pure-JS runtime dependency, `multicast-dns` (no native build).
 
 ## WebSocket protocol (v1)
 
@@ -128,7 +163,7 @@ unchanged `ConsoleAdapter` interface.
 | Avid / SSL / PreSonus adapters | Representative TCP frame with deterministic mapping; on-wire framing is a clearly-labeled stand-in pending the official SDK (see the adapter table above). |
 | Simulated console (`src/adapters/simulated.ts`) | Synthesizes a CL5/M32 with moving meters — **runs with no hardware**. |
 | `SimulatedDiscovery` | Deterministic Dante/AES67/MADI device list — **no hardware**. |
-| `MdnsDiscovery` (`src/discovery/mdns.ts`) | **Stub** — requires real mDNS/Bonjour on the host and an mDNS backend; not built into this dependency-free bridge. |
+| `MdnsDiscovery` (`src/discovery/mdns.ts`) | **Real mDNS / Bonjour** via `multicast-dns` — opt-in with `RTA_DISCOVERY=mdns`; binds a multicast socket only during a scan. Covers Dante / Ravenna / AES67-if-announced (see *Device discovery* above). |
 
 By default `npm start` wires the real UDP + TCP transports + the real
 Yamaha/Midas adapters (pointed at loopback so a dev box doesn't blast a live

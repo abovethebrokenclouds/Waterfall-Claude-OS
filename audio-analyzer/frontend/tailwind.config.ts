@@ -66,11 +66,19 @@ const config: Config = {
           "0%, 100%": { transform: "scaleY(0.4)" },
           "50%": { transform: "scaleY(1)" },
         },
+        // Warm read-back "live" ping: a single amber pulse that settles. Used on
+        // a channel strip when an inbound `param` updates it.
+        "live-ping": {
+          "0%": { opacity: "1", transform: "scale(0.85)" },
+          "70%": { opacity: "0.35", transform: "scale(1.15)" },
+          "100%": { opacity: "0.7", transform: "scale(1)" },
+        },
       },
       animation: {
         "slow-pulse": "slow-pulse 4.5s ease-in-out infinite",
         shimmer: "shimmer 8s ease-in-out infinite",
         "bar-rise": "bar-rise 1.6s ease-in-out infinite",
+        "live-ping": "live-ping 1.2s ease-out",
       },
     },
   },

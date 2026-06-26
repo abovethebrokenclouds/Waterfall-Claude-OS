@@ -10,6 +10,9 @@
  */
 
 import { SimulatedDiscovery } from './discovery/simulated.js';
+import { MdnsDiscovery } from './discovery/mdns.js';
+import { CompositeDiscovery } from './discovery/composite.js';
+import type { Discovery } from './discovery/types.js';
 import { UdpOscIO } from './osc/udp.js';
 import { NetTcpControlIO } from './control/tcp.js';
 import { YamahaAdapter } from './adapters/yamaha.js';
@@ -58,6 +61,29 @@ export interface StartOptions {
   midasAddress?: string;
 }
 
+/**
+ * Pick the discovery backend from `RTA_DISCOVERY`:
+ *   - unset / 'simulated' → SimulatedDiscovery (default; deterministic, no socket)
+ *   - 'mdns'              → real mDNS (opt-in; binds a multicast socket on scan)
+ *   - 'both'              → simulated ∪ mDNS, deduped by id
+ * Constructing any of these opens NO socket — MdnsDiscovery only touches the
+ * network inside scan().
+ */
+export function buildDiscovery(mode = process.env.RTA_DISCOVERY): Discovery {
+  switch ((mode ?? '').toLowerCase()) {
+    case 'mdns':
+      return new MdnsDiscovery();
+    case 'both':
+      return new CompositeDiscovery([new SimulatedDiscovery(), new MdnsDiscovery()]);
+    case '':
+    case 'simulated':
+      return new SimulatedDiscovery();
+    default:
+      console.warn(`[bridge] unknown RTA_DISCOVERY="${mode}" — falling back to simulated`);
+      return new SimulatedDiscovery();
+  }
+}
+
 /** Build the adapter set the bridge exposes. */
 export function buildAdapters(opts: StartOptions): ConsoleAdapter[] {
   const adapters: ConsoleAdapter[] = [];
@@ -86,7 +112,7 @@ export function startBridge(opts: StartOptions = {}): RunningServer {
   const tcpIO = new NetTcpControlIO({
     onError: (e) => console.error('[tcp]', e.message),
   });
-  const discovery = new SimulatedDiscovery();
+  const discovery = buildDiscovery();
   const adapters = buildAdapters(opts);
 
   const server = createWsServer({
