@@ -81,12 +81,21 @@ export function demoChannels(consoleId: string): ConsoleChannel[] {
 export class SimulatedTransport implements IntegrationTransport {
   private listeners = new Set<(msg: ServerMsg) => void>();
   private timer: ReturnType<typeof setInterval> | null = null;
+  private audioTimer: ReturnType<typeof setInterval> | null = null;
   private meterSub: { consoleId: string; tap: MeterTap; channels: number[] } | null = null;
+  private audioSub: { consoleId: string; channel: number; blockSize: number } | null = null;
   private tick = 0;
+  // Phase-continuous synthesis state for the simulated audio tap.
+  private audioSeq = 0;
+  private audioPhase = 0;
+  private readonly audioSampleRate = 48000;
   status: TransportStatus = "idle";
 
   /** Whether to auto-emit welcome/devices/consoles on connect. */
-  constructor(private readonly meterIntervalMs = 100) {}
+  constructor(
+    private readonly meterIntervalMs = 100,
+    private readonly audioIntervalMs = 50,
+  ) {}
 
   connect(): void {
     this.status = "connected";
@@ -94,7 +103,7 @@ export class SimulatedTransport implements IntegrationTransport {
     // attached right after connect() still receive it.
     queueMicrotask(() => {
       if (this.status !== "connected") return;
-      this.emit({ t: "welcome", ver: 1, capabilities: ["discover", "get", "set", "meter", "clock"] });
+      this.emit({ t: "welcome", ver: 1, capabilities: ["discover", "get", "set", "meter", "audio", "clock"] });
       this.emit({ t: "devices", devices: DEMO_DEVICES });
       this.emit({ t: "consoles", consoles: DEMO_CONSOLES });
       this.emit({ t: "clock", status: { locked: true, source: "dante-1", ppm: 0.3 } });
@@ -107,13 +116,18 @@ export class SimulatedTransport implements IntegrationTransport {
       clearInterval(this.timer);
       this.timer = null;
     }
+    if (this.audioTimer !== null) {
+      clearInterval(this.audioTimer);
+      this.audioTimer = null;
+    }
     this.meterSub = null;
+    this.audioSub = null;
   }
 
   send(msg: ClientMsg): void {
     switch (msg.t) {
       case "hello":
-        this.emit({ t: "welcome", ver: 1, capabilities: ["discover", "get", "set", "meter", "clock"] });
+        this.emit({ t: "welcome", ver: 1, capabilities: ["discover", "get", "set", "meter", "audio", "clock"] });
         break;
       case "discover":
         this.emit({ t: "devices", devices: DEMO_DEVICES });
@@ -141,6 +155,24 @@ export class SimulatedTransport implements IntegrationTransport {
       case "meter.subscribe":
         this.meterSub = { consoleId: msg.consoleId, tap: msg.tap, channels: msg.channels };
         this.startMeters();
+        break;
+      case "audio.subscribe":
+        this.audioSub = {
+          consoleId: msg.consoleId,
+          channel: msg.channel,
+          blockSize: msg.blockSize && msg.blockSize > 0 ? Math.floor(msg.blockSize) : 512,
+        };
+        // Reset phase/seq so a fresh subscription starts clean.
+        this.audioSeq = 0;
+        this.audioPhase = 0;
+        this.startAudio();
+        break;
+      case "audio.unsubscribe":
+        this.audioSub = null;
+        if (this.audioTimer !== null) {
+          clearInterval(this.audioTimer);
+          this.audioTimer = null;
+        }
         break;
       case "unsubscribe":
         this.meterSub = null;
@@ -177,6 +209,42 @@ export class SimulatedTransport implements IntegrationTransport {
     // Guard: setInterval exists in both browser and Node.
     if (typeof setInterval === "undefined") return;
     this.timer = setInterval(() => this.emitMeterFrame(), this.meterIntervalMs);
+  }
+
+  /**
+   * Emit a single block of deterministic float PCM for the active audio
+   * subscription (also used by tests). A per-channel sine tone plus a little
+   * noise, phase-continuous across blocks via a running phase + incrementing
+   * `seq`. Samples are float in [-1, 1].
+   */
+  emitAudioFrame(): void {
+    if (!this.audioSub) return;
+    const { consoleId, channel, blockSize } = this.audioSub;
+    const sr = this.audioSampleRate;
+    // A distinct tone per channel so different taps look different.
+    const freq = 220 * Math.pow(2, (channel % 12) / 12); // ~A3 up a chromatic scale
+    const dPhase = (2 * Math.PI * freq) / sr;
+    const samples = new Array<number>(blockSize);
+    for (let i = 0; i < blockSize; i++) {
+      // Deterministic pseudo-noise from the global sample index (seq*block + i).
+      const idx = this.audioSeq * blockSize + i;
+      const noise = (Math.sin(idx * 12.9898) * 43758.5453) % 1; // hash-ish in [-1,1)
+      let v = 0.6 * Math.sin(this.audioPhase) + 0.03 * noise;
+      this.audioPhase += dPhase;
+      if (this.audioPhase > Math.PI) this.audioPhase -= 2 * Math.PI;
+      // Clamp to the [-1, 1] contract.
+      if (v > 1) v = 1;
+      else if (v < -1) v = -1;
+      samples[i] = v;
+    }
+    this.emit({ t: "audio", consoleId, channel, sampleRate: sr, seq: this.audioSeq, samples });
+    this.audioSeq++;
+  }
+
+  private startAudio(): void {
+    if (this.audioTimer !== null) return;
+    if (typeof setInterval === "undefined") return;
+    this.audioTimer = setInterval(() => this.emitAudioFrame(), this.audioIntervalMs);
   }
 
   private emit(msg: ServerMsg): void {

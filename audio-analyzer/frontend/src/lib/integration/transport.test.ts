@@ -97,6 +97,39 @@ describe("SimulatedTransport", () => {
     expect(msgs.filter((m) => m.t === "meters")).toHaveLength(0);
   });
 
+  it("streams audio frames after audio.subscribe (float PCM in [-1,1], seq increments)", () => {
+    const t = new SimulatedTransport();
+    const { msgs } = collect(t);
+    t.send({ t: "audio.subscribe", consoleId: "midas-m32", channel: 1, blockSize: 256 });
+    for (let i = 0; i < 8; i++) t.emitAudioFrame();
+    const audioMsgs = msgs.filter((m) => m.t === "audio");
+    expect(audioMsgs.length).toBe(8);
+    audioMsgs.forEach((m, i) => {
+      if (m.t !== "audio") return;
+      expect(m.consoleId).toBe("midas-m32");
+      expect(m.channel).toBe(1);
+      expect(m.sampleRate).toBeGreaterThan(0);
+      expect(m.seq).toBe(i); // phase-continuous, incrementing seq
+      expect(m.samples).toHaveLength(256);
+      for (const s of m.samples) {
+        expect(Number.isFinite(s)).toBe(true);
+        expect(s).toBeGreaterThanOrEqual(-1);
+        expect(s).toBeLessThanOrEqual(1);
+      }
+    });
+    t.disconnect();
+  });
+
+  it("stops streaming audio after audio.unsubscribe", () => {
+    const t = new SimulatedTransport();
+    const { msgs } = collect(t);
+    t.send({ t: "audio.subscribe", consoleId: "midas-m32", channel: 2 });
+    t.send({ t: "audio.unsubscribe" });
+    t.emitAudioFrame();
+    expect(msgs.filter((m) => m.t === "audio")).toHaveLength(0);
+    t.disconnect();
+  });
+
   it("unsubscribe handler removes the listener", () => {
     const t = new SimulatedTransport();
     const { msgs, stop } = collect(t);

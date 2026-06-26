@@ -24,12 +24,25 @@ export interface SpectrumSnapshot {
   db: number[];
 }
 
+/** A full-resolution spectrum tapped off the bridge (per-bin freq + dB). */
+export interface BridgeSpectrum {
+  freqs: number[];
+  db: number[];
+}
+
 interface RtaViewProps {
   audio: UseAudioState;
   /** Throttled smoothed-spectrum callback for the insights engine. */
   onSpectrum?: (snapshot: SpectrumSnapshot) => void;
   /** Current edition — gates spectrograph, traces, and live averaging. */
   edition?: Edition;
+  /**
+   * Live spectrum from a bridge console/network channel. When present it drives
+   * the RTA in place of the mic / synthetic path. Null = use the mic path.
+   */
+  bridgeSpectrum?: BridgeSpectrum | null;
+  /** Label for the active bridge source, e.g. "midas M32 · In 1". */
+  bridgeLabel?: string | null;
 }
 
 const REFERENCE_OFF = "off";
@@ -44,7 +57,13 @@ const F_MAX = 20000;
  * live engine is available; otherwise renders a synthetic demo spectrum so the
  * view is never blank. All canvas / rAF access is inside useEffect (SSR-safe).
  */
-export function RtaView({ audio, onSpectrum, edition = "studio" }: RtaViewProps) {
+export function RtaView({
+  audio,
+  onSpectrum,
+  edition = "studio",
+  bridgeSpectrum = null,
+  bridgeLabel = null,
+}: RtaViewProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [fraction, setFraction] = useState<number>(3);
   const [mode, setMode] = useState<RtaMode>("live");
@@ -66,6 +85,8 @@ export function RtaView({ audio, onSpectrum, edition = "studio" }: RtaViewProps)
   const liveAvgRef = useRef(liveAverage && canLiveAvg);
   const avgNRef = useRef(avgN);
   const latestRef = useRef<SpectrumSnapshot | null>(null);
+  const bridgeRef = useRef<BridgeSpectrum | null>(bridgeSpectrum);
+  bridgeRef.current = bridgeSpectrum;
   fractionRef.current = fraction;
   modeRef.current = mode;
   referenceRef.current = reference;
@@ -90,10 +111,13 @@ export function RtaView({ audio, onSpectrum, edition = "studio" }: RtaViewProps)
     const avgRing: Float64Array[] = []; // rolling live-average history
 
     const analyser = engine?.analyser ?? null;
-    const sampleRate = engine?.sampleRate ?? 48000;
-    const fftSize = analyser?.fftSize ?? (performanceMode ? 1024 : 4096);
-    const binCount = analyser?.frequencyBinCount ?? fftSize / 2;
-    const freqData = new Float32Array(binCount);
+    // Geometry for the mic / synthetic path. When a bridge spectrum is active
+    // it overrides these per-frame (its FFT size / sample rate may differ).
+    const baseSampleRate = engine?.sampleRate ?? 48000;
+    const baseFftSize = analyser?.fftSize ?? (performanceMode ? 1024 : 4096);
+    const baseBinCount = analyser?.frequencyBinCount ?? baseFftSize / 2;
+    const freqData = new Float32Array(baseBinCount);
+    let lastBinCount = baseBinCount;
 
     const resize = () => {
       const dpr =
@@ -105,7 +129,7 @@ export function RtaView({ audio, onSpectrum, edition = "studio" }: RtaViewProps)
     };
     resize();
 
-    const syntheticDb = (i: number, t: number): number => {
+    const syntheticDb = (i: number, t: number, fftSize: number, sampleRate: number): number => {
       const f = binToFrequency(i, fftSize, sampleRate);
       if (f <= 0) return MIN_DB;
       const logF = Math.log10(f);
@@ -121,6 +145,30 @@ export function RtaView({ audio, onSpectrum, edition = "studio" }: RtaViewProps)
       const w = rect.width;
       const h = rect.height;
       ctx.clearRect(0, 0, w, h);
+
+      // Effective geometry for this frame. A live bridge spectrum (full-
+      // resolution, per-bin freq+dB) takes precedence over the mic / synthetic
+      // path and defines its own FFT size / sample rate.
+      const bridge = bridgeRef.current;
+      const bridgeActive = bridge !== null && bridge.db.length > 1;
+      let fftSize = baseFftSize;
+      let sampleRate = baseSampleRate;
+      let binCount = baseBinCount;
+      if (bridgeActive && bridge) {
+        binCount = bridge.db.length; // fftSize/2 + 1
+        fftSize = (binCount - 1) * 2;
+        // Infer sample rate from the Nyquist-bin frequency.
+        const fNyq = bridge.freqs[binCount - 1];
+        sampleRate = Number.isFinite(fNyq) && fNyq > 0 ? fNyq * 2 : baseSampleRate;
+      }
+      // Reset rolling accumulators if the bin geometry changed (mic↔bridge).
+      if (binCount !== lastBinCount) {
+        peakHold = null;
+        avgAccum = null;
+        avgCount = 0;
+        avgRing.length = 0;
+        lastBinCount = binCount;
+      }
 
       // Grid.
       ctx.strokeStyle = "rgba(42,34,51,0.8)";
@@ -142,11 +190,13 @@ export function RtaView({ audio, onSpectrum, edition = "studio" }: RtaViewProps)
 
       // Magnitude in dB.
       const magsDb = new Float64Array(binCount);
-      if (analyser) {
+      if (bridgeActive && bridge) {
+        for (let i = 0; i < binCount; i++) magsDb[i] = bridge.db[i];
+      } else if (analyser) {
         analyser.getFloatFrequencyData(freqData);
         for (let i = 0; i < binCount; i++) magsDb[i] = freqData[i];
       } else {
-        for (let i = 0; i < binCount; i++) magsDb[i] = syntheticDb(i, frame);
+        for (let i = 0; i < binCount; i++) magsDb[i] = syntheticDb(i, frame, fftSize, sampleRate);
       }
 
       // Convert dB -> linear for octave smoothing, then back.
@@ -477,6 +527,16 @@ export function RtaView({ audio, onSpectrum, edition = "studio" }: RtaViewProps)
         </span>
       </div>
 
+      {bridgeLabel && (
+        <p className="flex items-center gap-2 rounded-lg border border-teal/40 bg-teal/10 px-3 py-2 text-xs text-teal">
+          <span
+            className="h-2 w-2 shrink-0 rounded-full bg-teal"
+            aria-hidden
+          />
+          Source: Bridge — <span className="font-mono">{bridgeLabel}</span>
+        </p>
+      )}
+
       <canvas
         ref={canvasRef}
         className="h-64 w-full rounded-xl border border-line bg-ink sm:h-80"
@@ -533,7 +593,7 @@ export function RtaView({ audio, onSpectrum, edition = "studio" }: RtaViewProps)
         )}
       </div>
 
-      {!engine && (
+      {!engine && !bridgeLabel && (
         <p className="font-mono text-xs text-amber-soft">
           Demo spectrum — press Start in the source bar to measure live.
         </p>
