@@ -166,6 +166,21 @@ describe('BridgeCore', () => {
     expect(tickFn).toBeNull(); // cleared
   });
 
+  it('meter.subscribe sends a tap-specific meter request for an OSC console', () => {
+    // m32 (MidasAdapter) needs an explicit meter subscribe; the tap is encoded.
+    conn.client({ t: 'meter.subscribe', consoleId: 'm32', tap: 'post-fader', channels: [1, 2] });
+    expect(oscIO.sent).toHaveLength(1);
+    expect(oscIO.sent[0]!.host).toBe('10.0.0.9');
+    expect(oscIO.sent[0]!.msg.address).toBe('/meters');
+    const postFaderArg = (oscIO.sent[0]!.msg.args[0] as { value: string }).value;
+
+    conn.client({ t: 'meter.subscribe', consoleId: 'm32', tap: 'pre-eq', channels: [1, 2] });
+    const preEqArg = (oscIO.sent[1]!.msg.args[0] as { value: string }).value;
+    expect(preEqArg).not.toBe(postFaderArg); // distinct request per tap
+
+    conn.client({ t: 'unsubscribe' }); // clear the real interval this test started
+  });
+
   it('meter.subscribe on unknown console → NO_CONSOLE', () => {
     conn.client({ t: 'meter.subscribe', consoleId: 'nope', tap: 'pre-eq', channels: [1] });
     expect((conn.byType('error')[0] as { code: string }).code).toBe('NO_CONSOLE');

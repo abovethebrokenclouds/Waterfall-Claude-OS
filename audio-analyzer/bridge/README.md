@@ -164,7 +164,7 @@ All messages are JSON objects with a `t` (type) discriminator.
 | `discover`        | `transports?` | Scan the network; replies `devices` + `consoles` + `clock`. |
 | `get`             | `scope:'consoles'\|'channels'\|'routing'`, `consoleId?` | Fetch consoles or a console's channels. |
 | `set`             | `consoleId`, `channelId`, `path`, `value` | Write a parameter (user-initiated only). |
-| `meter.subscribe` | `consoleId`, `tap:'pre-eq'\|'post-eq'\|'post-fader'`, `channels[]` | Stream `meters` frames. |
+| `meter.subscribe` | `consoleId`, `tap:'pre-eq'\|'post-eq'\|'post-fader'`, `channels[]` | Stream `meters` frames. The `tap` is **honoured**: it selects where in the channel path the level is read (see *Tap-accurate metering* below) and, for OSC consoles, is **encoded in the wire meter request**. |
 | `unsubscribe`     | `id?` | Stop meter streams for this connection. |
 | `audio.subscribe` | `consoleId`, `channel` (≥1), `blockSize?` | Subscribe an **audio tap**: stream raw PCM `audio` blocks from one channel (the app runs its own FFT on them). **Additive** — a second channel streams concurrently (keyed by channel); re-subscribing the same channel replaces just that channel's stream. |
 | `audio.unsubscribe` | `channel?` | Stop audio taps: with `channel`, just that channel; without it, **all** of this connection's audio streams. |
@@ -299,6 +299,45 @@ interleaved PCM.
   injectable `socketFactory` lets tests drive the receive loop with a fake dgram
   emitter (no real socket). `close()` leaves the group and closes the socket.
 
+## Tap-accurate metering
+
+A `meters` frame is read at a specific **metering tap** in the channel signal
+path — `pre-eq`, `post-eq`, or `post-fader` — and the bridge treats that tap as
+**physically meaningful**, not a cosmetic offset. The tap flows through the
+`meters` frame envelope **and** is encoded in the wire meter request for the
+consoles whose protocol can select it.
+
+**Simulated console — live, tap-accurate levels.** `SimulatedConsoleAdapter`
+derives each channel's level from a deterministic, time-varying **raw input
+level** plus the channel's **current mirrored control state**, so the meter
+honestly reflects both the requested tap and what the channel is doing right now:
+
+| Tap          | Level model                                                                 |
+|--------------|------------------------------------------------------------------------------|
+| `pre-eq`     | the raw input level — **independent** of EQ, fader, and mute.               |
+| `post-eq`    | `pre-eq` + the EQ contribution (sum of the channel's **enabled** band gains, lightly scaled). Equal to `pre-eq` when the EQ is flat. |
+| `post-fader` | `post-eq` + the channel's `faderDb`. A **muted** channel floors at the meter floor (≤ −90 dBFS). |
+
+Because `buildSet(ch,'fader',…)` updates the simulated mirror, **lowering a
+fader lowers the post-fader meter** (by the fader delta) while leaving `pre-eq`
+untouched; **muting floors post-fader** while `pre-eq` / `post-eq` are
+unaffected; and **engaging an EQ band** separates `post-eq` from `pre-eq`. For a
+typical channel the ordering `pre-eq ≥ post-eq ≥ post-fader` holds. Levels are
+deterministic in the injected clock, bounded to a sane dBFS range, and always
+satisfy `rms ≤ peak`.
+
+**Which adapters encode the tap in the meter request:**
+
+| Adapter | Meter request | Tap encoding |
+|---------|---------------|--------------|
+| Yamaha / Midas / Behringer (X32 tree) | `/meters "/meters/<bank>"` | **Encoded** — each tap selects a distinct **meter bank** index (pre-eq → 1, post-eq → 2, post-fader → 3). X32 metering comes from tap-specific banks; the exact bank ids vary by firmware, so these are documented stand-in indices — the contract is that each tap selects a different bank. |
+| DiGiCo (SD/Quantum) | `/Input_Channels/<n>/Meter "<point>"` | **Encoded** — the channel metering point is selectable, so the tap is carried as the subscribe's string argument (`Input` / `PostEQ` / `PostFader`). |
+| Simulated | *(none)* | Meters are generated locally from the mirrored state, so no wire request is needed — but the tap drives the level model above. |
+
+No adapter fabricates a fake address: where a tap maps to a real selectable
+bank/point it is sent as such; where the index is firmware-dependent that is
+stated in the code comment and a sensible default is chosen.
+
 ## Console adapters & control transports
 
 Every vendor surfaces as the same normalized `ConsoleChannel` / `MeterFrame`, so
@@ -337,7 +376,7 @@ unchanged `ConsoleAdapter` interface.
 | Yamaha / Midas / Behringer / DiGiCo adapters | Real OSC address building + parsing (X32 tree `/ch/01/mix/fader`; DiGiCo `/Input_Channels/<n>/Fader`). |
 | Allen & Heath / Soundcraft adapters | Real documented wire bytes — A&H MIDI (NRPN/Note-On), Soundcraft HiQnet ParameterSet envelope. |
 | Avid / SSL / PreSonus adapters | Representative TCP frame with deterministic mapping; on-wire framing is a clearly-labeled stand-in pending the official SDK (see the adapter table above). |
-| Simulated console (`src/adapters/simulated.ts`) | Synthesizes a CL5/M32 with moving meters — **runs with no hardware**. |
+| Simulated console (`src/adapters/simulated.ts`) | Synthesizes a CL5/M32 with **tap-accurate** moving meters that reflect live mirrored channel state (fader / mute / EQ) — **runs with no hardware** (see *Tap-accurate metering*). |
 | `SimulatedDiscovery` | Deterministic Dante/AES67/MADI device list — **no hardware**. |
 | `MdnsDiscovery` (`src/discovery/mdns.ts`) | **Real mDNS / Bonjour** via `multicast-dns` — opt-in with `RTA_DISCOVERY=mdns`; binds a multicast socket only during a scan. Covers Dante / Ravenna / AES67-if-announced (see *Device discovery* above). |
 | `SapDiscovery` (`src/discovery/sap.ts`) | **Real SAP/SDP AES67** via `node:dgram` — opt-in with `RTA_DISCOVERY=sap`; joins the SAP multicast group only during a scan. Pure parse layer in `src/discovery/sdp-parse.ts`. |
