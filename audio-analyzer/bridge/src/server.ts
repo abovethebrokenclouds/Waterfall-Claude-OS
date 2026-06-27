@@ -125,7 +125,10 @@ class Session {
    * channels at once (e.g. reference + measurement for a live transfer
    * function). ONE shared timer ({@link audioTimer}) ticks every entry.
    */
-  private readonly audioStreams = new Map<number, AudioChannelStream>();
+  // Keyed by `consoleId:channel` so the same channel number on two different
+  // consoles (e.g. a transfer-function ref/meas pair across consoles) does NOT
+  // collide into one stream.
+  private readonly audioStreams = new Map<string, AudioChannelStream>();
 
   /** The single timer driving all of {@link audioStreams}; null when none. */
   private audioTimer: NodeJS.Timeout | number | null = null;
@@ -370,8 +373,8 @@ class Session {
     const size = blockSize ?? this.deps.audioBlockSize ?? 1024;
     const sampleRate = this.deps.audioSampleRate ?? 48000;
 
-    // Add or replace this channel's stream (its seq restarts at 0).
-    this.audioStreams.set(channel, { consoleId, channel, blockSize: size, sampleRate, seq: 0 });
+    // Add or replace this console+channel's stream (its seq restarts at 0).
+    this.audioStreams.set(`${consoleId}:${channel}`, { consoleId, channel, blockSize: size, sampleRate, seq: 0 });
     this.ensureAudioTimer();
   }
 
@@ -403,7 +406,12 @@ class Session {
    */
   private clearAudio(channel?: number): void {
     if (channel !== undefined) {
-      this.audioStreams.delete(channel);
+      // Remove every stream on this channel number (across consoles). The
+      // unsubscribe message carries only the channel, so this is the precise
+      // teardown the app's per-channel unsubscribe expects.
+      for (const [key, stream] of this.audioStreams) {
+        if (stream.channel === channel) this.audioStreams.delete(key);
+      }
     } else {
       this.audioStreams.clear();
     }

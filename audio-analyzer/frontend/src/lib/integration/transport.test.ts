@@ -178,6 +178,22 @@ describe("SimulatedTransport", () => {
     t.disconnect();
   });
 
+  it("the SAME channel number on two different consoles does not collide", () => {
+    // A cross-console transfer pair: ref on console A ch1, meas on console B ch1.
+    // Streams are keyed by consoleId:channel, so BOTH must stream concurrently.
+    const t = new SimulatedTransport();
+    const { msgs } = collect(t);
+    t.send({ t: "audio.subscribe", consoleId: "yamaha-cl5", channel: 1, blockSize: 256 });
+    t.send({ t: "audio.subscribe", consoleId: "midas-m32", channel: 1, blockSize: 256 });
+    for (let i = 0; i < 3; i++) t.emitAudioFrame();
+    const audioMsgs = msgs.filter((m) => m.t === "audio");
+    const a = audioMsgs.filter((m) => m.t === "audio" && m.consoleId === "yamaha-cl5");
+    const b = audioMsgs.filter((m) => m.t === "audio" && m.consoleId === "midas-m32");
+    expect(a.length).toBe(3); // not overwritten by the second subscribe
+    expect(b.length).toBe(3);
+    t.disconnect();
+  });
+
   it("audio.unsubscribe {channel} stops only that channel", () => {
     const t = new SimulatedTransport();
     const { msgs } = collect(t);
