@@ -368,7 +368,7 @@ export function ConsoleNetworkView({ edition = "studio", onSource, onTransferSou
           <button
             type="button"
             onClick={connect}
-            className="rounded-lg bg-gradient-to-r from-amber to-rose px-3 py-1.5 text-xs font-semibold text-ink transition-transform hover:scale-[1.03]"
+            className="glass-btn-primary rounded-lg px-3 py-1.5 text-xs font-semibold"
           >
             Connect
           </button>

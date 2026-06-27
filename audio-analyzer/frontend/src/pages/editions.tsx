@@ -63,7 +63,7 @@ export default function EditionsPage() {
       <main className="mx-auto max-w-6xl px-4">
         {/* HERO */}
         <section className="py-14 text-center md:py-20">
-          <span className="inline-block rounded-full border border-line bg-panel px-3 py-1 text-xs font-medium text-haze">
+          <span className="inline-block rounded-full border border-line bg-panel/70 px-3 py-1 text-xs font-medium text-haze backdrop-blur">
             Three editions. One workflow.
           </span>
           <h1 className="mx-auto mt-5 max-w-3xl text-4xl font-extrabold leading-tight tracking-tight sm:text-5xl">
@@ -123,10 +123,8 @@ export default function EditionsPage() {
 
                 <Link
                   href="/app"
-                  className={`mt-1 rounded-xl px-4 py-2.5 text-center text-sm font-semibold transition-transform hover:scale-[1.02] ${
-                    p.featured
-                      ? "bg-gradient-to-r from-amber to-rose text-ink"
-                      : "border border-line bg-panel2 text-text"
+                  className={`mt-1 rounded-xl px-4 py-2.5 text-center text-sm font-semibold ${
+                    p.featured ? "glass-btn-primary" : "glass-btn text-text"
                   }`}
                 >
                   {p.cta}
@@ -203,7 +201,7 @@ export default function EditionsPage() {
           <div className="mt-10 text-center">
             <Link
               href="/app"
-              className="inline-block rounded-xl bg-gradient-to-r from-amber to-rose px-6 py-3 font-semibold text-ink shadow-glow transition-transform hover:scale-[1.03]"
+              className="glass-btn-primary inline-block rounded-xl px-6 py-3 font-semibold"
             >
               Open the analyzer
             </Link>

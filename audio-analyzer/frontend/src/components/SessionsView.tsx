@@ -127,7 +127,7 @@ export function SessionsView() {
         <button
           type="button"
           onClick={addSession}
-          className="rounded-lg bg-gradient-to-r from-amber to-rose px-3 py-1.5 text-sm font-semibold text-ink"
+          className="glass-btn-primary rounded-lg px-3 py-1.5 text-sm font-semibold"
         >
           + New session
         </button>
