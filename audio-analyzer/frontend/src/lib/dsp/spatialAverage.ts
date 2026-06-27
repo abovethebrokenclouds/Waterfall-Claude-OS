@@ -51,8 +51,10 @@ function magFromDb(db: number): number {
 export function averageTransfers(snapshots: TransferPoint[][]): TransferPoint[] {
   if (snapshots.length === 0) return [];
   if (snapshots.length === 1) {
-    // A single position IS its own spatial average — pass it through unchanged.
-    return snapshots[0];
+    // A single position IS its own spatial average. Return a shallow copy of
+    // each point so the result never aliases the caller's array (defence in
+    // depth in case it is ever called with live, still-updating data).
+    return snapshots[0].map((p) => ({ ...p }));
   }
 
   // Align over the shortest snapshot (defensive — they should all match).
