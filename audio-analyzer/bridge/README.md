@@ -252,12 +252,52 @@ interface AudioSource {
   the independent noise keeps coherence below 1. Every term is indexed by the
   absolute sample index `seq * blockSize + i`, so successive blocks are
   **phase-continuous** and a test can assert exact samples.
-- **Real PCM (the swap point).** A `DanteAudioSource` subscribing a **Dante
-  Virtual Soundcard / DVS** channel, or a **driver-capture** source reading a
-  class-compliant USB / MADI / AES67 interface, implements the **same**
+- **`RtpAudioSource` (real, available — `src/audio/rtp-source.ts`).** The real
+  counterpart to the simulated source: it **receives a genuine AES67 RTP audio
+  multicast stream** (RFC 3550) and serves the live PCM through the same
+  synchronous `read`. See **Real AES67/RTP capture** below. Default audio stays
+  `SimulatedAudioSource`; this source is opt-in (inject via `BridgeDeps.audioSource`).
+- **Other real PCM (the same swap point).** A `DanteAudioSource` subscribing a
+  **Dante Virtual Soundcard / DVS** channel, or a **driver-capture** source
+  reading a class-compliant USB / MADI interface, implements the **same**
   `AudioSource` interface and drops in behind it (inject via `BridgeDeps.audioSource`).
   The server and the app never change — they only ever see float blocks in
   `[-1, 1]`.
+
+### Real AES67/RTP capture (`src/audio/rtp-source.ts` + `rtp-parse.ts`)
+
+`RtpAudioSource` is the **real** `AudioSource`: it joins an AES67 RTP audio
+multicast group and decodes the live stream into per-channel float blocks. Dante
+in **AES67 mode** emits exactly this — RTP/L24 (or L16) multicast, big-endian
+interleaved PCM.
+
+- **Pairs with SAP/SDP discovery.** The group + media port + format come straight
+  from a discovered SDP: `c=`/`m=audio <port> RTP/AVP <pt>` gives the multicast
+  group and port, and `a=rtpmap:<pt> L24/48000/<channels>` gives the encoding,
+  sample rate and channel count. Those map 1:1 onto the constructor options
+  `{ group, port, channels, format, sampleRate? }`. Flow: **discover → pick a
+  stream → construct an `RtpAudioSource` from its SDP → `open()` → `read()`.**
+- **RTP + AES67 decoding (`rtp-parse.ts`, pure & socket-free).** `parseRtp` reads
+  the RFC 3550 header (V must be 2; honors **CC** CSRC ids and the optional **X**
+  header extension to find the payload) and returns `{ payloadType, seq,
+  timestamp, payload }` or `null` on a short/non-v2 packet — never throws. L24/L16
+  decoders treat the PCM as **big-endian, signed, channel-interleaved**: each
+  sample is assembled from its big-endian bytes, **sign-extended** (24-bit values
+  with bit `0x800000` set have `2^24` subtracted; 16-bit values with `0x8000` set
+  have `2^16` subtracted), then normalized to `[-1, 1]` (÷ `2^23` for L24, ÷ `2^15`
+  for L16) and **deinterleaved** channel-major.
+- **Ring buffer + synchronous `read`.** Datagrams arrive asynchronously, but
+  `read` is synchronous. Each decoded packet's per-channel samples are appended to
+  a bounded per-channel **ring buffer** (a few seconds; oldest samples drop once
+  full). `read(channel, blockSize, seq)` copies the **most-recent `blockSize`
+  samples** out of the requested channel's ring (channel **clamped** into range);
+  if not enough is buffered yet it returns **zeros (silence)**. It never blocks and
+  never throws; malformed datagrams are ignored.
+- **Binds no socket until opened.** Like `SapDiscovery`, the UDP multicast socket
+  is created **lazily inside `open()`** (`await import('node:dgram')`), so merely
+  importing the module — or constructing the source — binds **nothing**. An
+  injectable `socketFactory` lets tests drive the receive loop with a fake dgram
+  emitter (no real socket). `close()` leaves the group and closes the socket.
 
 ## Console adapters & control transports
 
