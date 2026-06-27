@@ -184,7 +184,7 @@ export function IrView() {
         <button
           type="button"
           onClick={() => setCfg((c) => ({ ...c, seed: (c.seed % 97) + 7 }))}
-          className="rounded-lg bg-gradient-to-r from-amber to-rose px-3 py-1.5 text-xs font-semibold text-ink transition-transform hover:scale-[1.03]"
+          className="glass-btn-primary rounded-lg px-3 py-1.5 text-xs font-semibold"
         >
           Generate sweep IR (demo)
         </button>

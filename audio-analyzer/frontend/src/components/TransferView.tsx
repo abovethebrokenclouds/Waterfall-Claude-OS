@@ -442,7 +442,7 @@ export function TransferView({
               <button
                 type="button"
                 onClick={handleSaveMeasurement}
-                className="rounded-md bg-gradient-to-r from-amber to-rose px-3 py-1 text-xs font-semibold text-ink transition-transform hover:scale-[1.03]"
+                className="glass-btn-primary rounded-md px-3 py-1 text-xs font-semibold"
               >
                 Save measurement
               </button>
@@ -533,7 +533,7 @@ export function TransferView({
           type="button"
           onClick={handleFindDelay}
           disabled={!canDelay}
-          className="flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-amber to-rose px-3 py-1.5 text-xs font-semibold text-ink transition-transform hover:scale-[1.03] disabled:opacity-40"
+          className="glass-btn-primary flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold disabled:opacity-40"
         >
           Find delay
           {!canDelay && <LockChip edition="pro" />}

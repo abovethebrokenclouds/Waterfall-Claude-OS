@@ -85,8 +85,9 @@ export function DeviceBar({ audio }: DeviceBarProps) {
             <button
               type="button"
               onClick={stop}
-              className="rounded-lg border border-rose/50 bg-rose/10 px-3 py-1.5 text-sm font-semibold text-rose"
+              className="glass-btn flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-semibold text-rose"
             >
+              <span className="h-2.5 w-2.5 rounded-[3px] bg-rose" />
               Stop
             </button>
           ) : (
@@ -94,7 +95,7 @@ export function DeviceBar({ audio }: DeviceBarProps) {
               type="button"
               onClick={start}
               disabled={!supported}
-              className="rounded-lg bg-gradient-to-r from-amber to-rose px-3 py-1.5 text-sm font-semibold text-ink disabled:opacity-50"
+              className="glass-btn-primary rounded-lg px-3 py-1.5 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50"
             >
               {permission === "requesting" ? "Starting…" : "Start"}
             </button>
