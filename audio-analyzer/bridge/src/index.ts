@@ -12,6 +12,7 @@
 import { SimulatedDiscovery } from './discovery/simulated.js';
 import { MdnsDiscovery } from './discovery/mdns.js';
 import { SapDiscovery } from './discovery/sap.js';
+import { AtdeccDiscovery } from './discovery/atdecc.js';
 import { CompositeDiscovery } from './discovery/composite.js';
 import type { Discovery } from './discovery/types.js';
 import { UdpOscIO } from './osc/udp.js';
@@ -69,9 +70,12 @@ export interface StartOptions {
  *   - unset / 'simulated' → SimulatedDiscovery (default; deterministic, no socket)
  *   - 'mdns'              → real mDNS (opt-in; binds a multicast socket on scan)
  *   - 'sap'               → real SAP/SDP AES67 discovery (opt-in; multicast on scan)
+ *   - 'atdecc'            → AVB/ATDECC (IEEE 1722.1) discovery (opt-in; a documented
+ *                           safe stub by default — raw-L2 capture needs a privileged
+ *                           pcap frame source no integrator has wired up)
  *   - 'both'              → simulated ∪ mDNS, deduped by id  (back-compat)
- *   - 'all'               → simulated ∪ mDNS ∪ SAP, deduped by id
- *   - a comma list, e.g. 'mdns,sap' or 'simulated,sap' → a CompositeDiscovery of
+ *   - 'all'               → simulated ∪ mDNS ∪ SAP ∪ ATDECC, deduped by id
+ *   - a comma list, e.g. 'mdns,sap' or 'simulated,atdecc' → a CompositeDiscovery of
  *     exactly those sources (a single token resolves to that source directly).
  * Unknown tokens are warned and ignored; if nothing valid resolves we fall back
  * to SimulatedDiscovery. Constructing ANY of these opens NO socket — the real
@@ -89,6 +93,8 @@ export function buildDiscovery(mode = process.env.RTA_DISCOVERY): Discovery {
         return new MdnsDiscovery();
       case 'sap':
         return new SapDiscovery();
+      case 'atdecc':
+        return new AtdeccDiscovery();
       default:
         return null;
     }
@@ -103,6 +109,8 @@ export function buildDiscovery(mode = process.env.RTA_DISCOVERY): Discovery {
       return new MdnsDiscovery();
     case 'sap':
       return new SapDiscovery();
+    case 'atdecc':
+      return new AtdeccDiscovery();
     case 'both':
       return new CompositeDiscovery([new SimulatedDiscovery(), new MdnsDiscovery()]);
     case 'all':
@@ -110,6 +118,7 @@ export function buildDiscovery(mode = process.env.RTA_DISCOVERY): Discovery {
         new SimulatedDiscovery(),
         new MdnsDiscovery(),
         new SapDiscovery(),
+        new AtdeccDiscovery(),
       ]);
     default:
       break;
