@@ -34,7 +34,7 @@ export function TopNav() {
         <div className="hidden md:block">
           <Link
             href="/app"
-            className="rounded-xl bg-gradient-to-r from-amber to-rose px-4 py-2 text-sm font-semibold text-ink shadow-glow transition-transform hover:scale-[1.03]"
+            className="glass-btn-primary rounded-xl px-4 py-2 text-sm font-semibold"
           >
             Try in Browser
           </Link>
@@ -79,7 +79,7 @@ export function TopNav() {
             ))}
             <Link
               href="/app"
-              className="mt-1 rounded-xl bg-gradient-to-r from-amber to-rose px-4 py-2 text-center text-sm font-semibold text-ink"
+              className="glass-btn-primary mt-1 rounded-xl px-4 py-2 text-center text-sm font-semibold"
             >
               Try in Browser
             </Link>

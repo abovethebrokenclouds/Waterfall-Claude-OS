@@ -60,10 +60,8 @@ export function PricingTier({
 
       <Link
         href={href}
-        className={`mt-2 rounded-xl px-4 py-2.5 text-center text-sm font-semibold transition-transform hover:scale-[1.02] ${
-          featured
-            ? "bg-gradient-to-r from-amber to-rose text-ink"
-            : "border border-line bg-panel2 text-text"
+        className={`mt-2 rounded-xl px-4 py-2.5 text-center text-sm font-semibold ${
+          featured ? "glass-btn-primary" : "glass-btn text-text"
         }`}
       >
         {cta}

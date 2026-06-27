@@ -154,8 +154,8 @@ intended set; the frontend agent owns the final file structure.
 
 | Component | Role |
 |-----------|------|
-| `SpectrumHero` | Landing hero with the gradient headline and an animated/sample spectrum. |
-| `FeatureCards` | Mode previews linking into `/app`. |
+| `LiveSpectrumHero` | Landing hero embedding the real mic-driven analyzer (live `getFloatFrequencyData` + octave smoothing) with a glass Go-live/Stop control; falls back to a labeled demo trace before going live. |
+| `ModeCard` | Measurement-mode previews linking into `/app`. |
 
 ### Measurement views
 
