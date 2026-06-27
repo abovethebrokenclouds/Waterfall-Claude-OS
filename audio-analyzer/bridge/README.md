@@ -54,7 +54,7 @@ Environment:
 |-----------------|-------------|----------------------------------------------------------------|
 | `PORT`          | `8088`      | WebSocket listen port                                          |
 | `HOST`          | all         | Bind address (set to a LAN IP)                                |
-| `RTA_DISCOVERY` | `simulated` | Discovery backend: `simulated`, `mdns`, or `both` (see below)  |
+| `RTA_DISCOVERY` | `simulated` | Discovery backend: `simulated`, `mdns`, `sap`, `both`, `all`, or a comma list (see below) |
 
 ### Device discovery (`RTA_DISCOVERY`)
 
@@ -65,10 +65,15 @@ interface. The backend is chosen by `RTA_DISCOVERY`:
 |-------------|------------------------|---------------------------------------------------------------------------|
 | `simulated` | `SimulatedDiscovery`   | **Default.** Deterministic, hardware-free device catalog. Opens no socket. |
 | `mdns`      | `MdnsDiscovery`        | **Real mDNS / Bonjour.** Opt-in; binds a multicast socket *only during a scan*. |
+| `sap`       | `SapDiscovery`         | **Real SAP/SDP AES67 discovery.** Opt-in; joins the SAP multicast group *only during a scan*. |
 | `both`      | `CompositeDiscovery`   | Union of simulated + mDNS, deduped by device id.                           |
+| `all`       | `CompositeDiscovery`   | Union of simulated + mDNS + SAP, deduped by device id.                     |
+| comma list  | `CompositeDiscovery`   | A custom set, e.g. `mdns,sap` or `simulated,sap` — exactly those sources (a single token resolves directly to that source). Unknown tokens warn and are ignored; if none resolve, falls back to `simulated`. |
 
 The default stays `simulated` so CI and a dev box without an audio network are
-deterministic and never open a multicast socket.
+deterministic and never open a multicast socket. **Constructing any backend opens
+no socket** — the real backends (`mdns`, `sap`) touch the network only inside
+`scan()`.
 
 **What the mDNS path covers** (real multicast-DNS service types only):
 
@@ -78,17 +83,74 @@ deterministic and never open a multicast socket.
 | `ravenna` | `_rtsp._tcp` (incl. the `_ravenna_session._sub` subtype)              |
 | `aes67`   | `_aes67._udp` — **only if a device actually announces it over mDNS**   |
 
-**What stays on the SAP / ATDECC seam (NOT mDNS, out of scope here):** pure
-AES67 streams are normally announced via **SAP/SDP**, and **AVB** via
-**IEEE 1722.1 / ATDECC** — neither is multicast DNS, so this mDNS path does not
-discover them. Likewise MADI / AES50 / SoundGrid are not mDNS-advertised.
+**What stays on the SAP / ATDECC seam (NOT mDNS):** pure AES67 streams are
+normally announced via **SAP/SDP** (covered by the `sap` backend below), and
+**AVB** via **IEEE 1722.1 / ATDECC** (a documented stub — see below). Neither is
+multicast DNS, so the mDNS path does not discover them. Likewise MADI / AES50 /
+SoundGrid are not mDNS-advertised.
 
 Discovery is **read-only and non-disruptive**: a scan only browses service
-advertisements (PTR queries) and resolves SRV/TXT/A records into the normalized
-`NetworkDevice` shape. It never subscribes channels, repatches, or steals audio.
-The socket-touching part is thin; all record→device assembly is the pure,
-unit-tested `recordsToDevices` in `src/discovery/mdns-parse.ts`. Adds one
-pure-JS runtime dependency, `multicast-dns` (no native build).
+advertisements (PTR queries for mDNS, passive listening for SAP) and resolves
+them into the normalized `NetworkDevice` shape. It never subscribes channels,
+repatches, or steals audio. The socket-touching part is thin; all record→device
+assembly is the pure, unit-tested `recordsToDevices` in
+`src/discovery/mdns-parse.ts`. Adds one pure-JS runtime dependency,
+`multicast-dns` (no native build).
+
+#### SAP/SDP AES67 discovery (`RTA_DISCOVERY=sap`)
+
+`SapDiscovery` discovers **AES67 audio streams announced via SAP** (the Session
+Announcement Protocol, RFC 2974) carrying **SDP** (Session Description Protocol,
+RFC 4566). An AES67 sender periodically multicasts a SAP datagram whose payload
+is an SDP session description; the bridge joins the SAP multicast group, collects
+datagrams for a bounded window (default ~1500 ms), and parses each into a
+`NetworkDevice` with `transport: 'aes67'`.
+
+**SAP multicast scopes** (RFC 2974 §3, all on UDP port **9875**):
+
+| Scope        | Group               | Notes                                                    |
+|--------------|---------------------|----------------------------------------------------------|
+| Global IPv4  | `224.2.127.254`     | **Default.** The group AES67 announcements use in practice. |
+| Admin-scoped | site/org admin range, e.g. `239.255.255.255` | Pass a `group` option to point at a scoped address if your plant uses one. |
+
+**SDP → `NetworkDevice` field mapping:**
+
+| SDP field                                   | NetworkDevice          |
+|---------------------------------------------|------------------------|
+| `s=<session name>`                          | `name`                 |
+| `o=<user> <sess-id> <ver> IN IP4 <addr>`    | `id` = `aes67:<origin-addr>:<sess-id>` (falls back to the multicast group, then the session name) |
+| `c=IN IP4 <maddr>`                          | the RTP multicast group (folds into `id` when no usable origin) |
+| `m=audio <port> RTP/AVP <pt>`               | selects the **first** `audio` media section |
+| `a=rtpmap:<pt> L24/48000/8`                 | encoding (L16/L24…), `sampleRate`, `channels` |
+| `a=ts-refclk:ptp=IEEE1588-2008:<gmid>`      | PTP reference → `clockMaster` (heuristic below) |
+
+Defaults when a field is absent: `sampleRate` from the rtpmap or **48000**,
+`channels` from the rtpmap or **0**, `clockMaster` **false**.
+
+**PTP-clock heuristic (honest):** SAP/SDP does **not** tell us whether *this*
+device is the PTP grandmaster — only that the stream is **locked to** a PTP
+grandmaster (the `a=ts-refclk:ptp=…` reference). An AES67 stream carrying a PTP
+reference is, by definition, clock-locked to the network grandmaster, so we set
+`clockMaster: true` when a `ts-refclk:ptp=` reference is present and `false`
+otherwise. This flags **"this stream is PTP-locked"** rather than "this box *is*
+the grandmaster" — the most useful signal SDP actually provides.
+
+All packet→device assembly is the pure, unit-tested `parseSap` / `sdpToDevice`
+in `src/discovery/sdp-parse.ts` (no sockets, never throws — returns `null` on
+anything unparseable). `SapDiscovery.scan()` lazily `await import('node:dgram')`
+**inside** scan, so importing the module binds nothing; it returns `[]` early if
+the requested transports exclude `aes67`, and `[]` on any error/timeout/missing
+module. No new runtime dependency (`node:dgram` is built in).
+
+#### AVB / ATDECC (IEEE 1722.1) — documented stub
+
+**AVB** device discovery uses **ATDECC (IEEE 1722.1)**, which is carried in
+**raw Layer-2 Ethernet frames** (ADP/AECP/ACMP), not IP multicast. That needs a
+raw-socket / `AF_PACKET`-class capture path (and usually elevated privileges),
+which is **out of scope** for this bridge. AVB therefore remains a **documented
+stub**: `MDNS_SERVICE_TYPES.avb` is empty, no SAP scope covers it, and there is
+no ATDECC backend. When a raw-L2 ATDECC path is added it will sit behind the same
+read-only `Discovery` interface and emit `transport: 'avb'` devices.
 
 ## WebSocket protocol (v1)
 
@@ -238,6 +300,8 @@ unchanged `ConsoleAdapter` interface.
 | Simulated console (`src/adapters/simulated.ts`) | Synthesizes a CL5/M32 with moving meters — **runs with no hardware**. |
 | `SimulatedDiscovery` | Deterministic Dante/AES67/MADI device list — **no hardware**. |
 | `MdnsDiscovery` (`src/discovery/mdns.ts`) | **Real mDNS / Bonjour** via `multicast-dns` — opt-in with `RTA_DISCOVERY=mdns`; binds a multicast socket only during a scan. Covers Dante / Ravenna / AES67-if-announced (see *Device discovery* above). |
+| `SapDiscovery` (`src/discovery/sap.ts`) | **Real SAP/SDP AES67** via `node:dgram` — opt-in with `RTA_DISCOVERY=sap`; joins the SAP multicast group only during a scan. Pure parse layer in `src/discovery/sdp-parse.ts`. |
+| AVB / ATDECC (IEEE 1722.1) | **Documented stub** — needs raw-L2 ATDECC frames; out of scope (see *Device discovery* above). |
 
 By default `npm start` wires the real UDP + TCP transports + the real
 Yamaha/Midas adapters (pointed at loopback so a dev box doesn't blast a live

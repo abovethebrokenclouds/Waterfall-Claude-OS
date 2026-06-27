@@ -11,6 +11,7 @@
 
 import { SimulatedDiscovery } from './discovery/simulated.js';
 import { MdnsDiscovery } from './discovery/mdns.js';
+import { SapDiscovery } from './discovery/sap.js';
 import { CompositeDiscovery } from './discovery/composite.js';
 import type { Discovery } from './discovery/types.js';
 import { UdpOscIO } from './osc/udp.js';
@@ -67,23 +68,77 @@ export interface StartOptions {
  * Pick the discovery backend from `RTA_DISCOVERY`:
  *   - unset / 'simulated' → SimulatedDiscovery (default; deterministic, no socket)
  *   - 'mdns'              → real mDNS (opt-in; binds a multicast socket on scan)
- *   - 'both'              → simulated ∪ mDNS, deduped by id
- * Constructing any of these opens NO socket — MdnsDiscovery only touches the
- * network inside scan().
+ *   - 'sap'               → real SAP/SDP AES67 discovery (opt-in; multicast on scan)
+ *   - 'both'              → simulated ∪ mDNS, deduped by id  (back-compat)
+ *   - 'all'               → simulated ∪ mDNS ∪ SAP, deduped by id
+ *   - a comma list, e.g. 'mdns,sap' or 'simulated,sap' → a CompositeDiscovery of
+ *     exactly those sources (a single token resolves to that source directly).
+ * Unknown tokens are warned and ignored; if nothing valid resolves we fall back
+ * to SimulatedDiscovery. Constructing ANY of these opens NO socket — the real
+ * backends only touch the network inside scan().
  */
 export function buildDiscovery(mode = process.env.RTA_DISCOVERY): Discovery {
-  switch ((mode ?? '').toLowerCase()) {
-    case 'mdns':
-      return new MdnsDiscovery();
-    case 'both':
-      return new CompositeDiscovery([new SimulatedDiscovery(), new MdnsDiscovery()]);
+  const raw = (mode ?? '').toLowerCase().trim();
+
+  // Build a single source by token name, or null for an unknown token.
+  const makeSource = (token: string): Discovery | null => {
+    switch (token) {
+      case 'simulated':
+        return new SimulatedDiscovery();
+      case 'mdns':
+        return new MdnsDiscovery();
+      case 'sap':
+        return new SapDiscovery();
+      default:
+        return null;
+    }
+  };
+
+  // Named aggregate modes (kept for back-compat + ergonomics).
+  switch (raw) {
     case '':
     case 'simulated':
       return new SimulatedDiscovery();
+    case 'mdns':
+      return new MdnsDiscovery();
+    case 'sap':
+      return new SapDiscovery();
+    case 'both':
+      return new CompositeDiscovery([new SimulatedDiscovery(), new MdnsDiscovery()]);
+    case 'all':
+      return new CompositeDiscovery([
+        new SimulatedDiscovery(),
+        new MdnsDiscovery(),
+        new SapDiscovery(),
+      ]);
     default:
-      console.warn(`[bridge] unknown RTA_DISCOVERY="${mode}" — falling back to simulated`);
-      return new SimulatedDiscovery();
+      break;
   }
+
+  // Otherwise treat it as a comma-separated list of source tokens.
+  const tokens = raw
+    .split(',')
+    .map((t) => t.trim())
+    .filter((t) => t.length > 0);
+  const sources: Discovery[] = [];
+  const seen = new Set<string>();
+  for (const token of tokens) {
+    if (seen.has(token)) continue;
+    const src = makeSource(token);
+    if (src) {
+      sources.push(src);
+      seen.add(token);
+    } else {
+      console.warn(`[bridge] unknown RTA_DISCOVERY token "${token}" — ignored`);
+    }
+  }
+
+  if (sources.length === 0) {
+    console.warn(`[bridge] no valid RTA_DISCOVERY source in "${mode}" — falling back to simulated`);
+    return new SimulatedDiscovery();
+  }
+  if (sources.length === 1) return sources[0]!;
+  return new CompositeDiscovery(sources);
 }
 
 /** Build the adapter set the bridge exposes. */
