@@ -4,6 +4,7 @@ import {
   findDelay,
   compensatePhase,
   whiteNoise,
+  averageTransfers,
   type TransferPoint,
 } from "../lib/dsp";
 import { SignalGenerator } from "./SignalGenerator";
@@ -56,6 +57,12 @@ export function TransferView({
   const [delaySamples, setDelaySamples] = useState<number | null>(null);
   const [compensated, setCompensated] = useState(false);
 
+  // Multi-point spatial averaging: each capture is a deep snapshot of the live
+  // transfer at one measurement position; toggling `showAverage` renders the
+  // complex (vector) average across the captured positions.
+  const [captures, setCaptures] = useState<TransferPoint[][]>([]);
+  const [showAverage, setShowAverage] = useState(false);
+
   const canDelay = hasFeature(edition, "delayFinder");
   const canGen = hasFeature(edition, "signalGenerator");
 
@@ -67,16 +74,42 @@ export function TransferView({
   // The displayed data: a live bridge measurement when wired, otherwise the
   // synthetic demo curve (optionally phase-compensated once a delay is found).
   const data = useMemo<TransferPoint[]>(() => {
+    // Spatial average across captured positions takes precedence in the live
+    // path: combine the captured snapshots into one room-representative curve.
+    if (isLive && showAverage && captures.length >= 1) {
+      return averageTransfers(captures);
+    }
     if (isLive && bridgeTransfer) return bridgeTransfer.points;
     if (!compensated || delaySamples === null) return baseData;
     return baseData.map((p) => ({
       ...p,
       phaseDeg: compensatePhase(p.phaseDeg, p.freq, delaySamples, SR),
     }));
-  }, [isLive, bridgeTransfer, baseData, compensated, delaySamples]);
+  }, [
+    isLive,
+    showAverage,
+    captures,
+    bridgeTransfer,
+    baseData,
+    compensated,
+    delaySamples,
+  ]);
 
   const dataRef = useRef<TransferPoint[]>(data);
   dataRef.current = data;
+
+  /** Snapshot the current live transfer as one measurement position. */
+  const handleCapture = () => {
+    if (!bridgeTransfer || bridgeTransfer.points.length === 0) return;
+    // Deep copy so later live updates don't mutate the captured position.
+    const snap = bridgeTransfer.points.map((p) => ({ ...p }));
+    setCaptures((prev) => [...prev, snap]);
+  };
+
+  const handleClearCaptures = () => {
+    setCaptures([]);
+    setShowAverage(false);
+  };
 
   /** Cross-correlate a reference against a delayed measurement to recover the lag. */
   const handleFindDelay = () => {
@@ -228,6 +261,50 @@ export function TransferView({
           <span className="text-rose">meas</span>{" "}
           <span className="font-mono">{measLabel ?? "—"}</span>
         </p>
+      )}
+
+      {/* Multi-point spatial averaging (live only): capture several positions
+          and combine them into one room-representative average. */}
+      {isLive && (
+        <div className="flex flex-col gap-2 rounded-lg border border-rose/40 bg-rose/10 px-3 py-2 text-xs">
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={handleCapture}
+              className="flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-rose to-violet px-3 py-1.5 text-xs font-semibold text-ink transition-transform hover:scale-[1.03]"
+            >
+              Capture position
+            </button>
+            <span className="font-mono text-rose">
+              {captures.length} position{captures.length === 1 ? "" : "s"}
+            </span>
+            {captures.length > 0 && (
+              <button
+                type="button"
+                onClick={handleClearCaptures}
+                className="rounded-md border border-line px-2 py-1 text-haze transition-colors hover:text-text"
+              >
+                Clear
+              </button>
+            )}
+            <label className="ml-auto flex items-center gap-2 text-haze">
+              <input
+                type="checkbox"
+                checked={showAverage}
+                onChange={(e) => setShowAverage(e.target.checked)}
+                disabled={captures.length === 0}
+                className="accent-violet disabled:opacity-40"
+              />
+              Show spatial average
+            </label>
+          </div>
+          {showAverage && captures.length >= 1 && (
+            <span className="font-mono text-[11px] text-violet">
+              Spatial average — {captures.length} position
+              {captures.length === 1 ? "" : "s"}
+            </span>
+          )}
+        </div>
       )}
 
       {/* Live delay readout + compensation toggle (the "find delay" step). */}
