@@ -1,8 +1,7 @@
 import Head from "next/head";
 import Link from "next/link";
 import { TopNav } from "../components/TopNav";
-import { SpectrumHero } from "../components/SpectrumHero";
-import { FeatureColumn } from "../components/FeatureColumn";
+import { LiveSpectrumHero } from "../components/LiveSpectrumHero";
 import { ModeCard } from "../components/ModeCard";
 import { PricingTier } from "../components/PricingTier";
 import { Logo } from "../components/Logo";
@@ -12,13 +11,16 @@ import {
   IconRoom,
   IconGauge,
   IconTransfer,
-  IconList,
   IconMic,
-  IconChip,
-  IconUsb,
   IconGrid,
   IconPulse,
 } from "../components/icons";
+
+const AUDIENCES = [
+  { icon: <IconSpeaker />, title: "Live sound", line: "Tune a PA with dual-FFT transfer function in three measurements." },
+  { icon: <IconRoom />, title: "Studio", line: "Read your room's decay and frequency balance in seconds." },
+  { icon: <IconWave />, title: "Creators", line: "Catch a boomy low end before you post — anywhere." },
+];
 
 export default function Landing() {
   return (
@@ -35,129 +37,106 @@ export default function Landing() {
       <TopNav />
 
       <main className="mx-auto max-w-6xl px-4">
-        {/* HERO */}
-        <section className="grid items-center gap-10 py-16 md:grid-cols-2 md:py-24">
-          <div className="flex flex-col gap-6">
-            <span className="w-fit rounded-full border border-line bg-panel px-3 py-1 text-xs font-medium text-haze">
-              Studio-grade. Pocket-sized.
+        {/* ── HERO — the real analyzer, plus the pitch ── */}
+        <section className="relative grid items-center gap-10 py-12 md:grid-cols-2 md:py-20">
+          <div className="hero-aura pointer-events-none absolute -inset-x-10 -top-10 bottom-0 -z-10" />
+
+          <div className="flex flex-col gap-5">
+            <span className="w-fit rounded-full border border-line bg-panel/70 px-3 py-1 text-xs font-medium text-haze backdrop-blur">
+              Studio-grade · pocket-sized · on-device
             </span>
-            <h1 className="text-4xl font-extrabold leading-tight tracking-tight sm:text-5xl md:text-6xl">
+            <h1 className="text-4xl font-extrabold leading-[1.05] tracking-tight sm:text-5xl md:text-6xl">
               <span className="bg-gradient-to-r from-amber via-rose to-violet bg-clip-text text-transparent">
-                Real-Time Audio Insight,
+                Real-time audio insight,
               </span>{" "}
-              Anywhere.
+              anywhere.
             </h1>
             <p className="max-w-md text-lg text-haze">
-              Mobile-first spectrum, transfer function, and room analysis in a
-              warm studio aesthetic.
+              Spectrum, transfer function, and room analysis in one warm,
+              mobile-first tool. The hero on the right is the actual analyzer —{" "}
+              <span className="text-text">tap Go live</span> to measure your room.
             </p>
-            <div className="flex flex-wrap gap-3">
+            <div className="flex flex-wrap items-center gap-3">
               <Link
                 href="/app"
-                className="rounded-xl bg-gradient-to-r from-amber to-rose px-5 py-3 font-semibold text-ink shadow-glow transition-transform hover:scale-[1.03]"
+                className="glass-btn-primary rounded-xl px-5 py-3 font-semibold"
               >
-                Try in Browser
+                Launch the analyzer
               </Link>
-              <a
-                href="#pricing"
-                className="rounded-xl border border-line bg-panel px-5 py-3 font-semibold text-text transition-colors hover:border-haze"
+              <Link
+                href="/editions"
+                className="glass-btn rounded-xl px-5 py-3 font-semibold text-text"
               >
-                Download for iOS
-              </a>
-              <a
-                href="#pricing"
-                className="rounded-xl border border-line bg-panel px-5 py-3 font-semibold text-text transition-colors hover:border-haze"
-              >
-                Download for Android
-              </a>
+                See editions
+              </Link>
             </div>
+            <p className="text-xs text-haze">
+              Workflows inspired by{" "}
+              <span className="text-text">Smaart</span>,{" "}
+              <span className="text-text">REW</span> &{" "}
+              <span className="text-text">SonaVyx</span>. Free to start — no
+              account.
+            </p>
           </div>
 
-          <SpectrumHero className="h-64 w-full md:h-80" />
+          <LiveSpectrumHero className="w-full" />
         </section>
 
-        {/* TRUST STRIP */}
-        <section className="border-y border-line/60 py-6 text-center">
-          <p className="text-sm text-haze">
-            Inspired by workflows from{" "}
-            <span className="text-text">Smaart</span>,{" "}
-            <span className="text-text">REW</span>, and{" "}
-            <span className="text-text">SonaVyx</span>.
-          </p>
+        {/* ── AUDIENCE — one tight row, no doubled copy ── */}
+        <section id="features" className="grid gap-4 border-y border-line/60 py-10 sm:grid-cols-3">
+          {AUDIENCES.map((a) => (
+            <div key={a.title} className="flex items-start gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-line bg-panel2 text-amber-soft">
+                {a.icon}
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-text">{a.title}</h3>
+                <p className="mt-0.5 text-sm leading-relaxed text-haze">{a.line}</p>
+              </div>
+            </div>
+          ))}
         </section>
 
-        {/* FEATURE COLUMNS */}
-        <section id="features" className="py-16 md:py-20">
-          <h2 className="mb-2 text-center text-3xl font-bold tracking-tight">
-            Built for how you work
-          </h2>
-          <p className="mb-10 text-center text-haze">
-            One tool, three rooms. From the front-of-house to the mix bus.
-          </p>
-          <div className="grid gap-5 md:grid-cols-3">
-            <FeatureColumn
-              glow="amber"
-              icon={<IconSpeaker />}
-              title="Live Sound"
-              body="Tune your PA with dual-FFT transfer function. Dial in your PA in three measurements."
-            />
-            <FeatureColumn
-              glow="rose"
-              icon={<IconRoom />}
-              title="Studio"
-              body="See your room's decay and frequency balance. See your room decay in seconds."
-            />
-            <FeatureColumn
-              glow="violet"
-              icon={<IconWave />}
-              title="Creators"
-              body="Check your mix translation on the go. Catch a boomy low end before you post."
-            />
+        {/* ── MEASUREMENT SUITE — condensed grid ── */}
+        <section id="modes" className="py-12 md:py-16">
+          <div className="mb-8 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+            <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
+              A full measurement suite
+            </h2>
+            <Link
+              href="/editions"
+              className="text-sm text-amber-soft hover:text-amber"
+            >
+              Compare Free, Pro &amp; Studio →
+            </Link>
           </div>
-        </section>
-
-        {/* MEASUREMENT MODES */}
-        <section id="modes" className="py-16 md:py-20">
-          <h2 className="mb-2 text-center text-3xl font-bold tracking-tight">
-            A full measurement suite
-          </h2>
-          <p className="mb-10 text-center text-haze">
-            Everything you need to measure a system, in one app.
-          </p>
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <ModeCard
               glow="amber"
               icon={<IconWave />}
-              title="Spectrum Analyzer"
-              description="Real-time 1/1 to 1/24-octave RTA with peak-hold, averaging, and captured traces."
+              title="Spectrum & Spectrograph"
+              description="Real-time 1/1–1/24-oct RTA with peak-hold, averaging, captured traces, and a scrolling time-frequency view."
               useCase="Find the ringing frequency before it feeds back."
-            />
-            <ModeCard
-              glow="rose"
-              icon={<IconGrid />}
-              title="Spectrograph"
-              description="Scrolling time-frequency heatmap in a warm colormap — watch the spectrum move."
-              useCase="Spot an intermittent resonance that an RTA misses."
             />
             <ModeCard
               glow="rose"
               icon={<IconTransfer />}
               title="Transfer Function"
-              description="Dual-channel magnitude, phase, and coherence against a reference."
+              description="Dual-channel magnitude, phase, and coherence against a reference, with delay finder and spatial averaging."
               useCase="Time-align a sub to the mains in minutes."
             />
             <ModeCard
               glow="violet"
               icon={<IconGauge />}
               title="SPL Meter"
-              description="A / C / Z weighting, Fast / Slow ballistics, Leq and peak."
+              description="A / C / Z weighting, Fast / Slow ballistics, Leq and peak — logged continuously."
               useCase="Log a show against an 85 dBA venue limit."
             />
             <ModeCard
               glow="teal"
               icon={<IconRoom />}
               title="RT60 / Room"
-              description="Schroeder decay curve and reverberation time with plain-language notes."
+              description="Schroeder decay curve and reverberation time with plain-language guidance."
               useCase="Decide where the next bass trap should go."
             />
             <ModeCard
@@ -165,98 +144,35 @@ export default function Landing() {
               icon={<IconPulse />}
               title="Impulse Response"
               description="RT60, EDT, C50, C80, D50, Ts, and STI from a measured impulse response."
-              useCase="Check whether speech will be intelligible in the room."
-            />
-            <ModeCard
-              glow="rose"
-              icon={<IconTransfer />}
-              title="Signal Generator"
-              description="Pink and white noise, sine, and a log sweep to excite the system under test."
-              useCase="Drive the PA with pink noise for a transfer measurement."
+              useCase="Check whether speech will be intelligible."
             />
             <ModeCard
               glow="amber"
-              icon={<IconList />}
-              title="Session & SPL Logging"
-              description="Save tagged measurements and continuous SPL / Leq logs, export to JSON or CSV."
-              useCase="Hand the venue a before/after report."
+              icon={<IconGrid />}
+              title="Console & Network"
+              description="Tap inputs off Dante / AES67 / AVB networks and major consoles through the on-LAN bridge — plus signal generator and session logging."
+              useCase="Measure straight off the desk, no patch required."
             />
           </div>
+        </section>
 
-          <p className="mt-10 text-center text-sm text-haze">
-            Features scale across editions —{" "}
-            <Link href="/editions" className="text-amber-soft hover:text-amber">
-              compare Free, Pro &amp; Studio
-            </Link>
-            .
+        {/* ── INTEGRATIONS — folded to a single line ── */}
+        <section className="border-y border-line/60 py-8">
+          <p className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-center text-sm text-haze">
+            <span className="text-amber-soft">
+              <IconMic width={16} height={16} />
+            </span>
+            Built-in mic, USB reference mics, and class-compliant interfaces are
+            recognized on connect — <span className="text-text">no drivers, no setup screens.</span>
           </p>
         </section>
 
-        {/* INTEGRATIONS */}
-        <section id="integrations" className="py-16 md:py-20">
-          <div className="grid items-center gap-10 md:grid-cols-2">
-            <div className="flex flex-col gap-4">
-              <h2 className="text-3xl font-bold tracking-tight">
-                Works with your gear
-              </h2>
-              <p className="text-haze">
-                Start with the built-in mic, then plug in a calibrated reference
-                mic over USB. Class-compliant interfaces are picked up
-                automatically — no drivers, no setup screens.
-              </p>
-              <ul className="flex flex-col gap-3 text-sm text-haze">
-                <li className="flex items-center gap-3">
-                  <span className="text-amber-soft"><IconMic width={18} height={18} /></span>
-                  Built-in microphone for a quick check
-                </li>
-                <li className="flex items-center gap-3">
-                  <span className="text-rose"><IconUsb width={18} height={18} /></span>
-                  USB audio interfaces and reference mics
-                </li>
-                <li className="flex items-center gap-3">
-                  <span className="text-violet"><IconChip width={18} height={18} /></span>
-                  Class-compliant devices, recognized on connect
-                </li>
-              </ul>
-            </div>
-
-            {/* phone -> interface -> speakers diagram */}
-            <div className="rounded-2xl border border-line bg-panel/70 p-6">
-              <svg viewBox="0 0 360 120" className="w-full" role="img" aria-label="Phone connected to an interface driving speakers">
-                <defs>
-                  <linearGradient id="flow" x1="0" y1="0" x2="360" y2="0" gradientUnits="userSpaceOnUse">
-                    <stop offset="0" stopColor="#F6A623" />
-                    <stop offset="0.5" stopColor="#FF6B8A" />
-                    <stop offset="1" stopColor="#A855F7" />
-                  </linearGradient>
-                </defs>
-                <line x1="64" y1="60" x2="150" y2="60" stroke="url(#flow)" strokeWidth="3" />
-                <line x1="210" y1="60" x2="288" y2="60" stroke="url(#flow)" strokeWidth="3" />
-                {/* phone */}
-                <rect x="20" y="30" width="44" height="60" rx="8" fill="#1F1828" stroke="#2A2233" strokeWidth="2" />
-                <rect x="30" y="40" width="24" height="34" rx="3" fill="#16121C" />
-                <text x="42" y="108" fill="#A99FB3" fontSize="10" textAnchor="middle">Phone</text>
-                {/* interface */}
-                <rect x="150" y="38" width="60" height="44" rx="8" fill="#1F1828" stroke="#2A2233" strokeWidth="2" />
-                <circle cx="166" cy="60" r="6" fill="#F6A623" />
-                <circle cx="186" cy="60" r="6" fill="#2DD4BF" />
-                <text x="180" y="100" fill="#A99FB3" fontSize="10" textAnchor="middle">Interface</text>
-                {/* speakers */}
-                <rect x="288" y="28" width="40" height="64" rx="8" fill="#1F1828" stroke="#2A2233" strokeWidth="2" />
-                <circle cx="308" cy="50" r="8" fill="#16121C" stroke="#FF6B8A" strokeWidth="2" />
-                <circle cx="308" cy="74" r="5" fill="#16121C" stroke="#A855F7" strokeWidth="2" />
-                <text x="308" y="108" fill="#A99FB3" fontSize="10" textAnchor="middle">Speakers</text>
-              </svg>
-            </div>
-          </div>
-        </section>
-
-        {/* PRICING */}
-        <section id="pricing" className="py-16 md:py-20">
-          <h2 className="mb-2 text-center text-3xl font-bold tracking-tight">
+        {/* ── PRICING ── */}
+        <section id="pricing" className="py-12 md:py-16">
+          <h2 className="mb-1 text-center text-2xl font-bold tracking-tight sm:text-3xl">
             Simple pricing
           </h2>
-          <p className="mb-10 text-center text-haze">
+          <p className="mb-8 text-center text-haze">
             Start free. Upgrade when you need logging and AI diagnostics.
           </p>
           <div className="mx-auto grid max-w-3xl gap-5 sm:grid-cols-2">
@@ -289,22 +205,16 @@ export default function Landing() {
               ]}
             />
           </div>
-          <p className="mt-8 text-center text-sm text-haze">
-            Built for engineers, creators, and studios.{" "}
-            <Link href="/editions" className="text-amber-soft hover:text-amber">
-              See all three editions →
-            </Link>
-          </p>
         </section>
       </main>
 
-      {/* FOOTER */}
+      {/* ── FOOTER ── */}
       <footer className="border-t border-line/60 bg-panel/40">
-        <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-10 sm:flex-row sm:items-center sm:justify-between">
-          <Logo size={30} />
+        <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-8 sm:flex-row sm:items-center sm:justify-between">
+          <Logo size={28} />
           <nav className="flex flex-wrap gap-5 text-sm text-haze">
-            <a href="#features" className="hover:text-text">Features</a>
-            <a href="#modes" className="hover:text-text">Modes</a>
+            <a href="#features" className="hover:text-text">For you</a>
+            <a href="#modes" className="hover:text-text">Suite</a>
             <Link href="/editions" className="hover:text-text">Editions</Link>
             <a href="#pricing" className="hover:text-text">Pricing</a>
             <Link href="/app" className="hover:text-text">Open App</Link>

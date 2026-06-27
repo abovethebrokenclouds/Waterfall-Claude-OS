@@ -21,7 +21,7 @@ stable on a phone.
 │  getUserMedia    ┌──▶ octave-smoothing    ┌──▶ SplView (meter)            │
 │  AudioContext    │    weighting (A/C/Z)    │   TransferView (mag/phase)    │
 │  AnalyserNode  ──┘    spl                  └── Rt60View (decay)            │
-│  (Float arrays)       rt60 (Schroeder)         SpectrumHero (landing)     │
+│  (Float arrays)       rt60 (Schroeder)         LiveSpectrumHero (landing) │
 │                       transfer-function        Canvas2D / SVG + readouts  │
 │                                                                            │
 │  State: React 19 (hooks + a measurement store)                            │
