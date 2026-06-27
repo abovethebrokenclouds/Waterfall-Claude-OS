@@ -9,6 +9,7 @@ import {
 import { SignalGenerator } from "./SignalGenerator";
 import { LockChip } from "./LockChip";
 import { hasFeature, type Edition } from "../lib/editions";
+import type { BridgeTransferResult } from "../hooks/useBridgeTransfer";
 
 type TransferTrace = "magnitude" | "phase" | "coherence";
 
@@ -23,13 +24,18 @@ interface TransferViewProps {
   edition?: Edition;
   /**
    * A live transfer function measured from two bridge taps (ref + meas). When
-   * present, the view renders THIS instead of the synthetic demo curve.
+   * present, the view renders THIS instead of the synthetic demo curve. Carries
+   * the (optionally delay-compensated) points plus the measured delay.
    */
-  bridgeTransfer?: TransferPoint[] | null;
+  bridgeTransfer?: BridgeTransferResult | null;
   /** Label of the reference tap, for the live banner. */
   refLabel?: string | null;
   /** Label of the measurement tap, for the live banner. */
   measLabel?: string | null;
+  /** Whether the live phase trace is delay-compensated (default on). */
+  compensate?: boolean;
+  /** Toggle live delay compensation. */
+  onCompensateChange?: (next: boolean) => void;
 }
 
 /**
@@ -42,6 +48,8 @@ export function TransferView({
   bridgeTransfer = null,
   refLabel = null,
   measLabel = null,
+  compensate = true,
+  onCompensateChange,
 }: TransferViewProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [trace, setTrace] = useState<TransferTrace>("magnitude");
@@ -51,14 +59,15 @@ export function TransferView({
   const canDelay = hasFeature(edition, "delayFinder");
   const canGen = hasFeature(edition, "signalGenerator");
 
-  const isLive = bridgeTransfer !== null && bridgeTransfer.length > 0;
+  const isLive =
+    bridgeTransfer !== null && bridgeTransfer.points.length > 0;
 
   const baseData = useMemo(() => syntheticTransfer(F_MIN, F_MAX, 256), []);
 
   // The displayed data: a live bridge measurement when wired, otherwise the
   // synthetic demo curve (optionally phase-compensated once a delay is found).
   const data = useMemo<TransferPoint[]>(() => {
-    if (isLive && bridgeTransfer) return bridgeTransfer;
+    if (isLive && bridgeTransfer) return bridgeTransfer.points;
     if (!compensated || delaySamples === null) return baseData;
     return baseData.map((p) => ({
       ...p,
@@ -219,6 +228,29 @@ export function TransferView({
           <span className="text-rose">meas</span>{" "}
           <span className="font-mono">{measLabel ?? "—"}</span>
         </p>
+      )}
+
+      {/* Live delay readout + compensation toggle (the "find delay" step). */}
+      {isLive && bridgeTransfer && (
+        <div className="flex flex-wrap items-center gap-3 rounded-lg border border-amber/40 bg-amber/10 px-3 py-2 text-xs">
+          <span className="font-mono text-amber">
+            Delay {bridgeTransfer.delay.ms.toFixed(2)} ms (
+            {bridgeTransfer.delay.samples} smp · conf{" "}
+            {bridgeTransfer.delay.peak.toFixed(2)})
+          </span>
+          <label className="flex items-center gap-2 text-haze">
+            <input
+              type="checkbox"
+              checked={compensate}
+              onChange={(e) => onCompensateChange?.(e.target.checked)}
+              className="accent-amber"
+            />
+            Compensate delay
+          </label>
+          <span className="ml-auto font-mono text-[11px] text-teal">
+            {bridgeTransfer.compensated ? "phase aligned" : "raw phase ramp"}
+          </span>
+        </div>
       )}
 
       <canvas

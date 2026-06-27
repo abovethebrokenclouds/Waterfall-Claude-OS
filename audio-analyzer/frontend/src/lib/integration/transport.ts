@@ -100,7 +100,7 @@ export class SimulatedTransport implements IntegrationTransport {
   private meterSub: { consoleId: string; tap: MeterTap; channels: number[] } | null = null;
   // Audio subscriptions are ADDITIVE/concurrent: each subscribed channel gets
   // its own stream (and its own seq) so two channels both emit `audio` frames.
-  private audioStreams = new Map<number, AudioStream>();
+  private audioStreams = new Map<string, AudioStream>();
   private tick = 0;
   private readonly audioSampleRate = 48000;
   status: TransportStatus = "idle";
@@ -172,8 +172,10 @@ export class SimulatedTransport implements IntegrationTransport {
         break;
       case "audio.subscribe":
         // Additive: subscribing a second channel streams BOTH. A fresh
-        // subscription for a channel resets that channel's seq only.
-        this.audioStreams.set(msg.channel, {
+        // subscription for the same console+channel resets only its seq. Keyed
+        // by `consoleId:channel` so the same channel number on two consoles
+        // (a cross-console transfer-function pair) doesn't collide.
+        this.audioStreams.set(`${msg.consoleId}:${msg.channel}`, {
           consoleId: msg.consoleId,
           channel: msg.channel,
           blockSize: msg.blockSize && msg.blockSize > 0 ? Math.floor(msg.blockSize) : 512,
@@ -183,8 +185,12 @@ export class SimulatedTransport implements IntegrationTransport {
         break;
       case "audio.unsubscribe":
         if (typeof msg.channel === "number") {
-          // Stop one channel; leave any other concurrent streams running.
-          this.audioStreams.delete(msg.channel);
+          // Stop every stream on this channel number (across consoles); leave
+          // other concurrent streams running.
+          const ch = msg.channel;
+          for (const [key, stream] of this.audioStreams) {
+            if (stream.channel === ch) this.audioStreams.delete(key);
+          }
         } else {
           // Stop all audio streams.
           this.audioStreams.clear();
@@ -323,8 +329,10 @@ function simGain(channel: number): number {
 
 /** Per-channel propagation delay in whole samples. Deterministic. */
 function simDelay(channel: number): number {
-  // 0 samples on ch 1, growing modestly so taps differ but stay aligned-ish.
-  return (channel % 8) * 5;
+  // PA-scale propagation: ~1.3 ms steps at 48 kHz (64 samples) so the delay
+  // finder has a real inter-channel delay to recover and compensate. Still well
+  // under the 2048-sample FFT window, so any two taps stay highly coherent.
+  return (channel % 8) * 64;
 }
 
 // --- WebSocketBridgeTransport --------------------------------------------

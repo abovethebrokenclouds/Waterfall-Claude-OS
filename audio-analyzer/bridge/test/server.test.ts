@@ -361,7 +361,10 @@ describe('BridgeCore audio tap streaming', () => {
     const core = new BridgeCore({
       oscIO: new MockOscIO(),
       discovery: new SimulatedDiscovery(),
-      adapters: [new SimulatedConsoleAdapter({ id: 'sim', channelCount: 8 })],
+      adapters: [
+        new SimulatedConsoleAdapter({ id: 'sim', channelCount: 8 }),
+        new SimulatedConsoleAdapter({ id: 'sim2', channelCount: 8 }),
+      ],
       now: () => 1000,
       audioBlockSize: 4,
       audioSampleRate: 48000,
@@ -425,6 +428,19 @@ describe('BridgeCore audio tap streaming', () => {
     const ch3 = audio.filter((a) => a.channel === 3);
     expect(ch1.map((a) => a.seq)).toEqual([0, 1]);
     expect(ch3.map((a) => a.seq)).toEqual([0, 1]);
+    expect(c.byType('error')).toHaveLength(0);
+  });
+
+  it('same channel number on two different consoles streams BOTH (no collision)', () => {
+    const { c, tick } = audioCore();
+    // A cross-console transfer pair: ref on 'sim' ch1, meas on 'sim2' ch1.
+    c.client({ t: 'audio.subscribe', consoleId: 'sim', channel: 1 });
+    c.client({ t: 'audio.subscribe', consoleId: 'sim2', channel: 1 });
+    tick();
+    const audio = c.byType('audio') as Array<{ consoleId: string; channel: number }>;
+    // Streams are keyed by consoleId:channel, so one tick emits a frame for each.
+    expect(audio.filter((a) => a.consoleId === 'sim')).toHaveLength(1);
+    expect(audio.filter((a) => a.consoleId === 'sim2')).toHaveLength(1);
     expect(c.byType('error')).toHaveLength(0);
   });
 
