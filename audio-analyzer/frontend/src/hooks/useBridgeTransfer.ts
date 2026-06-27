@@ -5,6 +5,7 @@ import {
 } from "../lib/integration/transport";
 import { PcmAccumulator } from "../lib/dsp/pcmSpectrum";
 import { computeTransfer } from "../lib/dsp/transferCompute";
+import { findDelay, compensatePhase, type DelayResult } from "../lib/dsp/delay";
 import type { TransferPoint } from "../lib/dsp/transfer";
 
 /** One side (reference or measurement) of a live bridge transfer measurement. */
@@ -29,6 +30,21 @@ const TRANSFER_FRAME = 8192;
 const TRANSFER_FFT = 2048;
 
 /**
+ * The result of a live bridge transfer measurement: the (optionally
+ * delay-compensated) transfer curve plus the measured inter-channel delay used
+ * for the time alignment, so the UI can both render the phase trace and show a
+ * delay readout.
+ */
+export interface BridgeTransferResult {
+  /** Transfer points; `phaseDeg` is delay-compensated when `compensated`. */
+  points: TransferPoint[];
+  /** The measured reference→measurement delay (cross-correlation). */
+  delay: DelayResult;
+  /** Whether `points`' phase has had the propagation delay removed. */
+  compensated: boolean;
+}
+
+/**
  * When a reference + measurement pair is wired, open a transport, subscribe to
  * BOTH channels concurrently (`audio.subscribe` is additive), accumulate each
  * channel's streamed float PCM into its own ring, and recompute the dual-FFT
@@ -42,8 +58,10 @@ const TRANSFER_FFT = 2048;
  */
 export function useBridgeTransfer(
   source: BridgeTransferSource | null,
-): TransferPoint[] | null {
-  const [transfer, setTransfer] = useState<TransferPoint[] | null>(null);
+  /** Remove the measured propagation delay from the phase trace. Default on. */
+  compensate = true,
+): BridgeTransferResult | null {
+  const [transfer, setTransfer] = useState<BridgeTransferResult | null>(null);
 
   // Re-key the effect on the identity of the pair so switching channels (or
   // disabling it) tears down and rebuilds the subscriptions cleanly.
@@ -113,10 +131,30 @@ export function useBridgeTransfer(
       if (dirty) {
         dirty = false;
         if (refAccum.size >= TRANSFER_FFT * 2 && measAccum.size >= TRANSFER_FFT * 2) {
-          const pts = computeTransfer(refAccum.frame(), measAccum.frame(), sampleRate, {
+          const refFrame = refAccum.frame();
+          const measFrame = measAccum.frame();
+          // Locate the inter-channel delay (the "find delay" step). Bound the
+          // search so it can't chase absurd lags: never beyond the frame, and at
+          // most one FFT window of propagation.
+          const maxLag = Math.min(refFrame.length - 1, TRANSFER_FFT);
+          const delay = findDelay(refFrame, measFrame, sampleRate, maxLag);
+
+          const pts = computeTransfer(refFrame, measFrame, sampleRate, {
             fftSize: TRANSFER_FFT,
           });
-          setTransfer(pts);
+
+          // When compensation is on, remove the bulk propagation delay so the
+          // phase trace is readable (≈flat where coherent) instead of the raw
+          // -360·f·D/SR ramp.
+          const points =
+            compensate && delay.samples !== 0
+              ? pts.map((p) => ({
+                  ...p,
+                  phaseDeg: compensatePhase(p.phaseDeg, p.freq, delay.samples, sampleRate),
+                }))
+              : pts;
+
+          setTransfer({ points, delay, compensated: compensate });
         }
       }
       if (hasRaf) raf = requestAnimationFrame(tick);
@@ -137,7 +175,7 @@ export function useBridgeTransfer(
       transport.disconnect();
       setTransfer(null);
     };
-  }, [url, refConsole, refChannel, measConsole, measChannel]);
+  }, [url, refConsole, refChannel, measConsole, measChannel, compensate]);
 
   return transfer;
 }

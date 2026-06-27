@@ -57,6 +57,8 @@ export default function AnalyzerApp() {
   const [consoleSource, setConsoleSource] = useState<BridgeSourceSelection | null>(null);
   const [transferRef, setTransferRef] = useState<BridgeSourceSelection | null>(null);
   const [transferMeas, setTransferMeas] = useState<BridgeSourceSelection | null>(null);
+  // Delay compensation for the live transfer phase trace — default on.
+  const [transferCompensate, setTransferCompensate] = useState(true);
 
   // When a console/network channel is wired as the measurement source, tap its
   // streamed PCM off the bridge and compute a live spectrum. Null otherwise.
@@ -89,6 +91,7 @@ export default function AnalyzerApp() {
           },
         }
       : null,
+    transferCompensate,
   );
 
   // Defaults to Studio so every feature is visible in the demo; persisted.
@@ -142,6 +145,8 @@ export default function AnalyzerApp() {
             bridgeTransfer={bridgeTransfer}
             refLabel={transferRef?.label ?? null}
             measLabel={transferMeas?.label ?? null}
+            compensate={transferCompensate}
+            onCompensateChange={setTransferCompensate}
           />
         );
       case "spl":

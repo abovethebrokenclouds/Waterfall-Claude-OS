@@ -323,8 +323,10 @@ function simGain(channel: number): number {
 
 /** Per-channel propagation delay in whole samples. Deterministic. */
 function simDelay(channel: number): number {
-  // 0 samples on ch 1, growing modestly so taps differ but stay aligned-ish.
-  return (channel % 8) * 5;
+  // PA-scale propagation: ~1.3 ms steps at 48 kHz (64 samples) so the delay
+  // finder has a real inter-channel delay to recover and compensate. Still well
+  // under the 2048-sample FFT window, so any two taps stay highly coherent.
+  return (channel % 8) * 64;
 }
 
 // --- WebSocketBridgeTransport --------------------------------------------
