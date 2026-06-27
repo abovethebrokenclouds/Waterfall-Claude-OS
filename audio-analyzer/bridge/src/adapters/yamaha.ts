@@ -16,6 +16,7 @@ import { oscControl } from '../control/types.js';
 import type { ConsoleAdapter, IncomingUpdate } from './types.js';
 import { channelNumberFromId } from './types.js';
 import {
+  buildX32MeterRequest,
   buildX32Set,
   defaultX32Channel,
   parseX32Param,
@@ -58,9 +59,11 @@ export class YamahaAdapter implements ConsoleAdapter {
     return osc ? oscControl(osc) : null;
   }
 
-  buildMeterRequest(_tap: MeterTap, _channels: number[]): ControlMessage | null {
-    // X32-tree consoles use /xremote to begin a meter/param subscription.
-    return oscControl({ address: '/xremote', args: [] });
+  buildMeterRequest(tap: MeterTap, _channels: number[]): ControlMessage | null {
+    // X32-tree consoles select metering by tap-specific meter bank, so the tap
+    // is encoded in the subscribe (`/meters "/meters/<bank>"`). /xremote (which
+    // keeps the param feed alive) is sent separately on connect.
+    return oscControl(buildX32MeterRequest(tap));
   }
 
   parseIncoming(msg: ControlMessage): IncomingUpdate | null {

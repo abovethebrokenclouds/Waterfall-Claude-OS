@@ -154,10 +154,79 @@ describe('Simulated adapter', () => {
     expect(f1[0]!.ch).toBe(1);
   });
 
-  it('tap offset lowers level pre→post-fader', () => {
-    const pre = a.generateMeters('pre-eq', [1], 1000)[0]!.rms;
-    const post = a.generateMeters('post-fader', [1], 1000)[0]!.rms;
-    expect(post).toBeLessThan(pre);
+  it('tap ordering holds for a typical channel: pre-eq ≥ post-eq ≥ post-fader', () => {
+    // A fresh channel: flat EQ (post-eq == pre-eq), default fader -10 dB.
+    const b = new SimulatedConsoleAdapter({ channelCount: 8 });
+    const pre = b.generateMeters('pre-eq', [1], 1000)[0]!.rms;
+    const postEq = b.generateMeters('post-eq', [1], 1000)[0]!.rms;
+    const postFader = b.generateMeters('post-fader', [1], 1000)[0]!.rms;
+    expect(pre).toBeGreaterThanOrEqual(postEq);
+    expect(postEq).toBeGreaterThanOrEqual(postFader);
+    // Default fader is -10 dB, so post-fader is ~10 dB below post-eq.
+    expect(postEq - postFader).toBeCloseTo(10, 1);
+  });
+
+  it('rms ≤ peak for every frame', () => {
+    for (const tap of ['pre-eq', 'post-eq', 'post-fader'] as const) {
+      for (const f of a.generateMeters(tap, [1, 2, 3, 4], 1000)) {
+        expect(f.rms).toBeLessThanOrEqual(f.peak);
+      }
+    }
+  });
+
+  it('post-fader reflects a live fader change; pre-eq is unchanged', () => {
+    const b = new SimulatedConsoleAdapter({ channelCount: 8 });
+    const preBefore = b.generateMeters('pre-eq', [1], 1000)[0]!.rms;
+    const postFaderBefore = b.generateMeters('post-fader', [1], 1000)[0]!.rms;
+
+    // Lower the fader 20 dB from its -10 default via buildSet (updates mirror).
+    b.buildSet('ch-1', 'fader', -30);
+
+    const preAfter = b.generateMeters('pre-eq', [1], 1000)[0]!.rms;
+    const postFaderAfter = b.generateMeters('post-fader', [1], 1000)[0]!.rms;
+
+    // Pre-eq is independent of the fader.
+    expect(preAfter).toBe(preBefore);
+    // Post-fader dropped ~20 dB (the fader delta).
+    expect(postFaderBefore - postFaderAfter).toBeCloseTo(20, 1);
+  });
+
+  it('post-fader for a typical channel sits ~fader dB below post-eq', () => {
+    const b = new SimulatedConsoleAdapter({ channelCount: 8 });
+    b.buildSet('ch-1', 'fader', -20);
+    const postEq = b.generateMeters('post-eq', [1], 1000)[0]!.rms;
+    const postFader = b.generateMeters('post-fader', [1], 1000)[0]!.rms;
+    expect(postEq - postFader).toBeCloseTo(20, 1);
+    // And pre-eq is untouched by the fader.
+    const pre = b.generateMeters('pre-eq', [1], 1000)[0]!.rms;
+    expect(pre).toBeGreaterThanOrEqual(postEq);
+  });
+
+  it('muting floors post-fader but leaves pre-eq / post-eq alone', () => {
+    const b = new SimulatedConsoleAdapter({ channelCount: 8 });
+    const preBefore = b.generateMeters('pre-eq', [1], 1000)[0]!.rms;
+    const postEqBefore = b.generateMeters('post-eq', [1], 1000)[0]!.rms;
+
+    b.buildSet('ch-1', 'mute', true);
+
+    expect(b.generateMeters('post-fader', [1], 1000)[0]!.rms).toBeLessThanOrEqual(-90);
+    expect(b.generateMeters('pre-eq', [1], 1000)[0]!.rms).toBe(preBefore);
+    expect(b.generateMeters('post-eq', [1], 1000)[0]!.rms).toBe(postEqBefore);
+  });
+
+  it('engaging EQ separates post-eq from pre-eq; pre-eq unchanged', () => {
+    const b = new SimulatedConsoleAdapter({ channelCount: 8 });
+    const preFlat = b.generateMeters('pre-eq', [1], 1000)[0]!.rms;
+    const postEqFlat = b.generateMeters('post-eq', [1], 1000)[0]!.rms;
+    expect(postEqFlat).toBe(preFlat); // flat EQ → no contribution
+
+    b.engageEqBand('ch-1', 1, 8); // +8 dB boost on band 1
+
+    const preBoost = b.generateMeters('pre-eq', [1], 1000)[0]!.rms;
+    const postEqBoost = b.generateMeters('post-eq', [1], 1000)[0]!.rms;
+    expect(preBoost).toBe(preFlat); // pre-eq is ahead of EQ
+    expect(postEqBoost).toBeGreaterThan(postEqFlat); // EQ engaged raises post-eq
+    expect(postEqBoost).toBeGreaterThan(preBoost);
   });
 
   it('applies a set to its local mirror', () => {
@@ -165,4 +234,23 @@ describe('Simulated adapter', () => {
     const ch = a.listChannels().find((c) => c.id === 'ch-1')!;
     expect(ch.faderDb).toBe(-5);
   });
+});
+
+describe('X32-family meter request encodes the tap', () => {
+  const adapters = {
+    yamaha: new YamahaAdapter({ address: '10.0.0.5:10024', channelCount: 16 }),
+    midas: new MidasAdapter({ address: '10.0.0.9', channelCount: 32 }),
+  };
+
+  for (const [vendor, a] of Object.entries(adapters)) {
+    it(`${vendor}: each tap produces a distinct meter request`, () => {
+      const pre = oscOf(a.buildMeterRequest!('pre-eq', [1, 2]));
+      const postEq = oscOf(a.buildMeterRequest!('post-eq', [1, 2]));
+      const postFader = oscOf(a.buildMeterRequest!('post-fader', [1, 2]));
+      // The tap is encoded in the subscribe arg (the selected meter bank).
+      const argOf = (m: OscMessage): unknown => (m.args[0] as { value: unknown }).value;
+      const args = [argOf(pre), argOf(postEq), argOf(postFader)];
+      expect(new Set(args).size).toBe(3); // all three differ
+    });
+  }
 });

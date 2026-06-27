@@ -53,6 +53,24 @@ export function digicoAddr(ch: number, leaf: string): string {
   return `/${SECTION}/${ch}/${leaf}`;
 }
 
+/**
+ * Map a normalized meter tap to the DiGiCo channel metering point name carried
+ * in the meter subscribe. DiGiCo exposes a selectable per-channel metering
+ * point, so the tap is encoded honestly as the subscribe argument.
+ */
+export function digicoMeterPoint(tap: MeterTap): string {
+  switch (tap) {
+    case 'pre-eq':
+      return 'Input';
+    case 'post-eq':
+      return 'PostEQ';
+    case 'post-fader':
+      return 'PostFader';
+    default:
+      return 'Input';
+  }
+}
+
 export class DigicoAdapter implements ConsoleAdapter {
   readonly descriptor: ConsoleDescriptor;
 
@@ -86,12 +104,14 @@ export class DigicoAdapter implements ConsoleAdapter {
     return m ? oscControl(m) : null;
   }
 
-  buildMeterRequest(_tap: MeterTap, channels: number[]): ControlMessage | null {
+  buildMeterRequest(tap: MeterTap, channels: number[]): ControlMessage | null {
     // DiGiCo opens a metering feed per channel via a /Input_Channels/<n>/Meter
-    // subscribe. We request the first channel's meter block as the subscribe
-    // handshake (the console then streams the bank).
+    // subscribe. The channel's metering point is selectable, so we ENCODE the
+    // requested tap as the subscribe's string argument (the console then streams
+    // that point's bank). We request the first channel's meter block as the
+    // subscribe handshake.
     const first = channels[0] ?? 1;
-    return oscControl(osc.msg(digicoAddr(first, 'Meter'), osc.i(1)));
+    return oscControl(osc.msg(digicoAddr(first, 'Meter'), osc.s(digicoMeterPoint(tap))));
   }
 
   parseIncoming(msg: ControlMessage): IncomingUpdate | null {

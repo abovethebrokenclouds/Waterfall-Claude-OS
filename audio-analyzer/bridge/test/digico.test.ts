@@ -82,4 +82,18 @@ describe('DiGiCo adapter (OSC control plane)', () => {
   it('ignores non-OSC inbound', () => {
     expect(a.parseIncoming({ transport: 'tcp', bytes: new Uint8Array([1]) })).toBeNull();
   });
+
+  it('meter subscribe encodes the tap as the metering-point argument', () => {
+    const pre = oscOf(a.buildMeterRequest!('pre-eq', [3, 4]));
+    const postEq = oscOf(a.buildMeterRequest!('post-eq', [3, 4]));
+    const postFader = oscOf(a.buildMeterRequest!('post-fader', [3, 4]));
+    // Subscribes the first channel's meter feed for the requested point.
+    expect(pre.address).toBe('/Input_Channels/3/Meter');
+    expect(pre.args[0]).toEqual({ type: 's', value: 'Input' });
+    expect(postEq.args[0]).toEqual({ type: 's', value: 'PostEQ' });
+    expect(postFader.args[0]).toEqual({ type: 's', value: 'PostFader' });
+    // Each tap yields a distinct request.
+    const vals = [pre, postEq, postFader].map((m) => (m.args[0] as { value: string }).value);
+    expect(new Set(vals).size).toBe(3);
+  });
 });

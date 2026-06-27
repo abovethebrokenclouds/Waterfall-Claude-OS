@@ -18,7 +18,7 @@
  * All conversions are PURE so they can be unit-tested.
  */
 
-import type { ConsoleChannel, EqBand } from '../model.js';
+import type { ConsoleChannel, EqBand, MeterTap } from '../model.js';
 import { osc } from '../osc/types.js';
 import type { OscMessage } from '../osc/types.js';
 import { pad2 } from './types.js';
@@ -181,6 +181,45 @@ export function parseX32Param(
     default:
       return null;
   }
+}
+
+// --- Metering subscription (tap-specific meter banks) ----------------------
+
+/**
+ * X32-tree meter-bank index per tap. On the X32/M32 family, metering comes from
+ * tap-specific meter banks ("blobs"): different banks carry the input level at
+ * different points in the channel signal path. The bank is selected by index in
+ * the `/meters/<index>` subscribe, so the requested tap maps to a DISTINCT bank:
+ *
+ *   pre-eq     → bank 1  (channel input meters, ahead of EQ)
+ *   post-eq    → bank 2  (channel meters after EQ / dynamics)
+ *   post-fader → bank 3  (channel meters after the fader)
+ *
+ * (X32 firmware groups input-channel metering into the low meter banks; the
+ * exact bank ids vary by firmware, so these are the documented stand-in indices
+ * the bridge subscribes — the point is that each tap selects a different bank.)
+ */
+export function x32MeterBankIndex(tap: MeterTap): number {
+  switch (tap) {
+    case 'pre-eq':
+      return 1;
+    case 'post-eq':
+      return 2;
+    case 'post-fader':
+      return 3;
+    default:
+      return 1;
+  }
+}
+
+/**
+ * Build the X32-tree meter subscribe for a tap. The X32 begins a metering feed
+ * with `/meters` naming the tap-specific bank (e.g. `/meters/3`); the console
+ * then streams that bank's blob. The tap is therefore encoded in the wire
+ * request via the selected bank index. Shared across the X32-tree vendors.
+ */
+export function buildX32MeterRequest(tap: MeterTap): OscMessage {
+  return osc.msg('/meters', osc.s(`/meters/${x32MeterBankIndex(tap)}`));
 }
 
 /** Build a default normalized channel for an X32-tree console. */

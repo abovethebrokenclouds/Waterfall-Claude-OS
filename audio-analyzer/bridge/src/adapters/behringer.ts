@@ -18,7 +18,12 @@ import type { ControlMessage } from '../control/types.js';
 import { oscControl } from '../control/types.js';
 import type { ConsoleAdapter, IncomingUpdate } from './types.js';
 import { channelNumberFromId } from './types.js';
-import { buildX32Set, defaultX32Channel, parseX32Param } from './x32-shared.js';
+import {
+  buildX32MeterRequest,
+  buildX32Set,
+  defaultX32Channel,
+  parseX32Param,
+} from './x32-shared.js';
 import { parseMeterBlob } from './yamaha.js';
 
 /** Default OSC control port for the Behringer X32 family. */
@@ -65,8 +70,9 @@ export class BehringerAdapter implements ConsoleAdapter {
     return osc ? oscControl(osc) : null;
   }
 
-  buildMeterRequest(_tap: MeterTap, _channels: number[]): ControlMessage | null {
-    return oscControl({ address: '/xremote', args: [] });
+  buildMeterRequest(tap: MeterTap, _channels: number[]): ControlMessage | null {
+    // Tap selects the meter bank: the requested tap is encoded in the subscribe.
+    return oscControl(buildX32MeterRequest(tap));
   }
 
   parseIncoming(msg: ControlMessage): IncomingUpdate | null {
