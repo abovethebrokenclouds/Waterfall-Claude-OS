@@ -28,7 +28,7 @@ export function DeviceBar({ audio }: DeviceBarProps) {
   } = audio;
 
   return (
-    <div className="border-b border-line bg-panel/80 px-4 py-3 backdrop-blur">
+    <div className="glass-bar border-b border-line px-4 py-3">
       <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-3">
         <label className="flex items-center gap-2 text-xs text-haze">
           Source

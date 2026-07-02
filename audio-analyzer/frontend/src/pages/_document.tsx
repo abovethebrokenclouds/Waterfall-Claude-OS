@@ -15,10 +15,6 @@ export default function Document() {
           content="black-translucent"
         />
         <meta name="apple-mobile-web-app-title" content="RTA Insight" />
-        <link
-          rel="preconnect"
-          href="https://fonts.googleapis.com"
-        />
       </Head>
       <body>
         <Main />

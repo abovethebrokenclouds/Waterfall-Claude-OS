@@ -13,7 +13,7 @@ const LINKS = [
 export function TopNav() {
   const [open, setOpen] = useState(false);
   return (
-    <header className="sticky top-0 z-50 border-b border-line/60 bg-ink/70 backdrop-blur-md">
+    <header className="glass-bar sticky top-0 z-50 border-b border-line/60">
       <nav className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
         <Link href="/" className="shrink-0">
           <Logo size={32} />
@@ -65,7 +65,7 @@ export function TopNav() {
       </nav>
 
       {open && (
-        <div className="border-t border-line/60 bg-panel/95 px-4 py-3 md:hidden">
+        <div className="glass-bar border-t border-line/60 px-4 py-3 md:hidden">
           <div className="flex flex-col gap-3">
             {LINKS.map((l) => (
               <a
