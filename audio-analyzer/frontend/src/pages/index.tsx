@@ -209,7 +209,7 @@ export default function Landing() {
       </main>
 
       {/* ── FOOTER ── */}
-      <footer className="border-t border-line/60 bg-panel/40">
+      <footer className="glass-bar border-t border-line/60">
         <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-8 sm:flex-row sm:items-center sm:justify-between">
           <Logo size={28} />
           <nav className="flex flex-wrap gap-5 text-sm text-haze">

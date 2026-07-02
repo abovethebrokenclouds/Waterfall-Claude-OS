@@ -180,7 +180,7 @@ export default function AnalyzerApp() {
 
       <div className="flex min-h-screen flex-col">
         {/* App header */}
-        <header className="flex items-center justify-between border-b border-line bg-panel/80 px-4 py-2.5 backdrop-blur">
+        <header className="glass-bar sticky top-0 z-40 flex items-center justify-between border-b border-line px-4 py-2.5">
           <Link href="/">
             <Logo size={28} />
           </Link>

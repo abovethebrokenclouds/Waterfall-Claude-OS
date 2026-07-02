@@ -125,8 +125,10 @@ non-zero on a hit, so it is safe as a CI gate.
 
 - **Headlines / hero:** a confident display face for the landing page, carrying
   the amber→rose→violet gradient.
-- **UI / body:** a clean, legible sans for labels, navigation, and prose; sized
-  for readability on a phone held at arm's length.
+- **UI / body:** **Arial** (with `Helvetica Neue` / system-sans fallbacks) — a
+  clean, universally-available, legible sans for labels, navigation, and prose;
+  sized for readability on a phone held at arm's length. No webfont is loaded, so
+  there is no font-swap flash.
 - **Numeric readouts:** a **monospace** face with tabular figures for all
   measured values — this is non-negotiable, because non-tabular digits make a
   live meter shiver.
