@@ -3,8 +3,6 @@ import Link from "next/link";
 import { Logo } from "./Logo";
 
 const LINKS = [
-  { href: "/#features", label: "Features" },
-  { href: "/#modes", label: "Modes" },
   { href: "/editions", label: "Editions" },
   { href: "/#pricing", label: "Pricing" },
 ];
@@ -13,7 +11,7 @@ const LINKS = [
 export function TopNav() {
   const [open, setOpen] = useState(false);
   return (
-    <header className="glass-bar sticky top-0 z-50 border-b border-line/60">
+    <header className="glass-bar sticky top-0 z-50 border-b border-line/60 pt-[env(safe-area-inset-top)]">
       <nav className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
         <Link href="/" className="shrink-0">
           <Logo size={32} />
@@ -45,7 +43,7 @@ export function TopNav() {
           aria-label="Toggle navigation menu"
           aria-expanded={open}
           onClick={() => setOpen((v) => !v)}
-          className="flex h-10 w-10 items-center justify-center rounded-lg border border-line text-text md:hidden"
+          className="flex h-11 w-11 items-center justify-center rounded-lg border border-line text-text md:hidden"
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
             {open ? (
