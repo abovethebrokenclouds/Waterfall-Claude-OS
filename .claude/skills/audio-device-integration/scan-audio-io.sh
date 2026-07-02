@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Web Audio / MediaDevices integration scanner for RTA Insight Pro.
+# Web Audio / MediaDevices integration scanner for RTAI.
 # Flags two regression classes in audio-analyzer/frontend/src/ (if present):
 #   1. getUserMedia audio requests that DON'T disable AGC/echo/noise
 #      (measurement-accuracy bug).

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Coverage check for the RTA Insight Pro network-audio transport layer.
+# Coverage check for the RTAI network-audio transport layer.
 # Scans the RTA Bridge (audio-analyzer/bridge/src/) and the app transport lib
 # (audio-analyzer/frontend/src/lib/integration/) for the transport / discovery /
 # clock modules and their tests. Prints "[SEV] source: detail" findings and

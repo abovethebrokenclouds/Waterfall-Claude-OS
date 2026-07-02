@@ -1,7 +1,7 @@
 ---
 name: network-audio-transport
 description: >-
-  Integrating digital-audio networks as measurement taps for RTA Insight Pro via
+  Integrating digital-audio networks as measurement taps for RTAI via
   the RTA Bridge — Dante, AES67, AVB (IEEE 1722.1 / gPTP), Ravenna, SoundGrid,
   MADI, and AES50. Covers discovery (mDNS / SAP / ATDECC), channel subscription,
   clocking (PTP / IEEE 1588, gPTP, word clock, sample rates 48/96/192k and SRC),
@@ -18,7 +18,7 @@ description: >-
 
 # Network Audio Transport
 
-How RTA Insight Pro taps a **digital-audio network** for measurement. A browser
+How RTAI taps a **digital-audio network** for measurement. A browser
 can't subscribe to a Dante flow or run a PTP clock, so — as with console
 control — the **RTA Bridge** (Node, on the audio-network LAN) does the real work:
 discover devices, subscribe to channels, lock the clock, handle redundancy and
@@ -53,7 +53,7 @@ repo.
    tap        ── frames → MeterFrame{ ch, rms, peak } / audio for DSP
    │  normalized WebSocket JSON API
    ▼
- RTA Insight Pro web app  (browser, measurement engine + UI)
+ RTAI web app  (browser, measurement engine + UI)
 ```
 
 The app sees only `NetworkDevice`, `ClockStatus`, and `MeterFrame` from

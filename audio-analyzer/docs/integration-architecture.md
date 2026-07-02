@@ -1,6 +1,6 @@
 # Integration Architecture
 
-The console and digital-audio-network integration of RTA Insight Pro is **two
+The console and digital-audio-network integration of RTAI is **two
 processes**, because a web browser cannot speak the protocols that consoles and
 audio networks use (OSC, TCP, HiQnet, EUCON, UCNET, mDNS, PTP, Dante). This
 document describes that split, the WebSocket message schema between the two
@@ -15,7 +15,7 @@ development, and how to add a new console adapter. The per-console reference is
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────┐
-│                      RTA Insight Pro web app  (browser)                    │
+│                      RTAI web app  (browser)                    │
 │                                                                            │
 │  normalized control model   frontend/src/lib/integration/model.ts          │
 │  OSC 1.0 codec              frontend/src/lib/integration/osc.ts             │

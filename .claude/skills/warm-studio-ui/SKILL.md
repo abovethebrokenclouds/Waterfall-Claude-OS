@@ -1,7 +1,7 @@
 ---
 name: warm-studio-ui
 description: >-
-  Define and enforce the "warm studio" design system for RTA Insight Pro — a warm
+  Define and enforce the "warm studio" design system for RTAI — a warm
   violet-tinted dark palette (ink #0C0A12, panel #16121C, amber #F6A623, rose
   #FF6B8A, violet #A855F7, teal #2DD4BF), gradient hero text (amber→rose→violet),
   subtle film grain, soft glows, monospace numeric readouts, a mobile-first
@@ -18,7 +18,7 @@ description: >-
 
 # Warm Studio UI
 
-The visual identity of RTA Insight Pro. It should feel like a **warm boutique
+The visual identity of RTAI. It should feel like a **warm boutique
 studio tool** — violet-tinted dark, amber/rose accents, soft glow, film grain —
 not a clinical lab instrument. The single hard rule: **no tech/neon green.**
 

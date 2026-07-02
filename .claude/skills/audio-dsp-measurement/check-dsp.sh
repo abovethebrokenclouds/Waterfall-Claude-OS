@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Coverage check for the RTA Insight Pro DSP/measurement layer.
+# Coverage check for the RTAI DSP/measurement layer.
 # Scans audio-analyzer/frontend/src/lib/dsp/ for the expected measurement
 # modules and their unit tests. Prints findings and exits non-zero when an
 # expected module or its *.test.ts is missing (safe as a CI gate).

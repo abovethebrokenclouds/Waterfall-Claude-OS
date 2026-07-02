@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Warm-studio palette guard for RTA Insight Pro.
+# Warm-studio palette guard for RTAI.
 # The central rule: NO tech/neon green. Greps the frontend (src + tailwind
 # config, if present) for forbidden neon-green hex codes and green-(300|400|500
 # |600) Tailwind utilities. Prints offenders and exits non-zero on any hit.

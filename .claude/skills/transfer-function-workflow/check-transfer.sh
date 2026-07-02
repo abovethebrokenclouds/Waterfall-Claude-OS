@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Coverage check for the RTA Insight Pro transfer-function tuning workflow.
+# Coverage check for the RTAI transfer-function tuning workflow.
 # Scans audio-analyzer/frontend/src/lib/dsp/ for the dual-FFT transfer-function
 # module and the delay-finder module (cross-correlation / delay compensation)
 # plus their unit tests. Prints "[SEV] source: detail" findings.

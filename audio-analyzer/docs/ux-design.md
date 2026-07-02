@@ -1,6 +1,6 @@
 # UX & Design
 
-RTA Insight Pro should feel like a **warm boutique studio tool** — violet-tinted
+RTAI should feel like a **warm boutique studio tool** — violet-tinted
 dark, amber/rose accents, soft glow, a little film grain — not a clinical
 neon-green lab instrument. This document defines the mobile-first layout, the
 "warm studio" visual system, typography, and the component library the frontend
@@ -84,7 +84,7 @@ deliberate and rare.
 
 ### The one hard rule: NO tech / neon green
 
-RTA Insight Pro must **never** read as a clinical neon-green meter. This replaces
+RTAI must **never** read as a clinical neon-green meter. This replaces
 the original cold tech-green theme.
 
 - **Forbidden hex:** `#00FF00`, `#39FF14`, `#00E676`, `#00FFAB`, `#00FF7F` and

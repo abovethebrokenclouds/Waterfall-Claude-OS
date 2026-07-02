@@ -1,7 +1,7 @@
 ---
 name: transfer-function-workflow
 description: >-
-  The Smaart-style dual-FFT system-tuning workflow for RTA Insight Pro — drive
+  The Smaart-style dual-FFT system-tuning workflow for RTAI — drive
   the system with pink noise, set a reference vs. measurement channel, find and
   compensate the inter-channel delay (cross-correlation / delay locator), then
   read magnitude, phase, and coherence to make EQ / level / delay decisions and
@@ -18,7 +18,7 @@ description: >-
 
 # Transfer-Function Workflow
 
-The dual-FFT system-tuning workflow at the heart of RTA Insight Pro's **Pro**
+The dual-FFT system-tuning workflow at the heart of RTAI's **Pro**
 and **Studio** editions, mirroring Smaart's Transfer Function. The transfer
 function compares a **reference** signal (a feed of the source, before the
 system) to the **measured** signal (a measurement mic in the room) and tells you

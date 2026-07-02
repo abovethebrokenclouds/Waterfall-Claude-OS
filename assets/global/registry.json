@@ -1,13 +1,13 @@
 {
   "version": 3,
-  "updated_at": "2026-06-23T23:52:00Z",
+  "updated_at": "2026-07-02T03:30:00Z",
   "description": "Waterfall Claude OS \u2014 canonical catalog of every skill across the Waterfall Technologies platform. Source of truth lives in the Waterfall-Claude-OS repo (assets/global/registry.json), which also holds a full mirror of every skill (.claude/skills + .agents/skills) and the portable waterfall-skills bundle. `installed_in` is where a skill physically ships (loaded by Claude Code from that repo's .claude/skills or .agents/skills); `applies_to` is where it is relevant. OS-core skills ship in every repo. Any app-repo catalog (e.g. cairo-ai-pro/app-assets/global) is a superseded mirror.",
   "agents": [
     {
       "name": "audio-measurement-reviewer",
       "type": "agent",
       "path": ".claude/agents/audio-measurement-reviewer.md",
-      "description": "Review RTA Insight Pro changes for measurement correctness and the warm-studio design contract \u2014 verifies DSP math (windowing, bin math, A/C/Z weighting formulas, RT60 fit, coherence gating), measurement-grade getUserMedia constraints, SSR-safe browser-global guarding, and that no neon-green palette regressions slip in; runs the three audio skills' scanner scripts.",
+      "description": "Review RTAI changes for measurement correctness and the warm-studio design contract \u2014 verifies DSP math (windowing, bin math, A/C/Z weighting formulas, RT60 fit, coherence gating), measurement-grade getUserMedia constraints, SSR-safe browser-global guarding, and that no neon-green palette regressions slip in; runs the three audio skills' scanner scripts.",
       "source": "audio-analyzer",
       "applies_to": [
         "audio-analyzer"
@@ -28,7 +28,7 @@
       "name": "live-sound-tuning-advisor",
       "type": "agent",
       "path": ".claude/agents/live-sound-tuning-advisor.md",
-      "description": "Assistive agent that walks a user through tuning a PA, aligning monitors, or measuring a room with RTA Insight Pro's transfer-function and impulse-response workflows \u2014 scopes the rig (measurement mic vs. built-in, reference-signal access, subs+tops vs. single system), guides pink-noise capture, delay/phase alignment, and coherence-gated EQ, and interprets RT60/clarity/intelligibility in plain language with concrete numbers. Assistive, never prescriptive; no hearing-safety advice.",
+      "description": "Assistive agent that walks a user through tuning a PA, aligning monitors, or measuring a room with RTAI's transfer-function and impulse-response workflows \u2014 scopes the rig (measurement mic vs. built-in, reference-signal access, subs+tops vs. single system), guides pink-noise capture, delay/phase alignment, and coherence-gated EQ, and interprets RT60/clarity/intelligibility in plain language with concrete numbers. Assistive, never prescriptive; no hearing-safety advice.",
       "source": "audio-analyzer",
       "applies_to": [
         "audio-analyzer"
@@ -41,7 +41,7 @@
         "skill:impulse-response-metrics",
         "skill:spl-logging-leq"
       ],
-      "integration_notes": "Tools: Read, Grep, Glob, Bash. Scoped to RTA Insight Pro. Composes the three Smaart-parity audio skills into a guided live-sound/room measurement session.",
+      "integration_notes": "Tools: Read, Grep, Glob, Bash. Scoped to RTAI. Composes the three Smaart-parity audio skills into a guided live-sound/room measurement session.",
       "recommended_usage": "When a user wants help capturing a real measurement and acting on it \u2014 PA tuning, monitor ring-out, sub/top alignment, or RT60/clarity interpretation.",
       "status": "active"
     },
@@ -49,7 +49,7 @@
       "name": "network-audio-integration-architect",
       "type": "agent",
       "path": ".claude/agents/network-audio-integration-architect.md",
-      "description": "Senior audio-systems-engineer agent that designs and reviews the console + network integration of RTA Insight Pro \u2014 validating protocol mappings (OSC addresses, HiQnet/EUCON/UCNET/AHNet semantics), normalized-model fidelity, metering-tap correctness, clocking/fallback/redundancy logic, app\u2194bridge WebSocket contract consistency, and safe control-send patterns (throttle, read-back, user-initiated writes only).",
+      "description": "Senior audio-systems-engineer agent that designs and reviews the console + network integration of RTAI \u2014 validating protocol mappings (OSC addresses, HiQnet/EUCON/UCNET/AHNet semantics), normalized-model fidelity, metering-tap correctness, clocking/fallback/redundancy logic, app\u2194bridge WebSocket contract consistency, and safe control-send patterns (throttle, read-back, user-initiated writes only).",
       "source": "audio-analyzer",
       "applies_to": [
         "audio-analyzer"
@@ -113,7 +113,7 @@
       "name": "audio-device-integration",
       "type": "skill",
       "path": ".claude/skills/audio-device-integration",
-      "description": "Guide and audit safe Web Audio / MediaDevices integration for the RTA Insight Pro analyzer \u2014 device enumeration, measurement-grade getUserMedia constraints (autoGainControl, echoCancellation, noiseSuppression all false), sample-rate negotiation, USB / class-compliant interface handling, AudioContext / AudioWorklet capture, SSR-safe guarding of window / navigator / AudioContext, and graceful permission-denied / empty-device fallbacks.",
+      "description": "Guide and audit safe Web Audio / MediaDevices integration for the RTAI analyzer \u2014 device enumeration, measurement-grade getUserMedia constraints (autoGainControl, echoCancellation, noiseSuppression all false), sample-rate negotiation, USB / class-compliant interface handling, AudioContext / AudioWorklet capture, SSR-safe guarding of window / navigator / AudioContext, and graceful permission-denied / empty-device fallbacks.",
       "source": "audio-analyzer",
       "applies_to": [
         "audio-analyzer"
@@ -132,7 +132,7 @@
       "name": "audio-dsp-measurement",
       "type": "skill",
       "path": ".claude/skills/audio-dsp-measurement",
-      "description": "Guide and validate the DSP/measurement layer of the RTA Insight Pro audio analyzer \u2014 FFT sizing & windowing, fractional-octave smoothing (1/1\u20131/24), A/C/Z frequency weighting, SPL / Leq / time-weighting, RT60 via Schroeder backward integration (T20/T30/EDT), and dual-channel transfer function (magnitude, phase, coherence with gating); explains the math, the pitfalls, and how the app's frontend/src/lib/dsp modules are structured and tested.",
+      "description": "Guide and validate the DSP/measurement layer of the RTAI audio analyzer \u2014 FFT sizing & windowing, fractional-octave smoothing (1/1\u20131/24), A/C/Z frequency weighting, SPL / Leq / time-weighting, RT60 via Schroeder backward integration (T20/T30/EDT), and dual-channel transfer function (magnitude, phase, coherence with gating); explains the math, the pitfalls, and how the app's frontend/src/lib/dsp modules are structured and tested.",
       "source": "audio-analyzer",
       "applies_to": [
         "audio-analyzer"
@@ -235,7 +235,7 @@
       "name": "console-control-integration",
       "type": "skill",
       "path": ".claude/skills/console-control-integration",
-      "description": "Map mixing-console control & metering protocols into RTA Insight Pro's normalized model via the RTA Bridge \u2014 per-vendor transport plus channel-list, gain/trim/HPF/EQ/dynamics readout, pre-EQ/post-EQ/post-fader metering taps, and routing for Yamaha CL/QL/RIVAGE (OSC/YOSC), Midas/Behringer (OSC), DiGiCo SD/Quantum (OSC+UB MADI), Allen & Heath dLive/Avantis/SQ (AHNet/TCP), Avid S6L (EUCON), SSL Live (SOLSA), Soundcraft Vi/Si (HiQnet), PreSonus StudioLive (UCNET). Covers safe-send/read-back/console-as-source-of-truth patterns.",
+      "description": "Map mixing-console control & metering protocols into RTAI's normalized model via the RTA Bridge \u2014 per-vendor transport plus channel-list, gain/trim/HPF/EQ/dynamics readout, pre-EQ/post-EQ/post-fader metering taps, and routing for Yamaha CL/QL/RIVAGE (OSC/YOSC), Midas/Behringer (OSC), DiGiCo SD/Quantum (OSC+UB MADI), Allen & Heath dLive/Avantis/SQ (AHNet/TCP), Avid S6L (EUCON), SSL Live (SOLSA), Soundcraft Vi/Si (HiQnet), PreSonus StudioLive (UCNET). Covers safe-send/read-back/console-as-source-of-truth patterns.",
       "source": "audio-analyzer",
       "applies_to": [
         "audio-analyzer"
@@ -377,7 +377,7 @@
       "name": "impulse-response-metrics",
       "type": "skill",
       "path": ".claude/skills/impulse-response-metrics",
-      "description": "Impulse Response (IR) mode acoustics for RTA Insight Pro's Studio edition (Smaart Suite parity) \u2014 RT60 via Schroeder backward integration (T20/T30), EDT, the clarity/definition family (C50, C80, D50), centre time Ts, and STI / %ALcons speech-intelligibility estimates from a measured or loaded impulse response, with IR windowing/Lundeby truncation, the ETC / log-time display, and interpretation thresholds.",
+      "description": "Impulse Response (IR) mode acoustics for RTAI's Studio edition (Smaart Suite parity) \u2014 RT60 via Schroeder backward integration (T20/T30), EDT, the clarity/definition family (C50, C80, D50), centre time Ts, and STI / %ALcons speech-intelligibility estimates from a measured or loaded impulse response, with IR windowing/Lundeby truncation, the ETC / log-time display, and interpretation thresholds.",
       "source": "audio-analyzer",
       "applies_to": [
         "audio-analyzer"
@@ -577,7 +577,7 @@
       "name": "network-audio-transport",
       "type": "skill",
       "path": ".claude/skills/network-audio-transport",
-      "description": "Integrate digital-audio networks as measurement taps for RTA Insight Pro via the RTA Bridge \u2014 Dante, AES67, AVB (IEEE 1722.1/gPTP), Ravenna, SoundGrid, MADI, AES50. Covers discovery (mDNS/SAP/ATDECC), channel subscription, clocking (PTP/IEEE 1588, gPTP, word clock, 48/96/192k + SRC), packet/latency behavior, and fallback (clock-loss graceful degrade, redundant Dante primary/secondary, SRC on rate mismatch), plus how a network channel becomes a measurement frame.",
+      "description": "Integrate digital-audio networks as measurement taps for RTAI via the RTA Bridge \u2014 Dante, AES67, AVB (IEEE 1722.1/gPTP), Ravenna, SoundGrid, MADI, AES50. Covers discovery (mDNS/SAP/ATDECC), channel subscription, clocking (PTP/IEEE 1588, gPTP, word clock, 48/96/192k + SRC), packet/latency behavior, and fallback (clock-loss graceful degrade, redundant Dante primary/secondary, SRC on rate mismatch), plus how a network channel becomes a measurement frame.",
       "source": "audio-analyzer",
       "applies_to": [
         "audio-analyzer"
@@ -774,7 +774,7 @@
       "name": "spl-logging-leq",
       "type": "skill",
       "path": ".claude/skills/spl-logging-leq",
-      "description": "SPL metering & logging parity for RTA Insight Pro's SPL / Studio editions (Smaart SPL parity) \u2014 A/C/Z frequency weighting, Fast/Slow/Impulse time-weighting, equivalent level (Leq), Lmax/Lmin, statistical percentiles (L10/L90/Ln), sound-exposure/dose framing (measurement only, no hearing-health advice), multiple simultaneous meters with custom metrics, session logging cadence, and a CSV/JSON export schema for logged SPL.",
+      "description": "SPL metering & logging parity for RTAI's SPL / Studio editions (Smaart SPL parity) \u2014 A/C/Z frequency weighting, Fast/Slow/Impulse time-weighting, equivalent level (Leq), Lmax/Lmin, statistical percentiles (L10/L90/Ln), sound-exposure/dose framing (measurement only, no hearing-health advice), multiple simultaneous meters with custom metrics, session logging cadence, and a CSV/JSON export schema for logged SPL.",
       "source": "audio-analyzer",
       "applies_to": [
         "audio-analyzer"
@@ -890,7 +890,7 @@
       "name": "transfer-function-workflow",
       "type": "skill",
       "path": ".claude/skills/transfer-function-workflow",
-      "description": "The Smaart-style dual-FFT system-tuning workflow for RTA Insight Pro \u2014 drive the system with pink noise, set reference vs. measurement channels, find and compensate the inter-channel delay (cross-correlation / delay locator), then read magnitude, phase, and coherence to make EQ/level/delay decisions and verify. Covers step order, coherence gating, sub/top phase alignment, averaging strategy, and the common mistakes.",
+      "description": "The Smaart-style dual-FFT system-tuning workflow for RTAI \u2014 drive the system with pink noise, set reference vs. measurement channels, find and compensate the inter-channel delay (cross-correlation / delay locator), then read magnitude, phase, and coherence to make EQ/level/delay decisions and verify. Covers step order, coherence gating, sub/top phase alignment, averaging strategy, and the common mistakes.",
       "source": "audio-analyzer",
       "applies_to": [
         "audio-analyzer"
@@ -955,7 +955,7 @@
       "name": "warm-studio-ui",
       "type": "skill",
       "path": ".claude/skills/warm-studio-ui",
-      "description": "Define and enforce the warm-studio design system for RTA Insight Pro \u2014 a warm violet-tinted dark palette (ink #0C0A12, panel #16121C, amber #F6A623, rose #FF6B8A, violet #A855F7, teal #2DD4BF), gradient hero text (amber\u2192rose\u2192violet), subtle film grain, soft glows, monospace numeric readouts, a mobile-first bottom-nav layout, and accessibility (prefers-reduced-motion, contrast). Central rule: NO tech/neon green.",
+      "description": "Define and enforce the warm-studio design system for RTAI \u2014 a warm violet-tinted dark palette (ink #0C0A12, panel #16121C, amber #F6A623, rose #FF6B8A, violet #A855F7, teal #2DD4BF), gradient hero text (amber\u2192rose\u2192violet), subtle film grain, soft glows, monospace numeric readouts, a mobile-first bottom-nav layout, and accessibility (prefers-reduced-motion, contrast). Central rule: NO tech/neon green.",
       "source": "audio-analyzer",
       "applies_to": [
         "audio-analyzer"

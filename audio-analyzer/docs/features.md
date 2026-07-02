@@ -1,6 +1,6 @@
 # Features
 
-This document lists what RTA Insight Pro does, module by module, then compares
+This document lists what RTAI does, module by module, then compares
 it honestly to other analyzers so you know when to reach for it and when to
 reach for something else.
 
@@ -32,7 +32,7 @@ reach for something else.
   value depends on your mic and interface gain.
 - Large numeric meter readout plus a recent-level history strip.
 
-> SPL figures are measurements presented for engineering use. RTA Insight Pro
+> SPL figures are measurements presented for engineering use. RTAI
 > gives no hearing-health, exposure, or safety guidance.
 
 ## Transfer function (dual-channel)
@@ -88,12 +88,12 @@ reach for something else.
 ## How it compares
 
 This table is an honest positioning, not a benchmark. Other tools are mature,
-established, and deeper in specific areas; RTA Insight Pro's distinguishing bet
+established, and deeper in specific areas; RTAI's distinguishing bet
 is **mobile-first, zero-install, browser-native** measurement with a usable
 subset of professional depth. Capability notes reflect each tool's general
 character; consult each vendor for current specifics.
 
-| Capability | RTA Insight Pro | SonaVyx | Smaart | REW | AudioTools | Spectroid |
+| Capability | RTAI | SonaVyx | Smaart | REW | AudioTools | Spectroid |
 |------------|-----------------|---------|--------|-----|------------|-----------|
 | Platform | Browser (any device) | Desktop/web | Desktop | Desktop | iOS | Android |
 | Install required | No (open a URL) | Varies | Yes | Yes | Yes (App Store) | Yes (Play Store) |
@@ -113,12 +113,12 @@ Where each tool is strong, in brief: **Smaart** and **SonaVyx** are deep
 live-sound measurement platforms with mature dual-channel workflows; **REW** is
 the reference free tool for room acoustics and detailed analysis; **AudioTools**
 is the established professional iOS toolbox; **Spectroid** is a lightweight,
-popular Android RTA. RTA Insight Pro does not claim to replace the deepest
+popular Android RTA. RTAI does not claim to replace the deepest
 features of any of these.
 
 ---
 
-## How RTA Insight Pro combines their strengths
+## How RTAI combines their strengths
 
 The goal is to take three things that usually do not come together and put them
 in one place you can open from a phone:
@@ -136,4 +136,4 @@ in one place you can open from a phone:
    gets correct measurements and an explanation, not just numbers.
 
 It is intentionally **scoped to analysis and measurement**, not editing: RTA
-Insight Pro is not a DAW and does not record audio for production.
+RTAI is not a DAW and does not record audio for production.

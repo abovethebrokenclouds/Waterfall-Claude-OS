@@ -1,8 +1,8 @@
 ---
 name: audio-device-integration
 description: >-
-  Guide and audit safe Web Audio / MediaDevices integration for the RTA Insight
-  Pro analyzer — device enumeration (navigator.mediaDevices.enumerateDevices),
+  Guide and audit safe Web Audio / MediaDevices integration for the RTAI
+  analyzer — device enumeration (navigator.mediaDevices.enumerateDevices),
   getUserMedia audio constraints with the measurement-critical processing
   DISABLED (autoGainControl, echoCancellation, noiseSuppression all false),
   sample-rate negotiation, USB / class-compliant interface handling, AudioContext
@@ -19,7 +19,7 @@ description: >-
 
 # Audio Device Integration
 
-The capture layer of RTA Insight Pro: getting honest samples from a real input
+The capture layer of RTAI: getting honest samples from a real input
 device into the DSP core. Two things ruin a measurement here — the browser's
 **voice-call DSP** (AGC/AEC/NS) silently altering the signal, and **SSR/module
 -scope** access to browser globals crashing the build or hydration.

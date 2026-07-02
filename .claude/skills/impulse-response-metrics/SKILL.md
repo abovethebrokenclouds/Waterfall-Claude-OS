@@ -1,7 +1,7 @@
 ---
 name: impulse-response-metrics
 description: >-
-  Impulse Response (IR) mode acoustics for RTA Insight Pro's Studio edition
+  Impulse Response (IR) mode acoustics for RTAI's Studio edition
   (Smaart Suite parity) — from a measured or loaded impulse response, compute
   RT60 via Schroeder backward integration (T20 / T30), EDT, the clarity/
   definition family (C50, C80, D50), centre time Ts, and STI / %ALcons speech-
@@ -18,7 +18,7 @@ description: >-
 
 # Impulse-Response Metrics
 
-RTA Insight Pro's **Studio** edition adds an **Impulse Response (IR) mode**,
+RTAI's **Studio** edition adds an **Impulse Response (IR) mode**,
 mirroring Smaart Suite's IR mode. From one impulse response — measured (log
 sweep / MLS deconvolved to an IR, or a captured impulse) or loaded from a WAV —
 the app derives the standard ISO 3382 room-acoustics metrics. These describe how

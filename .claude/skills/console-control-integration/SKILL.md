@@ -1,7 +1,7 @@
 ---
 name: console-control-integration
 description: >-
-  Mapping mixing-console control and metering protocols into RTA Insight Pro's
+  Mapping mixing-console control and metering protocols into RTAI's
   normalized model via the RTA Bridge — the per-vendor command transport plus
   the channel-list / gain·trim·HPF·EQ·dynamics readout, the pre-EQ / post-EQ /
   post-fader metering taps, and the routing model for Yamaha CL/QL/RIVAGE
@@ -23,7 +23,7 @@ description: >-
 
 # Console Control Integration
 
-How RTA Insight Pro reads — and, only on explicit user action, writes — mixing
+How RTAI reads — and, only on explicit user action, writes — mixing
 console control and metering state. **A browser cannot speak OSC, TCP, HiQnet,
 EUCON, or mDNS.** So the platform is two processes: the **web app** (browser)
 owns a vendor-neutral normalized model and the UI; the **RTA Bridge** (a Node
@@ -58,7 +58,7 @@ unchanged in any repo.
    bridge/src/model.ts               ── normalizes to ConsoleChannel/MeterFrame
    │  ONE normalized WebSocket JSON API
    ▼
- RTA Insight Pro web app  (browser, pure WS client — speaks no OSC)
+ RTAI web app  (browser, pure WS client — speaks no OSC)
    frontend/src/lib/integration/model.ts             ── the same normalized model
    frontend/src/lib/integration/bridge-protocol.ts   ── WS contract + validators
    frontend/src/lib/integration/transport.ts         ── WS client + SimulatedTransport

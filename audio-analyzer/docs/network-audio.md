@@ -1,6 +1,6 @@
 # Network Audio
 
-RTA Insight Pro can measure a channel straight off a digital-audio network —
+RTAI can measure a channel straight off a digital-audio network —
 Dante, AES67, AVB, Ravenna, SoundGrid, MADI, or AES50 — instead of a microphone.
 A browser can't subscribe to a Dante flow or run a PTP clock, so this happens
 through the **RTA Bridge**: a Node sidecar on the audio-network LAN that
@@ -32,7 +32,7 @@ bash .claude/skills/network-audio-transport/check-transport.sh
  └───────────────────────────────┬─────────────────────────────────────┘
                                   │  normalized WebSocket JSON API
                                   ▼
- ┌──────────── RTA Insight Pro web app (browser) ──────────────────────┐
+ ┌──────────── RTAI web app (browser) ──────────────────────┐
  │  measurement engine (DSP: FFT / SPL / transfer / RT60)              │
  │  sees only NetworkDevice · ClockStatus · MeterFrame  (model.ts)     │
  └─────────────────────────────────────────────────────────────────────┘

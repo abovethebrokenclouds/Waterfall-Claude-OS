@@ -1,6 +1,6 @@
 # Measurement Modes
 
-RTA Insight Pro has five modes: **RTA / Spectrum**, **Transfer Function**,
+RTAI has five modes: **RTA / Spectrum**, **Transfer Function**,
 **SPL**, **RT60**, and **Session Logging**. Each entry below covers *what it
 does*, *how to use it*, and *example scenarios* with concrete numbers from two
 recurring setups — tuning a live PA and checking a home studio.

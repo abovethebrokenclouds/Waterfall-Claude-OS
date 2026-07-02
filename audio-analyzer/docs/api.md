@@ -1,6 +1,6 @@
 # API Reference
 
-RTA Insight Pro has three API surfaces:
+RTAI has three API surfaces:
 
 1. The **local DSP library** (`frontend/src/lib/dsp/`) — pure TypeScript, the
    measurement core. This is the primary, always-present API.

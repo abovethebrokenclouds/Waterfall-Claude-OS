@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Coverage check for RTA Insight Pro SPL metering + logging / Leq support.
+# Coverage check for RTAI SPL metering + logging / Leq support.
 # Scans the frontend SPL view (src/components/Spl*.tsx) and the SPL / session
 # libs (src/lib/dsp/spl.*, src/lib/sessions.*) for Leq and session-logging
 # support. Prints "[SEV] source: detail" findings and exits non-zero only when
