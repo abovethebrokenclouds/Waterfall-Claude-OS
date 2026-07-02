@@ -25,15 +25,23 @@ interface SplLogEntry {
   weighting: Weighting;
 }
 
-const CAL_OFFSET = 100; // demo dBFS->dB SPL offset
-
 /**
  * SPL meter. Computes RMS from the time-domain AnalyserNode when a live engine
  * exists, else simulates a plausible level. A/C/Z weighting toggle, Fast/Slow
- * ballistics, big mono readout, plus Leq and peak.
+ * ballistics, big mono readout, plus Leq and peak. Absolute level uses the
+ * active device's calibration offset (shared via useAudioState).
  */
 export function SplView({ audio, edition = "studio" }: SplViewProps) {
-  const { engine } = audio;
+  const {
+    engine,
+    calibrationOffset,
+    activeCalibration,
+    isCalibrated,
+    defaultCalibrationOffset,
+    calibrateFromReference,
+    setManualOffset,
+    clearCalibration,
+  } = audio;
   const [weighting, setWeighting] = useState<Weighting>("A");
   const [response, setResponse] = useState<"fast" | "slow">("fast");
   const [display, setDisplay] = useState(0);
@@ -42,15 +50,24 @@ export function SplView({ audio, edition = "studio" }: SplViewProps) {
   const [logging, setLogging] = useState(false);
   const [log, setLog] = useState<SplLogEntry[]>([]);
 
+  // Calibration UI state.
+  const [refSpl, setRefSpl] = useState("94");
+  const [manualDb, setManualDb] = useState("");
+
   const canLog = hasFeature(edition, "splLogging");
 
   const weightingRef = useRef(weighting);
   const responseRef = useRef(response);
   const loggingRef = useRef(logging && canLog);
   const logStartRef = useRef(0);
+  // Latest raw dBFS (20·log10(rms), pre-weighting, pre-calibration) for a
+  // reference capture, and the live calibration offset for the metering loop.
+  const latestDbfsRef = useRef<number>(Number.NEGATIVE_INFINITY);
+  const calOffsetRef = useRef(calibrationOffset);
   weightingRef.current = weighting;
   responseRef.current = response;
   loggingRef.current = logging && canLog;
+  calOffsetRef.current = calibrationOffset;
 
   useEffect(() => {
     let raf = 0;
@@ -72,8 +89,11 @@ export function SplView({ audio, edition = "studio" }: SplViewProps) {
       if (analyser && td) {
         analyser.getFloatTimeDomainData(td);
         const r = rms(td);
-        dbSpl = r > 0 ? rmsToDbSpl(r, CAL_OFFSET) : 0;
+        // Keep the raw dBFS around so "Capture reference" can solve the offset.
+        latestDbfsRef.current = r > 0 ? 20 * Math.log10(r) : Number.NEGATIVE_INFINITY;
+        dbSpl = r > 0 ? rmsToDbSpl(r, calOffsetRef.current) : 0;
       } else {
+        latestDbfsRef.current = Number.NEGATIVE_INFINITY;
         // Simulated: a wandering level around 78 dB.
         dbSpl =
           78 +
@@ -126,6 +146,21 @@ export function SplView({ audio, edition = "studio" }: SplViewProps) {
   }, [engine]);
 
   const resetPeak = () => setPeak(0);
+
+  // Calibrate from a known reference level present on the mic right now.
+  const captureReference = () => {
+    const dbfs = latestDbfsRef.current;
+    const ref = Number(refSpl);
+    if (!engine || !Number.isFinite(dbfs) || !Number.isFinite(ref)) return;
+    calibrateFromReference(dbfs, ref);
+  };
+  // Apply a known offset directly (advanced / published mic sensitivity).
+  const applyManual = () => {
+    const v = Number(manualDb);
+    if (!Number.isFinite(v)) return;
+    setManualOffset(v);
+    setManualDb("");
+  };
 
   const toggleLogging = () => {
     if (!canLog) return;
@@ -240,6 +275,91 @@ export function SplView({ audio, edition = "studio" }: SplViewProps) {
             {peak.toFixed(1)}
           </div>
         </div>
+      </div>
+
+      {/* Calibration — per-device dBFS→dB SPL offset (shared app-wide). */}
+      <div className="flex flex-col gap-2 rounded-xl border border-line bg-panel2/40 p-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <span className="text-xs font-semibold text-text">Calibration</span>
+          <span
+            className={`rounded-full px-2.5 py-1 font-mono text-[11px] font-semibold ${
+              isCalibrated ? "bg-amber/15 text-amber-soft" : "bg-white/5 text-haze"
+            }`}
+          >
+            {isCalibrated
+              ? `+${calibrationOffset.toFixed(1)} dB @ 0 dBFS`
+              : "Uncalibrated"}
+          </span>
+        </div>
+        <p className="text-xs text-haze">
+          {isCalibrated
+            ? `Calibrated for this input${
+                activeCalibration?.label ? ` · ${activeCalibration.label}` : ""
+              } — absolute dB SPL is trustworthy.`
+            : `Using the default ${defaultCalibrationOffset} dB offset, so levels are relative. Play a known reference (e.g. a 94 dB acoustic calibrator) and capture it, or enter a known offset.`}
+        </p>
+
+        {/* Reference capture */}
+        <div className="flex flex-wrap items-center gap-2">
+          <label className="flex items-center gap-1.5 text-xs text-haze">
+            Reference
+            <input
+              type="number"
+              inputMode="decimal"
+              value={refSpl}
+              onChange={(e) => setRefSpl(e.target.value)}
+              className="w-20 rounded-md border border-line bg-panel px-2 py-1 font-mono text-xs text-text"
+            />
+            dB SPL
+          </label>
+          <button
+            type="button"
+            onClick={captureReference}
+            disabled={!engine}
+            className="glass-btn-primary rounded-lg px-3 py-1.5 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Capture reference
+          </button>
+          {isCalibrated && (
+            <button
+              type="button"
+              onClick={clearCalibration}
+              className="glass-btn rounded-lg px-3 py-1.5 text-xs font-semibold text-rose"
+            >
+              Clear
+            </button>
+          )}
+        </div>
+
+        {/* Manual offset */}
+        <div className="flex flex-wrap items-center gap-2">
+          <label className="flex items-center gap-1.5 text-xs text-haze">
+            Manual offset
+            <input
+              type="number"
+              inputMode="decimal"
+              placeholder={String(defaultCalibrationOffset)}
+              value={manualDb}
+              onChange={(e) => setManualDb(e.target.value)}
+              className="w-20 rounded-md border border-line bg-panel px-2 py-1 font-mono text-xs text-text"
+            />
+            dB
+          </label>
+          <button
+            type="button"
+            onClick={applyManual}
+            disabled={!Number.isFinite(Number(manualDb)) || manualDb.trim() === ""}
+            className="glass-btn rounded-lg px-3 py-1.5 text-xs font-semibold text-text disabled:opacity-40"
+          >
+            Set offset
+          </button>
+        </div>
+
+        {!engine && (
+          <p className="text-xs text-amber-soft">
+            Start the mic to capture a reference level.
+          </p>
+        )}
       </div>
 
       {/* SPL logging (Studio). */}
