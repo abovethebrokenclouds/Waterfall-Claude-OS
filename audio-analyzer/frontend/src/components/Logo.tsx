@@ -3,15 +3,15 @@ import type { CSSProperties } from "react";
 interface LogoProps {
   /** Pixel size of the square mark. */
   size?: number;
-  /** Render the "RTA Insight Pro" wordmark next to the mark. */
+  /** Render the "RTAI Audio" wordmark next to the mark. */
   showWordmark?: boolean;
   className?: string;
 }
 
 /**
- * The RTA Insight Pro mark: a rounded tile of amber->rose->violet spectrum bars,
- * optionally followed by the wordmark. Inline SVG so it scales crisply and never
- * needs a network fetch.
+ * The RTAI (Real-Time Audio Intelligence) mark: a rounded tile of
+ * amber->rose->violet spectrum bars, optionally followed by the wordmark. Inline
+ * SVG so it scales crisply and never needs a network fetch.
  */
 export function Logo({ size = 36, showWordmark = true, className }: LogoProps) {
   const gradId = "logoBar";
@@ -23,7 +23,7 @@ export function Logo({ size = 36, showWordmark = true, className }: LogoProps) {
         viewBox="0 0 512 512"
         style={style}
         role="img"
-        aria-label="RTA Insight Pro"
+        aria-label="RTAI — Real-Time Audio Intelligence"
       >
         <defs>
           <linearGradient
@@ -69,9 +69,9 @@ export function Logo({ size = 36, showWordmark = true, className }: LogoProps) {
       {showWordmark && (
         <span className="font-semibold tracking-tight text-text">
           <span className="bg-gradient-to-r from-amber via-rose to-violet bg-clip-text text-transparent">
-            RTA
+            RTAI
           </span>{" "}
-          Insight Pro
+          Audio
         </span>
       )}
     </span>

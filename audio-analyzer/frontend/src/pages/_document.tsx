@@ -14,7 +14,7 @@ export default function Document() {
           name="apple-mobile-web-app-status-bar-style"
           content="black-translucent"
         />
-        <meta name="apple-mobile-web-app-title" content="RTA Insight" />
+        <meta name="apple-mobile-web-app-title" content="RTAI" />
       </Head>
       <body>
         <Main />

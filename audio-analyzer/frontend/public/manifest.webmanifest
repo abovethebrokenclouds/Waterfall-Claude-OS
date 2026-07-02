@@ -1,6 +1,6 @@
 {
-  "name": "RTA Insight Pro",
-  "short_name": "RTA Insight",
+  "name": "RTAI — Real-Time Audio Intelligence",
+  "short_name": "RTAI",
   "description": "Real-time audio spectrum, SPL, RT60 and transfer-function analyzer.",
   "theme_color": "#0C0A12",
   "background_color": "#0C0A12",

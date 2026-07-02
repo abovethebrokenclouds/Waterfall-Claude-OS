@@ -50,10 +50,10 @@ export default function EditionsPage() {
   return (
     <>
       <Head>
-        <title>RTA Insight Pro — Editions</title>
+        <title>RTAI — Editions</title>
         <meta
           name="description"
-          content="Compare Free, Pro, and Studio editions of RTA Insight Pro — from real-time spectrum to full impulse-response acoustics."
+          content="Compare Free, Pro, and Studio editions of RTAI — Real-Time Audio Intelligence — from real-time spectrum to full impulse-response acoustics."
         />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
@@ -213,7 +213,7 @@ export default function EditionsPage() {
           <p className="text-sm text-haze">
             Edition structure inspired by{" "}
             <span className="text-text">Rational Acoustics&rsquo; Smaart v9</span>{" "}
-            editions (LE / RT / Suite). RTA Insight Pro is an independent product
+            editions (LE / RT / Suite). RTAI is an independent product
             and is not affiliated with or endorsed by Rational Acoustics.
           </p>
         </section>
