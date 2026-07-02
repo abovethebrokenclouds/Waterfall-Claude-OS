@@ -1,9 +1,9 @@
-/* Minimal app-shell service worker for RTA Insight Pro.
+/* Minimal app-shell service worker for RTAI — Real-Time Audio Intelligence.
  * - Pre-caches the shell on install.
  * - Static assets: cache-first.
  * - Navigations: network-first with an offline fallback to the cached shell.
  */
-const CACHE = "rta-insight-shell-v1";
+const CACHE = "rtai-shell-v1";
 const SHELL = [
   "/",
   "/app",

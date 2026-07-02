@@ -26,7 +26,7 @@ export default function Landing() {
   return (
     <>
       <Head>
-        <title>RTA Insight Pro — Real-Time Audio Insight, Anywhere</title>
+        <title>RTAI — Real-Time Audio Intelligence</title>
         <meta
           name="description"
           content="Mobile-first spectrum, transfer function, and room analysis in a warm studio aesthetic. Tune your PA, measure your room, check your mix anywhere."
@@ -227,8 +227,8 @@ export default function Landing() {
           </a>
         </div>
         <div className="border-t border-line/60 px-4 py-4 text-center text-xs text-haze">
-          © {new Date().getFullYear()} RTA Insight Pro. A Waterfall Technologies
-          product.
+          © {new Date().getFullYear()} RTAI — Real-Time Audio Intelligence. A
+          Waterfall Technologies product.
         </div>
       </footer>
     </>

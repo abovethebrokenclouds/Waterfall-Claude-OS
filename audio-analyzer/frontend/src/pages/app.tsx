@@ -174,7 +174,7 @@ export default function AnalyzerApp() {
   return (
     <>
       <Head>
-        <title>RTA Insight Pro — Analyzer</title>
+        <title>RTAI — Analyzer</title>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
 
