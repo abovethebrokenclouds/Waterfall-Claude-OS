@@ -2,25 +2,9 @@ import Head from "next/head";
 import Link from "next/link";
 import { TopNav } from "../components/TopNav";
 import { LiveSpectrumHero } from "../components/LiveSpectrumHero";
-import { ModeCard } from "../components/ModeCard";
 import { PricingTier } from "../components/PricingTier";
 import { Logo } from "../components/Logo";
-import {
-  IconWave,
-  IconSpeaker,
-  IconRoom,
-  IconGauge,
-  IconTransfer,
-  IconMic,
-  IconGrid,
-  IconPulse,
-} from "../components/icons";
-
-const AUDIENCES = [
-  { icon: <IconSpeaker />, title: "Live sound", line: "Tune a PA with dual-FFT transfer function in three measurements." },
-  { icon: <IconRoom />, title: "Studio", line: "Read your room's decay and frequency balance in seconds." },
-  { icon: <IconWave />, title: "Creators", line: "Catch a boomy low end before you post — anywhere." },
-];
+import { IconMic } from "../components/icons";
 
 export default function Landing() {
   return (
@@ -31,17 +15,23 @@ export default function Landing() {
           name="description"
           content="Mobile-first spectrum, transfer function, and room analysis in a warm studio aesthetic. Tune your PA, measure your room, check your mix anywhere."
         />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta
+          name="viewport"
+          content="width=device-width, initial-scale=1, viewport-fit=cover"
+        />
       </Head>
+
+      {/* Cinematic studio-light backdrop — fixed, palette-safe, scoped to /. */}
+      <div className="cinematic-bg" aria-hidden />
 
       <TopNav />
 
       <main className="mx-auto max-w-6xl px-4">
         {/* ── HERO — the real analyzer, plus the pitch ── */}
-        <section className="relative grid items-center gap-10 py-12 md:grid-cols-2 md:py-20">
+        <section className="relative grid items-center gap-6 py-6 md:grid-cols-2 md:py-10">
           <div className="hero-aura pointer-events-none absolute -inset-x-10 -top-10 bottom-0 -z-10" />
 
-          <div className="flex flex-col gap-5">
+          <div className="flex flex-col gap-3">
             <span className="w-fit rounded-full border border-line bg-panel/70 px-3 py-1 text-xs font-medium text-haze backdrop-blur">
               Studio-grade · pocket-sized · on-device
             </span>
@@ -82,82 +72,8 @@ export default function Landing() {
           <LiveSpectrumHero className="w-full" />
         </section>
 
-        {/* ── AUDIENCE — one tight row, no doubled copy ── */}
-        <section id="features" className="grid gap-4 border-y border-line/60 py-10 sm:grid-cols-3">
-          {AUDIENCES.map((a) => (
-            <div key={a.title} className="flex items-start gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-line bg-panel2 text-amber-soft">
-                {a.icon}
-              </div>
-              <div>
-                <h3 className="text-sm font-semibold text-text">{a.title}</h3>
-                <p className="mt-0.5 text-sm leading-relaxed text-haze">{a.line}</p>
-              </div>
-            </div>
-          ))}
-        </section>
-
-        {/* ── MEASUREMENT SUITE — condensed grid ── */}
-        <section id="modes" className="py-12 md:py-16">
-          <div className="mb-8 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-            <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
-              A full measurement suite
-            </h2>
-            <Link
-              href="/editions"
-              className="text-sm text-amber-soft hover:text-amber"
-            >
-              Compare Free, Pro &amp; Studio →
-            </Link>
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <ModeCard
-              glow="amber"
-              icon={<IconWave />}
-              title="Spectrum & Spectrograph"
-              description="Real-time 1/1–1/24-oct RTA with peak-hold, averaging, captured traces, and a scrolling time-frequency view."
-              useCase="Find the ringing frequency before it feeds back."
-            />
-            <ModeCard
-              glow="rose"
-              icon={<IconTransfer />}
-              title="Transfer Function"
-              description="Dual-channel magnitude, phase, and coherence against a reference, with delay finder and spatial averaging."
-              useCase="Time-align a sub to the mains in minutes."
-            />
-            <ModeCard
-              glow="violet"
-              icon={<IconGauge />}
-              title="SPL Meter"
-              description="A / C / Z weighting, Fast / Slow ballistics, Leq and peak — logged continuously."
-              useCase="Log a show against an 85 dBA venue limit."
-            />
-            <ModeCard
-              glow="teal"
-              icon={<IconRoom />}
-              title="RT60 / Room"
-              description="Schroeder decay curve and reverberation time with plain-language guidance."
-              useCase="Decide where the next bass trap should go."
-            />
-            <ModeCard
-              glow="violet"
-              icon={<IconPulse />}
-              title="Impulse Response"
-              description="RT60, EDT, C50, C80, D50, Ts, and STI from a measured impulse response."
-              useCase="Check whether speech will be intelligible."
-            />
-            <ModeCard
-              glow="amber"
-              icon={<IconGrid />}
-              title="Console & Network"
-              description="Tap inputs off Dante / AES67 / AVB networks and major consoles through the on-LAN bridge — plus signal generator and session logging."
-              useCase="Measure straight off the desk, no patch required."
-            />
-          </div>
-        </section>
-
         {/* ── INTEGRATIONS — folded to a single line ── */}
-        <section className="border-y border-line/60 py-8">
+        <section className="border-y border-line/60 py-4">
           <p className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-center text-sm text-haze">
             <span className="text-amber-soft">
               <IconMic width={16} height={16} />
@@ -168,14 +84,14 @@ export default function Landing() {
         </section>
 
         {/* ── PRICING ── */}
-        <section id="pricing" className="py-12 md:py-16">
+        <section id="pricing" className="py-6 md:py-8">
           <h2 className="mb-1 text-center text-2xl font-bold tracking-tight sm:text-3xl">
             Simple pricing
           </h2>
-          <p className="mb-8 text-center text-haze">
+          <p className="mb-4 text-center text-haze">
             Start free. Upgrade when you need logging and AI diagnostics.
           </p>
-          <div className="mx-auto grid max-w-3xl gap-5 sm:grid-cols-2">
+          <div className="mx-auto grid max-w-3xl gap-4 sm:grid-cols-2">
             <PricingTier
               name="Free"
               price="$0"
@@ -210,11 +126,9 @@ export default function Landing() {
 
       {/* ── FOOTER ── */}
       <footer className="glass-bar border-t border-line/60">
-        <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-8 sm:flex-row sm:items-center sm:justify-between">
+        <div className="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
           <Logo size={28} />
           <nav className="flex flex-wrap gap-5 text-sm text-haze">
-            <a href="#features" className="hover:text-text">For you</a>
-            <a href="#modes" className="hover:text-text">Suite</a>
             <Link href="/editions" className="hover:text-text">Editions</Link>
             <a href="#pricing" className="hover:text-text">Pricing</a>
             <Link href="/app" className="hover:text-text">Open App</Link>
@@ -226,7 +140,7 @@ export default function Landing() {
             support@waterfalltechnologies.net
           </a>
         </div>
-        <div className="border-t border-line/60 px-4 py-4 text-center text-xs text-haze">
+        <div className="border-t border-line/60 px-4 py-2 text-center text-xs text-haze">
           © {new Date().getFullYear()} RTAI — Real-Time Audio Intelligence. A
           Waterfall Technologies product.
         </div>

@@ -93,7 +93,7 @@ export function BottomNav({
   }
 
   return (
-    <nav className="glass-bar fixed inset-x-0 bottom-0 z-40 border-t border-line lg:hidden">
+    <nav className="glass-bar fixed inset-x-0 bottom-0 z-40 border-t border-line pb-[env(safe-area-inset-bottom)] lg:hidden">
       <div className="flex snap-x snap-mandatory overflow-x-auto">
         {TABS.map((t) => {
           const locked = !unlocked(t, edition);

@@ -55,7 +55,10 @@ export default function EditionsPage() {
           name="description"
           content="Compare Free, Pro, and Studio editions of RTAI — Real-Time Audio Intelligence — from real-time spectrum to full impulse-response acoustics."
         />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta
+          name="viewport"
+          content="width=device-width, initial-scale=1, viewport-fit=cover"
+        />
       </Head>
 
       <TopNav />

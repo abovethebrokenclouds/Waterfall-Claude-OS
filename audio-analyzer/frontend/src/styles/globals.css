@@ -6,6 +6,13 @@ html,
 body {
   padding: 0;
   margin: 0;
+  /* Guard against wide elements (e.g. the hero aura's negative insets) causing
+     a horizontal scrollbar on small screens. `clip` prevents the scroll
+     WITHOUT turning body into a scroll container — so it doesn't break the
+     `position: sticky` nav bars the way `overflow-x: hidden` would. `hidden`
+     is the fallback for engines without `clip`. */
+  overflow-x: hidden;
+  overflow-x: clip;
   background: #0c0a12;
   color: #ede7f2;
   font-family:
@@ -125,6 +132,29 @@ body::after {
     backdrop-filter: blur(18px) saturate(140%);
     -webkit-backdrop-filter: blur(18px) saturate(140%);
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  }
+
+  /* Cinematic "studio light & haze" backdrop — a fixed, palette-safe layer of
+     stacked stage lights (amber key, violet rim, rose wash, faint teal depth)
+     plus a few soft bokeh orbs, over an ink base. Low opacity so body text and
+     glass panels keep WCAG-AA contrast. Static — no animation, so it is
+     unaffected by prefers-reduced-motion. Sits behind content (z-index -1);
+     the film-grain body::after still overlays everything. */
+  .cinematic-bg {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background-color: #0c0a12;
+    background-image:
+      radial-gradient(38% 30% at 82% 6%, rgba(246, 166, 35, 0.2), transparent 70%),
+      radial-gradient(42% 34% at 10% 14%, rgba(168, 85, 247, 0.18), transparent 70%),
+      radial-gradient(70% 45% at 50% 116%, rgba(255, 107, 138, 0.16), transparent 70%),
+      radial-gradient(30% 24% at 66% 60%, rgba(45, 212, 191, 0.06), transparent 70%),
+      radial-gradient(10% 10% at 24% 42%, rgba(255, 195, 107, 0.12), transparent 70%),
+      radial-gradient(8% 8% at 74% 34%, rgba(255, 107, 138, 0.1), transparent 70%),
+      radial-gradient(9% 9% at 58% 80%, rgba(168, 85, 247, 0.1), transparent 70%),
+      linear-gradient(180deg, #0c0a12 0%, #130e1a 46%, #0c0a12 100%);
   }
 }
 
