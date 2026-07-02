@@ -1,6 +1,6 @@
 # Workflows
 
-Step-by-step professional measurement workflows in RTA Insight Pro, with
+Step-by-step professional measurement workflows in RTAI, with
 concrete numbers from the same two recurring scenarios used throughout the docs —
 **tuning a live PA** and **a home studio / room** (see
 [measurement-modes.md](measurement-modes.md)). Each workflow notes the edition it
@@ -91,7 +91,7 @@ clap / balloon pop / interrupted pink noise) and a measurement mic.
 reference if you need absolute dB).
 
 > These are engineering measurements and a record of level over time — **not**
-> a hearing-safety judgment. RTA Insight Pro gives no exposure or health advice.
+> a hearing-safety judgment. RTAI gives no exposure or health advice.
 
 1. **Calibrate** (for absolute dB SPL): set the **calibration offset** from a
    known reference (e.g. a 94 dB / 1 kHz source). Skip it and the log is

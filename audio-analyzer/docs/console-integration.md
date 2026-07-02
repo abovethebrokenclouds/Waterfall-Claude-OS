@@ -1,6 +1,6 @@
 # Console Integration
 
-RTA Insight Pro can read a mixing console's channel state and metering — and, on
+RTAI can read a mixing console's channel state and metering — and, on
 explicit user action, write control changes back — so a measurement can be tied
 to the actual console settings that produced it. A browser cannot speak OSC, TCP,
 HiQnet, EUCON, or UCNET, so this works through the **RTA Bridge**: a small Node
@@ -30,7 +30,7 @@ bash .claude/skills/console-control-integration/scan-console-integration.sh
    bridge/src/model.ts               normalizes → ConsoleChannel / MeterFrame
    │  ONE normalized WebSocket JSON API   (the only thing the app sees)
    ▼
- RTA Insight Pro web app  (browser, pure WS client — speaks no OSC)
+ RTAI web app  (browser, pure WS client — speaks no OSC)
    frontend/src/lib/integration/model.ts          the same normalized model
    frontend/src/lib/integration/bridge-protocol.ts the WS contract + validators
    frontend/src/lib/integration/transport.ts      WS client + SimulatedTransport

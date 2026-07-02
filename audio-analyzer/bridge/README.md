@@ -2,7 +2,7 @@
 
 A Node.js **sidecar** that runs on the same LAN as your audio consoles and
 digital-audio-network gear. A browser cannot speak OSC, UDP, TCP, HiQnet, or run
-mDNS — so the **RTA Insight Pro** web app never talks to hardware directly.
+mDNS — so the **RTAI** web app never talks to hardware directly.
 Instead, the bridge speaks the real vendor protocols, **normalizes** them into
 one vendor-neutral model, and exposes **one versioned WebSocket JSON API** to the
 app.
@@ -18,7 +18,7 @@ app.
    src/server.ts    ONE normalized WebSocket JSON API
    │  ws://host:8088
    ▼
- RTA Insight Pro web app (browser — measurement engine + UI)
+ RTAI web app (browser — measurement engine + UI)
 ```
 
 ## Two-process architecture

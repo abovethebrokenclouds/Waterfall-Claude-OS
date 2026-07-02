@@ -1,7 +1,7 @@
 ---
 name: audio-dsp-measurement
 description: >-
-  Guide and validate the DSP/measurement layer of the RTA Insight Pro audio
+  Guide and validate the DSP/measurement layer of the RTAI audio
   analyzer — FFT sizing & windowing (Hann/Blackman-Harris, overlap, zero-pad),
   fractional-octave smoothing (1/1, 1/3, 1/6, 1/12, 1/24), A/C/Z frequency
   weighting, SPL / Leq / time-weighting (Fast/Slow/Impulse), RT60 via Schroeder
@@ -19,7 +19,7 @@ description: >-
 
 # Audio DSP & Measurement
 
-The measurement core of RTA Insight Pro. Measurement code must be **correct
+The measurement core of RTAI. Measurement code must be **correct
 first** — a pretty spectrum that reads 3 dB high is worse than no meter. This
 skill captures the right approach for each measurement, the pitfalls that
 silently corrupt results, and the module/test layout the app expects.

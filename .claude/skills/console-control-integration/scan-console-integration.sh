@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Coverage check for the RTA Insight Pro console-control integration layer.
+# Coverage check for the RTAI console-control integration layer.
 # Scans audio-analyzer/frontend/src/lib/integration/ (and the bridge adapters,
 # if present) for the normalized model, the OSC codec, and the per-vendor
 # console adapters + their tests. Prints "[SEV] source: detail" findings and

@@ -2,7 +2,7 @@
   "name": "rta-bridge",
   "version": "1.0.0",
   "private": true,
-  "description": "RTA Bridge — LAN sidecar that speaks real audio-console / audio-network protocols (OSC/UDP, mDNS) and exposes one versioned WebSocket JSON API to the RTA Insight Pro web app.",
+  "description": "RTA Bridge — LAN sidecar that speaks real audio-console / audio-network protocols (OSC/UDP, mDNS) and exposes one versioned WebSocket JSON API to the RTAI web app.",
   "license": "UNLICENSED",
   "type": "commonjs",
   "main": "dist/index.js",

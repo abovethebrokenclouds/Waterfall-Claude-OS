@@ -1,6 +1,6 @@
 # Architecture
 
-RTA Insight Pro is a browser-resident measurement application. All signal
+RTAI is a browser-resident measurement application. All signal
 acquisition, DSP, and rendering happen on the client; an optional backend exists
 only for session sync and PDF report generation. This document describes the
 layers, the capture loop, the per-mode data flow, the constraints imposed by

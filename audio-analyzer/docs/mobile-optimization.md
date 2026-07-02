@@ -1,6 +1,6 @@
 # Mobile Optimization
 
-RTA Insight Pro is built to run a real-time DSP loop on a **phone**, in a dim
+RTAI is built to run a real-time DSP loop on a **phone**, in a dim
 room, possibly for a whole soundcheck, without draining the battery or dropping
 frames. This document covers the performance strategies, the FFT-size tradeoff,
 battery considerations, Performance Mode, and offline / PWA behavior.
@@ -97,13 +97,13 @@ current resolution are shown so a user knows what they're looking at.
 
 ## Offline / PWA behavior
 
-RTA Insight Pro is **local-first** and works without a network once loaded:
+RTAI is **local-first** and works without a network once loaded:
 
 - **Core measurement is fully offline.** Capture, DSP, all four modes, and local
   session storage need no server. After the app's assets are cached, the
   analyzer runs with no connection.
 - **PWA install (planned).** Packaging as a Progressive Web App lets users add
-  RTA Insight Pro to the home screen and launch it like a native app, with a
+  RTAI to the home screen and launch it like a native app, with a
   service worker caching the app shell so it opens instantly and offline.
 - **Sessions live in `localStorage`.** They persist across reloads on-device with
   no account and no upload. See [privacy-and-data.md](privacy-and-data.md).

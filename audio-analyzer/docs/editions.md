@@ -1,6 +1,6 @@
 # Editions
 
-RTA Insight Pro ships in three editions — **Free**, **Pro**, and **Studio** —
+RTAI ships in three editions — **Free**, **Pro**, and **Studio** —
 that scale from a quick spectrum-and-SPL check to a full professional
 measurement suite. The structure deliberately mirrors the edition philosophy of
 **Rational Acoustics' Smaart v9**, whose tiered lineup (LE → RT → Suite) is the
@@ -130,5 +130,5 @@ and [`spl-logging-leq`](../../.claude/skills/spl-logging-leq/SKILL.md).
 ---
 
 *Edition structure inspired by Rational Acoustics' Smaart v9 (LE / RT / SPL /
-Suite). RTA Insight Pro is an independent product and is not affiliated with or
+Suite). RTAI is an independent product and is not affiliated with or
 endorsed by Rational Acoustics.*

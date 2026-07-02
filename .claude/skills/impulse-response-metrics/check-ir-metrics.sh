@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Coverage check for the RTA Insight Pro Impulse-Response (IR) metrics module.
+# Coverage check for the RTAI Impulse-Response (IR) metrics module.
 # Scans audio-analyzer/frontend/src/lib/dsp/ for an `ir-metrics` module + its
 # unit test, and warns when the expected metric functions
 # (rt60/edt/c50/c80/d50/sti) appear absent from it. Prints "[SEV] source:detail"

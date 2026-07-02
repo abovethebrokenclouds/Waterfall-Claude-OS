@@ -1,6 +1,6 @@
 # Privacy & Data
 
-RTA Insight Pro is **local-first**. Audio is analyzed in your browser, on your
+RTAI is **local-first**. Audio is analyzed in your browser, on your
 device, and is **not uploaded by default**. Measurement sessions live in your
 browser's `localStorage`. Nothing leaves the device unless you explicitly export
 or sync. This document explains exactly what is stored, how audio and
@@ -19,7 +19,7 @@ measurement data are handled, and the control you have over export and deletion.
 | **Permission state** | Managed by the browser, not the app | When you grant/deny mic access |
 
 There is **no account and no server** in the default experience. Clearing your
-browser's site data for RTA Insight Pro removes everything above.
+browser's site data for RTAI removes everything above.
 
 ---
 
@@ -92,12 +92,12 @@ platform's shared Super Agent — never a raw model call from app code.
 
 ## Scope and disclaimers
 
-- RTA Insight Pro is an **audio analysis and measurement** tool. It stores
+- RTAI is an **audio analysis and measurement** tool. It stores
   measurement data and settings, not personal or account data, in the default
   experience.
 - SPL and other figures are **measurements** presented for engineering use. The
   app provides **no** hearing-health, exposure, medical, or safety guidance.
-- RTA Insight Pro is **not certified** to any IEC or ISO standard. Alignment with
+- RTAI is **not certified** to any IEC or ISO standard. Alignment with
   the relevant measurement standards is a stated roadmap goal, not a present
   claim — see the README roadmap.
 

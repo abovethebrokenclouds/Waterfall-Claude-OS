@@ -1,6 +1,6 @@
 # Audio Interface Integration
 
-RTA Insight Pro captures audio through the browser's `MediaDevices` API, so it
+RTAI captures audio through the browser's `MediaDevices` API, so it
 works with whatever input the operating system exposes — the built-in mic, a USB
 audio interface, a class-compliant measurement mic, or (where supported) a
 network / WebRTC source. This document covers supported device types, how the
@@ -17,7 +17,7 @@ bash .claude/skills/audio-device-integration/scan-audio-io.sh
 ## Measurement-grade capture (why this matters)
 
 A measurement mic must receive the **unaltered** signal. By default browsers turn
-on voice-call processing, which silently corrupts every reading. RTA Insight Pro
+on voice-call processing, which silently corrupts every reading. RTAI
 always requests capture with that processing **off**:
 
 ```ts

@@ -1,7 +1,7 @@
 ---
 name: spl-logging-leq
 description: >-
-  SPL metering & logging parity for RTA Insight Pro's SPL / Studio editions
+  SPL metering & logging parity for RTAI's SPL / Studio editions
   (Smaart SPL parity) — A/C/Z frequency weighting, Fast/Slow/Impulse time-
   weighting, equivalent level (Leq) and Lmax/Lmin, statistical percentiles
   (L10/L90/Ln), sound-exposure / dose framing (MEASUREMENT ONLY — no hearing-
@@ -16,7 +16,7 @@ description: >-
 
 # SPL Logging & Leq
 
-RTA Insight Pro's **SPL** and **Studio** editions provide SPL metering with
+RTAI's **SPL** and **Studio** editions provide SPL metering with
 **logging**, mirroring Smaart's SPL mode: weighted, time-weighted sound-pressure
 level plus the time-integrated and statistical metrics a show or a survey needs,
 logged over a session and exported. Everything here is **measurement for
