@@ -15,9 +15,11 @@ export function rms(samples: ArrayLike<number>): number {
 /**
  * Convert an RMS amplitude (0..1 full scale) to dB SPL.
  * `calibrationOffset` is the measured dB SPL that corresponds to 0 dBFS RMS
- * (i.e. an RMS of 1.0). A typical calibrated phone mic might use ~120.
+ * (i.e. an RMS of 1.0). A typical calibrated phone mic might use ~120. The
+ * default matches the app's uncalibrated fallback (`DEFAULT_CAL_OFFSET` in
+ * lib/calibration.ts) so a caller that omits the offset agrees with the UI.
  */
-export function rmsToDbSpl(rmsValue: number, calibrationOffset = 94): number {
+export function rmsToDbSpl(rmsValue: number, calibrationOffset = 100): number {
   if (rmsValue <= 0) return 0;
   const dbfs = 20 * Math.log10(rmsValue);
   return dbfs + calibrationOffset;
@@ -26,7 +28,7 @@ export function rmsToDbSpl(rmsValue: number, calibrationOffset = 94): number {
 /** Convenience: compute dB SPL directly from a sample buffer. */
 export function bufferDbSpl(
   samples: ArrayLike<number>,
-  calibrationOffset = 94,
+  calibrationOffset = 100,
 ): number {
   return rmsToDbSpl(rms(samples), calibrationOffset);
 }

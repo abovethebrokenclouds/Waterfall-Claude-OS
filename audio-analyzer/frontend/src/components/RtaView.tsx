@@ -522,8 +522,18 @@ export function RtaView({
             </select>
           )}
         </label>
-        <span className="ml-auto font-mono text-xs text-haze">
-          {F_MIN} Hz – {F_MAX / 1000} kHz
+        <span className="ml-auto flex items-center gap-2">
+          {audio.isCalibrated && (
+            <span
+              className="rounded-full bg-amber/15 px-2.5 py-0.5 font-mono text-[11px] font-semibold text-amber-soft"
+              title="Microphone calibrated for absolute dB SPL (set in the SPL meter)."
+            >
+              cal +{audio.calibrationOffset.toFixed(0)} dB
+            </span>
+          )}
+          <span className="font-mono text-xs text-haze">
+            {F_MIN} Hz – {F_MAX / 1000} kHz
+          </span>
         </span>
       </div>
 
